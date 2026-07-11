@@ -72,6 +72,10 @@ WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0}
 # mega-hubs (a podcast host with hundreds of guests) when a lower-degree
 # alternative exists. 0 disables it.
 DEGREE_PENALTY_COEF = float(os.environ.get("VCWI_DEGREE_PENALTY_COEF", "0.6"))
+# Only nodes ABOVE this degree are treated as mega-hubs and penalised (on the
+# excess). A recognisable connector below it pays nothing, so paths run through
+# people you'd actually ask, not obscure low-traffic nodes.
+MEGA_HUB_DEGREE = int(os.environ.get("VCWI_MEGA_HUB_DEGREE", "50"))
 
 # --- pathfinding -----------------------------------------------------------
 CONNECT_DEPTH = int(os.environ.get("VCWI_CONNECT_DEPTH", "2"))

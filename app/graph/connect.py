@@ -78,9 +78,17 @@ def _adjacency(db: Session):
         degree[a] += 1
         degree[b] += 1
 
+    # Penalise ONLY genuine mega-hubs, and only the EXCESS over the threshold.
+    # A flat COEF*ln(deg) charged every node — routing through a normal connector
+    # like Bree Hanson (degree 36) cost +2.15, MORE than a whole tier-2 edge, so
+    # paths detoured through obscure low-degree nobodies to dodge her. Now a
+    # recognisable connector below the threshold pays nothing; only a true funnel
+    # (Harry Stebbings, degree 119) pays a mild surcharge to keep every path from
+    # collapsing onto the same handful of hubs.
+    thr = config.MEGA_HUB_DEGREE
     node_penalty = {
-        pid: config.DEGREE_PENALTY_COEF * math.log(deg)
-        for pid, deg in degree.items() if deg > 1
+        pid: config.DEGREE_PENALTY_COEF * math.log(deg / thr)
+        for pid, deg in degree.items() if deg > thr
     }
     return adj, person_by_id, src_by_id, node_penalty
 
