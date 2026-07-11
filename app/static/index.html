@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warm Intro Pathfinder — Drew Glover</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#161b22; --line:#242c37; --ink:#e6edf3;
+    --muted:#8b949e; --accent:#4ea1ff; --warm:#ffb454; --ok:#3fb950; --bad:#f85149;
+    --t1:#3fb950; --t2:#4ea1ff; --t3:#a371f7; --t4:#d29922; --t5:#8b949e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px}
+  .tab{padding:8px 16px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);border-radius:8px;cursor:pointer;font-size:14px}
+  .tab[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+  .row{display:flex;gap:8px}
+  input{flex:1;padding:11px 13px;background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;color:var(--ink);font-size:15px}
+  input:focus{outline:none;border-color:var(--accent)}
+  button{padding:11px 20px;background:var(--accent);border:0;border-radius:8px;
+    color:#04121f;font-weight:600;cursor:pointer;font-size:15px}
+  button:disabled{opacity:.5;cursor:default}
+  .banner{margin:16px 0;padding:12px 14px;border:1px solid var(--line);
+    border-left:3px solid var(--warm);border-radius:6px;background:var(--panel);
+    color:var(--muted);font-size:13px}
+  .banner b{color:var(--ink);font-weight:600}
+  .route{margin:20px 0;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel);overflow:hidden}
+  .route-hd{display:flex;justify-content:space-between;align-items:center;
+    padding:11px 16px;border-bottom:1px solid var(--line);font-size:13px}
+  .route-hd .n{font-weight:600}
+  .score{color:var(--muted)}
+  .chain{padding:8px 16px 16px}
+  .person{display:flex;align-items:center;gap:8px;padding:8px 0;font-weight:600}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+  .person.warm .dot{background:var(--warm)}
+  .star{color:var(--warm);font-size:12px;font-weight:500}
+  .link{margin-left:4px;padding:2px 0 10px 12px;border-left:2px solid var(--line)}
+  .why{font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tier{font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600;
+    border:1px solid currentColor}
+  .t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}
+  .t4{color:var(--t4)}.t5{color:var(--t5)}
+  .ev{color:var(--muted);font-size:12.5px;font-style:italic;margin-top:5px}
+  .src{font-size:12px;margin-top:4px}
+  .src a{color:var(--accent);text-decoration:none;word-break:break-all}
+  .src a:hover{text-decoration:underline}
+  .msg{padding:16px;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel);color:var(--muted);font-size:14px}
+  .msg.err{border-left:3px solid var(--bad)}
+  ul.nb{list-style:none;padding:0;margin:16px 0 0}
+  ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;
+    border:1px solid var(--line);border-radius:8px;margin-bottom:7px;
+    background:var(--panel);font-size:14px}
+  ul.nb .via{color:var(--muted);font-size:12.5px}
+  .spin{color:var(--muted);font-size:14px;padding:16px}
+  footer{margin-top:40px;color:var(--muted);font-size:12px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Warm Intro Pathfinder</h1>
+  <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
+    <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
+    <button class="tab" id="tab-tree"     role="tab" aria-selected="false" onclick="mode('tree')">Tree</button>
+    <button class="tab" id="tab-compare"  role="tab" aria-selected="false" onclick="mode('compare')">Compare</button>
+  </div>
+
+  <div class="row">
+    <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
+    <button id="go" onclick="run()">Find path</button>
+  </div>
+
+  <div class="banner">
+    <b>What this shows.</b> Every hop comes from a source that <i>structurally asserts</i> the
+    relationship — a team roster, a podcast episode, an SEC filing, a Wikidata claim.
+    Two names appearing on the same page is <b>not</b> a relationship, and never creates a hop.
+    Paths are real but <b>unverified</b>: confirm before asking for the intro.
+    Coverage is the <b>VC/startup world</b>, not the general public.
+  </div>
+
+  <div id="out"></div>
+
+  <footer>
+    Warmth tiers — <span class="t1">1</span> demonstrated (podcast, co-founder, direct connection) ·
+    <span class="t2">2</span> same small firm / shared board ·
+    <span class="t3">3</span> investor–founder ·
+    <span class="t4">4</span> shared portfolio or employer ·
+    <span class="t5">5</span> weak affiliation.
+    <span class="star">★</span> marks Drew's real first degree.
+  </footer>
+</div>
+
+<script>
+let MODE = 'connect';
+
+const MODES = {
+  connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
+  discover: {placeholder: 'Whose neighborhood? (blank = Drew Glover)',        button: 'Discover'},
+  tree:     {placeholder: "Whose network? e.g. Sam Altman",                   button: 'Build tree'},
+  compare:  {placeholder: "Compare whose network to Drew's? e.g. Sam Altman", button: 'Compare'},
+};
+
+function mode(m){
+  MODE = m;
+  for (const key of Object.keys(MODES)) {
+    document.getElementById('tab-' + key).ariaSelected = (m === key);
+  }
+  document.getElementById('q').placeholder = MODES[m].placeholder;
+  document.getElementById('go').textContent = MODES[m].button;
+  document.getElementById('out').innerHTML = '';
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const NEEDS_NAME = new Set(['connect', 'tree', 'compare']);
+
+const ENDPOINT = {
+  connect:  q => `/connect?target=${encodeURIComponent(q)}`,
+  discover: q => `/discover?person=${encodeURIComponent(q)}`,
+  tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2`,
+  compare:  q => `/compare?person=${encodeURIComponent(q)}&radius=3&limit=6`,
+};
+
+const RENDER = {
+  connect: renderPaths, discover: renderNeighborhood,
+  tree: renderTree, compare: renderCompare,
+};
+
+async function run(){
+  const q = document.getElementById('q').value.trim();
+  const out = document.getElementById('out');
+  const btn = document.getElementById('go');
+  if (NEEDS_NAME.has(MODE) && !q){
+    out.innerHTML = '<div class="msg">Enter a name.</div>'; return;
+  }
+
+  btn.disabled = true;
+  out.innerHTML = '<div class="spin">Pulling structured sources…</div>';
+  try {
+    const res  = await fetch(ENDPOINT[MODE](q));
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    out.innerHTML = RENDER[MODE](data);
+  } catch (err) {
+    out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function renderPaths(d){
+  if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
+  return d.paths.map((p, i) => {
+    const hops = p.path.map(n => {
+      const link = n.relationship_from_prev ? `
+        <div class="link">
+          <div class="why">
+            <span class="tier t${n.warmth_tier}">tier ${n.warmth_tier}</span>
+            <span>${esc(n.why)}</span>
+          </div>
+          ${n.evidence_snippet ? `<div class="ev">“${esc(n.evidence_snippet)}”</div>` : ''}
+          ${n.source_url ? `<div class="src"><a href="${esc(n.source_url)}" target="_blank" rel="noopener">${esc(n.source_url)}</a></div>` : ''}
+        </div>` : '';
+      return `${link}
+        <div class="person${n.is_warm ? ' warm' : ''}">
+          <span class="dot"></span>${esc(n.label)}
+          ${n.is_warm ? '<span class="star">★ first degree</span>' : ''}
+        </div>`;
+    }).join('');
+    return `<div class="route">
+      <div class="route-hd">
+        <span class="n">Route ${i + 1} — ${p.hops} hop${p.hops === 1 ? '' : 's'}</span>
+        <span class="score">warmth ${p.warmth_score}</span>
+      </div>
+      <div class="chain">${hops}</div>
+    </div>`;
+  }).join('');
+}
+
+// One hop of a chain: why it exists, quoted evidence, and the page asserting it.
+function hopBlock(h){
+  return `<div class="link">
+      <div class="why">
+        <span class="tier t${h.warmth_tier}">tier ${h.warmth_tier}</span>
+        <span>${esc(h.why)}</span>
+      </div>
+      ${h.evidence_snippet ? `<div class="ev">“${esc(h.evidence_snippet)}”</div>` : ''}
+      ${h.source_url ? `<div class="src"><a href="${esc(h.source_url)}" target="_blank" rel="noopener">${esc(h.source_url)}</a></div>` : ''}
+    </div>
+    <div class="person"><span class="dot"></span>${esc(h.label)}</div>`;
+}
+
+function chainBlock(root, chain){
+  return `<div class="chain">
+      <div class="person"><span class="dot"></span>${esc(root)}</div>
+      ${chain.map(hopBlock).join('')}
+    </div>`;
+}
+
+function renderTree(d){
+  const walk = (n, depth) => {
+    const kids = n.children || [];
+    const head = depth === 0
+      ? `<div class="person${n.is_warm ? ' warm' : ''}"><span class="dot"></span>${esc(n.label)}</div>`
+      : hopBlock({warmth_tier: n.warmth_tier, why: n.why,
+                  evidence_snippet: n.evidence_snippet, source_url: n.source_url,
+                  label: n.label});
+    const body = kids.map(k => `<div style="margin-left:14px">${walk(k, depth + 1)}</div>`).join('');
+    return head + body;
+  };
+  const bound = d.max_hops ? `within ${d.max_hops} hops` : 'reachable (no hop limit)';
+  const hubs = (d.hubs || []).slice(0, 4).map(h =>
+    `<li><span>${esc(h.label)} <div class="via">${h.hops} hop${h.hops === 1 ? '' : 's'} away</div></span>
+         <span class="score">introduces ${h.introduces}</span></li>`).join('');
+  return `<div class="route">
+      <div class="route-hd">
+        <span class="n">${esc(d.person)} — ${d.reachable} people ${bound}</span>
+        <span class="score">tiers ${esc(JSON.stringify(d.by_tier))}</span>
+      </div>
+      <div class="chain">${walk(d.tree, 0)}</div>
+    </div>
+    ${hubs ? `<div class="banner"><b>Who introduces the most people</b></div><ul class="nb">${hubs}</ul>` : ''}`;
+}
+
+function renderCompare(d){
+  const a = esc(d.person_a), b = esc(d.person_b);
+  const link = d.directly_connected
+    ? `They are connected: <b>${d.hops_between} hops</b> apart.`
+    : 'No structural chain connects them.';
+  const head = `<div class="route">
+      <div class="route-hd"><span class="n">${a} vs ${b}</span>
+        <span class="score">radius ${d.radius}</span></div>
+      <div class="chain">
+        <div class="why"><span>${a} reaches <b>${d.reach_a}</b> · ${b} reaches <b>${d.reach_b}</b></span></div>
+        <div class="why"><span>shared <b>${d.shared}</b> (${d.overlap_pct}% of their combined networks)</span></div>
+        <div class="ev">${link}</div>
+      </div>
+    </div>`;
+
+  if (!d.mutual_contacts.length){
+    return head + '<div class="msg">No mutual contacts within this radius.</div>';
+  }
+  const contacts = d.mutual_contacts.map(m => `
+    <div class="route">
+      <div class="route-hd">
+        <span class="n">${esc(m.label)}${m.is_warm ? ' <span class="star">★</span>' : ''}</span>
+        <span class="score">score ${m.introduction_score} · ${m.hops_from_a}h / ${m.hops_from_b}h</span>
+      </div>
+      <div class="chain">
+        <div class="why"><span>via ${a}</span></div>
+        ${chainBlock(d.person_a, m.chain_from_a)}
+        <div class="why"><span>via ${b}</span></div>
+        ${chainBlock(d.person_b, m.chain_from_b)}
+      </div>
+    </div>`).join('');
+  return head + `<div class="banner"><b>Mutual contacts</b> — cheapest introduction from both sides.</div>` + contacts;
+}
+
+function renderNeighborhood(d){
+  if (!d.neighborhood.length) return '<div class="msg">Nobody reachable yet — try seeding the graph.</div>';
+  return `<ul class="nb">` + d.neighborhood.map(p => `
+    <li>
+      <span>${esc(p.label)} ${p.is_warm ? '<span class="star">★</span>' : ''}
+        <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
+      </span>
+      <span class="score">${p.warmth_score}</span>
+    </li>`).join('') + `</ul>`;
+}
+
+document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+</script>
+</body>
+</html>
