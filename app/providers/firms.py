@@ -30,7 +30,7 @@ from .. import config, extract
 from ..edges.names import normalize, org_norm_key, person_norm_key
 from . import cache
 from .base import fetch_page
-from .htmltext import soup_of, text_blocks
+from .htmltext import jsonld_names, soup_of, text_blocks
 
 # Path segments that mark a page as a roster of people.
 #
@@ -56,6 +56,21 @@ _BLOCKED_HOSTS = ("linkedin.com", "twitter.com", "x.com", "facebook.com",
 # Tokens too generic to identify a firm on a page.
 _GENERIC_FIRM_TOKENS = {"ventures", "capital", "partners", "fund", "funds",
                         "group", "management", "the", "and", "vc", "llc", "lp"}
+
+
+def _fetch_readable(url: str):
+    """Fetch `url`, falling back to a headless render if the plain GET returns a
+    JavaScript shell (no readable text blocks). Rendering is optional: when the
+    browser is unavailable this is just the plain fetch."""
+    page = fetch_page(url)
+    if page.status_code == 200 and text_blocks(page.content):
+        return page
+    from .browser import available as _browser_available
+    if _browser_available():
+        rendered = fetch_page(url, render=True)
+        if rendered.content and text_blocks(rendered.content):
+            return rendered
+    return page
 
 
 def _host(url: str) -> str:
@@ -255,7 +270,9 @@ class FirmsProvider:
 
         url = ""
         for candidate in candidates:
-            page = fetch_page(candidate)
+            # Render if needed: a JS-shell team page would otherwise fail the
+            # belongs-to-firm check and the whole firm would be discarded.
+            page = _fetch_readable(candidate)
             if page.status_code == 200 and page.content and \
                     page_belongs_to_firm(candidate, page.content, firm_name):
                 url = candidate
@@ -278,22 +295,35 @@ class FirmsProvider:
         if cached is not None:
             return cached
 
-        page = fetch_page(url)
+        page = _fetch_readable(url)
         if page.status_code != 200 or not page.content:
             return out
         if firm_name and not page_belongs_to_firm(url, page.content, firm_name):
             return out  # Guard 2: this page is not this firm's
 
-        # Per-element blocks, never one flattened string: a roster puts each
+        from ..graph.builder import clean_person_names
+
+        # Prefer schema.org Person data when present — machine-readable and the
+        # cleanest roster source. Bonfire's team names live ONLY in a JSON-LD
+        # graph, never in a visible text node, so block-scraping finds nothing.
+        jsonld = clean_person_names(jsonld_names(page.content, "Person"))
+
+        # Else per-element blocks, never one flattened string: a roster puts each
         # name in its own cell, and flattening glues neighbouring "Email" /
         # "Linkedin" labels onto it.
         blocks = text_blocks(page.content)
-        if not blocks:
+        if not jsonld and not blocks:
             return out  # a JS-rendered shell asserts nothing we can read
 
         # Deterministic name shape first, then grammar (POS accepts, NER vetoes).
-        from ..graph.builder import clean_person_names
-        names = extract.filter_person_blocks(clean_person_names(blocks))
+        scraped = extract.filter_person_blocks(clean_person_names(blocks))
+        # JSON-LD names are already authoritative; union, JSON-LD first.
+        names, seen = [], set()
+        for n in jsonld + scraped:
+            k = n.lower()
+            if k not in seen:
+                seen.add(k)
+                names.append(n)
 
         out["firm"] = firm_name or firm_name_from_page(page.content, url)
         out["members"] = names[: config.MAX_ROSTER_MEMBERS]
@@ -331,7 +361,7 @@ class FirmsProvider:
 
         url = ""
         for candidate in candidates:
-            page = fetch_page(candidate)
+            page = _fetch_readable(candidate)
             if page.status_code == 200 and page.content and \
                     page_belongs_to_firm(candidate, page.content, firm_name):
                 url = candidate
@@ -359,7 +389,7 @@ class FirmsProvider:
         if cached is not None:
             return cached
 
-        page = fetch_page(url)
+        page = _fetch_readable(url)
         if page.status_code != 200 or not page.content:
             return out
         if firm_name and not page_belongs_to_firm(url, page.content, firm_name):
@@ -447,7 +477,7 @@ class FirmsProvider:
             if target not in {person_norm_key(m) for m in members}:
                 continue  # Guard 3: this roster does not name them
 
-            page = fetch_page(url)
+            page = _fetch_readable(url)
             firm = firm_name_from_page(page.content, url)
             if not firm:
                 continue

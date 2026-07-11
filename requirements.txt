@@ -8,3 +8,9 @@ python-multipart
 spacy>=3.7,<3.8
 # model: python -m spacy download en_core_web_sm
 pytest>=8.0
+
+# OPTIONAL: headless-browser rendering for JavaScript-only firm pages
+# (Precursor, Upfront, QED...). The system runs without it — those rosters
+# just scrape empty. Enable with:
+#   pip install playwright && python -m playwright install chromium
+# playwright>=1.40

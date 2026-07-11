@@ -613,6 +613,78 @@ def test_aggregators_are_not_announcements():
     assert not _is_blocked("https://www.splitero.com/blog/series-a-funding")
 
 
+# --- JSON-LD schema.org Person extraction ---------------------------------
+def test_jsonld_names_extracts_person_graph():
+    """Bonfire's team names live only in a schema.org Person graph, never in a
+    visible text node — so this is the roster's real source."""
+    from app.providers.htmltext import jsonld_names
+
+    html = ('<script type="application/ld+json">'
+            '{"@context":"https://schema.org","@graph":['
+            '{"@type":"Person","name":"Mark Mullen","jobTitle":"Co-founder"},'
+            '{"@type":"Person","name":"Jim Andelman"},'
+            '{"@type":"Organization","name":"Bonfire Ventures"}]}'
+            '</script>')
+    assert jsonld_names(html, "Person") == ["Mark Mullen", "Jim Andelman"]
+    assert jsonld_names(html, "Organization") == ["Bonfire Ventures"]
+
+
+def test_jsonld_names_handles_a_bare_object_and_bad_json():
+    from app.providers.htmltext import jsonld_names
+    assert jsonld_names('<script type="application/ld+json">'
+                        '{"@type":"Person","name":"Solo Person"}</script>',
+                        "Person") == ["Solo Person"]
+    assert jsonld_names('<script type="application/ld+json">{bad json</script>') == []
+    assert jsonld_names("<html>no ld+json here</html>") == []
+
+
+# --- headless render fallback: only when the plain fetch is a JS shell -----
+def test_render_fallback_only_fires_on_a_shell(monkeypatch):
+    """A plain fetch that already yields readable text is used as-is; a shell
+    (a JS-only page) triggers the headless render. Rendering is never paid for
+    when the cheap path worked."""
+    from app.providers import firms
+    from app.providers.base import Page
+
+    calls = {"plain": 0, "rendered": 0}
+
+    def fake_fetch(url, render=False):
+        if render:
+            calls["rendered"] += 1
+            return Page(url=url, content="<div>Charles Hudson</div>",
+                        status_code=200)
+        calls["plain"] += 1
+        # a shell for /team, real content for /good
+        content = "" if "team" in url else "<div>Real Person</div>"
+        return Page(url=url, content=content, status_code=200)
+
+    monkeypatch.setattr(firms, "fetch_page", fake_fetch)
+    monkeypatch.setattr("app.providers.browser.available", lambda: True)
+
+    # readable page: no render
+    firms._fetch_readable("https://x.vc/good")
+    assert calls == {"plain": 1, "rendered": 0}
+
+    # shell page: falls back to render
+    page = firms._fetch_readable("https://x.vc/team")
+    assert calls == {"plain": 2, "rendered": 1}
+    assert "Charles Hudson" in page.content
+
+
+def test_render_fallback_is_a_noop_without_a_browser(monkeypatch):
+    """With no browser installed, a shell just stays empty — the system runs
+    without the optional dependency."""
+    from app.providers import firms
+    from app.providers.base import Page
+
+    monkeypatch.setattr(firms, "fetch_page",
+                        lambda url, render=False: Page(url=url, content="",
+                                                       status_code=200))
+    monkeypatch.setattr("app.providers.browser.available", lambda: False)
+    page = firms._fetch_readable("https://x.vc/team")
+    assert page.content == ""
+
+
 # --- firms: only a roster page asserts a roster ---------------------------
 @pytest.mark.parametrize("url", [
     "https://a16z.com/team/",

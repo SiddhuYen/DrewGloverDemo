@@ -113,13 +113,31 @@ def request_with_retry(method: str, url: str, *, provider: str,
     return last
 
 
-def fetch_page(url: str) -> Page:
-    """Cache-first page fetch, shared across providers and keyed by URL."""
-    key = cache.make_key("page", "fetch", url)
+def fetch_page(url: str, render: bool = False) -> Page:
+    """Cache-first page fetch, shared across providers and keyed by URL.
+
+    `render=True` uses a headless browser to execute the page's JavaScript,
+    recovering the DOM of a single-page-app roster that a plain GET returns empty
+    (Precursor, Upfront, QED...). Rendered and plain results are cached under
+    SEPARATE keys, so a caller can cheaply try the plain fetch first and only pay
+    the render cost when it came back empty. A failed render is never cached — a
+    transient browser error must not disable a page for 30 days.
+    """
+    kind = "rendered" if render else "fetch"
+    key = cache.make_key("page", kind, url)
     cached = cache.get(key)
     if cached is not None:
         return Page(url=url, content=cached.get("content", ""),
                     status_code=cached.get("status_code", 0), from_cache=True)
+
+    if render:
+        from .browser import render_html
+        content, status = render_html(url)
+        if content:
+            cache.set(key, "page", {"content": content, "status_code": status},
+                      config.CACHE_TTL_PAGE)
+        return Page(url=url, content=content, status_code=status, from_cache=False)
+
     resp = request_with_retry("GET", url, provider="fetch")
     content, status = "", 0
     if resp is not None:

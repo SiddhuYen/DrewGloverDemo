@@ -49,6 +49,10 @@ HTTP_RETRY_STATUS = (429, 500, 502, 503, 504)
 MAX_PAGE_CHARS = int(os.environ.get("VCWI_MAX_PAGE_CHARS", "20000"))
 # Raw HTML retained per fetch. Must comfortably exceed a full portfolio grid.
 MAX_HTML_CHARS = int(os.environ.get("VCWI_MAX_HTML_CHARS", "400000"))
+# Headless-browser rendering (optional; see providers/browser.py). Used only as
+# a fallback when a plain fetch yields a JavaScript shell.
+BROWSER_TIMEOUT_S = float(os.environ.get("VCWI_BROWSER_TIMEOUT", "20"))
+BROWSER_SETTLE_S = float(os.environ.get("VCWI_BROWSER_SETTLE", "6"))
 # Serper returns `num` organic results. Five was too thin for round discovery:
 # a firm's announcements are scattered across company blogs and trade press.
 RESULTS_PER_QUERY = int(os.environ.get("VCWI_RESULTS_PER_QUERY", "10"))
