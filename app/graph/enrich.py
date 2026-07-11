@@ -486,7 +486,9 @@ class Enricher:
     def enrich_neighborhood(self, db: Session, name: str, depth: int = 1,
                             progress: Progress = None, *,
                             opposite_component: "set | None" = None,
-                            deadline: "float | None" = None) -> Optional[Person]:
+                            deadline: "float | None" = None,
+                            prefer_notable: bool = False,
+                            fanout: "int | None" = None) -> Optional[Person]:
         """Enrich `name`, then walk its neighbourhood outward, hop by hop.
 
         A multi-hop BFS (ArtemisV2's `expand_graph` shape): each hop enriches a
@@ -507,6 +509,7 @@ class Enricher:
 
         if deadline is None:
             deadline = time.monotonic() + config.ENRICH_TIME_BUDGET_S
+        fanout = fanout or config.ENRICH_FRONTIER_FANOUT
 
         enriched_here, skipped_total = 0, 0
         frontier = [subject]
@@ -534,8 +537,9 @@ class Enricher:
                 return (0 if meets else 1, 0 if via_podcast else 1)
             discovered.sort(key=_cheap_key)
             ranked = rank_frontier(db, discovered[: config.ENRICH_MAX_FRONTIER],
-                                   opposite_component=opposite_component)
-            budgeted = ranked[: config.ENRICH_FRONTIER_FANOUT]
+                                   opposite_component=opposite_component,
+                                   prefer_notable=prefer_notable)
+            budgeted = ranked[: fanout]
 
             next_frontier = []
             for person in budgeted:

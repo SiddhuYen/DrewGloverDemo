@@ -64,32 +64,38 @@ _PODCAST_RELS = ("podcast_guest", "cohost")
 
 def expansion_rank(db: Session, person: Person,
                    arrival_rel: str = "", *,
-                   opposite_component: Optional[Set[str]] = None) -> tuple:
+                   opposite_component: Optional[Set[str]] = None,
+                   prefer_notable: bool = False) -> tuple:
     """Sort key for the expansion frontier. LOWER sorts first (expanded sooner).
 
     Order of precedence:
       1. a confirmed meeting point (in the other side's reachable set) — first;
       2. reached through a PODCAST — a host who interviewed the target has
          interviewed many others, so enriching them fans out toward the media
-         world where ordinary reachable people live. This OVERRIDES the fame
-         gradient: Joe Rogan and Theo Von are famous, but they are precisely the
-         bridges (the gradient alone would demote them and waste the budget on
-         obscure board members who lead nowhere);
-      3. the fame gradient — among the rest, the LESS notable the sooner, walking
-         toward ordinary networks;
-      4. lower current degree — a leaf opens new territory.
+         world. This OVERRIDES the fame direction: Joe Rogan and Theo Von are
+         famous, but they are precisely the bridges;
+      3. the FAME DIRECTION — normally the gradient runs DOWN (less notable
+         first, walking toward ordinary reachable networks). With
+         `prefer_notable` it runs UP: expand the MOST notable, highest-degree
+         people first, to map the seed's famous / out-of-domain network. This is
+         the "push up" mode used to build Drew's famous backbone.
     """
     meets = bool(opposite_component and person.id in opposite_component)
     via_podcast = arrival_rel in _PODCAST_RELS
     notable = is_notable(db, person)
-    return (0 if meets else 1,
-            0 if via_podcast else 1,
-            1 if notable else 0,
-            _degree(db, person))
+    deg = _degree(db, person)
+    if prefer_notable:
+        fame_key = 0 if notable else 1     # famous first
+        deg_key = -deg                     # hubs first
+    else:
+        fame_key = 1 if notable else 0     # famous last (walk down)
+        deg_key = deg                      # leaves first
+    return (0 if meets else 1, 0 if via_podcast else 1, fame_key, deg_key)
 
 
 def rank_frontier(db: Session, candidates, *,
-                  opposite_component: Optional[Set[str]] = None) -> List[Person]:
+                  opposite_component: Optional[Set[str]] = None,
+                  prefer_notable: bool = False) -> List[Person]:
     """Order an expansion frontier; expand the front of the list first.
 
     `candidates` is an iterable of either `Person` or `(Person, arrival_edge)`.
@@ -102,7 +108,8 @@ def rank_frontier(db: Session, candidates, *,
             continue
         rel = edge.relationship_type if edge is not None else ""
         rank = expansion_rank(db, person, rel,
-                              opposite_component=opposite_component)
+                              opposite_component=opposite_component,
+                              prefer_notable=prefer_notable)
         if person.id not in best or rank < best[person.id][0]:
             best[person.id] = (rank, person)
     return [person for _rank, person in sorted(best.values(), key=lambda x: x[0])]

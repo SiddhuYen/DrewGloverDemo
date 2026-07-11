@@ -169,6 +169,25 @@ def test_compare_reports_no_overlap_honestly(db, monkeypatch):
     assert result["directly_connected"] is False
 
 
+def test_fame_gradient_inverts_with_prefer_notable(db, monkeypatch):
+    """Default expansion walks DOWN fame (ordinary first); the push-up backbone
+    build walks UP (famous first). Same ranker, one flag."""
+    from app.graph import bridge
+
+    famous = _p(db, "Famous Person")
+    ordinary = _p(db, "Ordinary Person")
+    # 'famous' has a QID (notable); 'ordinary' does not.
+    monkeypatch.setattr(bridge, "is_notable",
+                        lambda db_, p: p.id == famous.id)
+    monkeypatch.setattr(bridge, "_degree", lambda db_, p: 0)
+
+    down = bridge.rank_frontier(db, [ordinary, famous], prefer_notable=False)
+    assert down[0].id == ordinary.id          # ordinary first (walk down)
+
+    up = bridge.rank_frontier(db, [ordinary, famous], prefer_notable=True)
+    assert up[0].id == famous.id              # famous first (walk up)
+
+
 def test_compare_refuses_the_same_person(db, monkeypatch):
     from app.graph import tree as tree_mod
     drew = _p(db, "Drew Glover")
