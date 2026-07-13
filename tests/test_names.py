@@ -98,6 +98,54 @@ def test_a_name_of_only_role_words_is_not_a_person(role):
     assert clean_person_names([role]) == []
 
 
+ORG_AS_PERSON = [
+    # Regression: "Armchair Umbrella" is Dax Shepard's PRODUCTION COMPANY. It
+    # passed the person-name shape test, became a podcast "host", and fused every
+    # guest of the show — manufacturing a Bill Gates <-> Monica Lewinsky path.
+    "Armchair Umbrella",
+    "The Toboni Team",                 # a real-estate team brand
+    "Jeff Earl Warren Real Estate Team",
+    "fiat.ventures",                   # a firm handle, not a person
+    "Andreessen Horowitz Media",
+    "Dr. Maya Angelou Foundation",
+    "Chef Lowell, LLC",
+]
+
+
+@pytest.mark.parametrize("name", ORG_AS_PERSON)
+def test_an_organisation_name_is_not_a_person(name):
+    assert is_noise_name(name)
+    assert clean_person_names([name]) == []
+    assert not looks_like_person_name(name)
+
+
+TITLE_GLUED = [
+    # A job title left in the INTERIOR of a scraped name (the ends are stripped,
+    # so a title here means the string mashed an org + a person together).
+    "Xbox Co-Founder Ed Fries",
+    "Seth Levine Co-Author",
+    "Samooha Co-Founder Kamakshi Sivaramakrishnan",
+]
+
+
+@pytest.mark.parametrize("name", TITLE_GLUED)
+def test_a_title_glued_into_the_interior_of_a_name_is_rejected(name):
+    assert is_noise_name(name)
+
+
+def test_a_production_company_never_becomes_a_podcast_host():
+    # The exact bug: looks_like_person_name gates who can be a host/guest.
+    assert not looks_like_person_name("Armchair Umbrella")
+    assert looks_like_person_name("Dax Shepard")       # the real host survives
+
+
+@pytest.mark.parametrize("name", ["Co-Founder Jane Doe", "Ed Fries",
+                                  "Sophia Amoruso", "David Neeleman"])
+def test_org_rule_spares_real_people(name):
+    # The person under a stripped edge-title, and plain real names, survive.
+    assert not is_noise_name(strip_role_affixes(name))
+
+
 @pytest.mark.parametrize("name", [
     # One role-ish token does not condemn a name: the test is that EVERY token
     # is a role word. A person may be surnamed Fellow, Board or Chief.

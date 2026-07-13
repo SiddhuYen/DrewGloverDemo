@@ -142,7 +142,7 @@ def looks_like_investor(name: str) -> bool:
     "managing partner" (a role). Angel individuals are real investors but are
     deliberately out of scope: we cannot tell them from a quoted executive.
     """
-    if not name or len(name) > 48 or is_noise_name(name):
+    if not name or len(name) > 48 or is_noise_name(name, org_ok=True):
         return False
     tokens = normalize(name).split()
     if not (1 <= len(tokens) <= 5):

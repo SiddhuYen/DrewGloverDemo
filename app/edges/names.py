@@ -66,7 +66,23 @@ ORG_SUFFIXES = {
     "department": "government", "agency": "government", "commission": "government",
     "committee": "government", "bureau": "government", "ministry": "government",
     "conference": "event", "summit": "event", "forum": "event", "expo": "event",
+    # Media / production / brand words. Grammar can't tell "Armchair Umbrella"
+    # (Dax Shepard's production company, which became a fake podcast "host"
+    # bridging every guest of the show) from a person — both are two proper
+    # nouns — but these tokens never appear in a real personal name.
+    "media": "company", "studios": "company", "studio": "company",
+    "productions": "company", "production": "company", "entertainment": "company",
+    "network": "company", "networks": "company", "podcast": "company",
+    "podcasts": "company", "radio": "company", "umbrella": "company",
+    "team": "company", "collective": "company", "enterprises": "company",
+    "industries": "company", "solutions": "company",
 }
+
+# Job-title tokens that, when they SURVIVE end-stripping (i.e. sit in the
+# interior of a name), mark a scrape that glued a title into a person's name:
+# "Xbox Co-Founder Ed Fries", "Seth Levine Co-Author". `_ROLE_AFFIXES` already
+# covers founder/ceo/etc.; these are the ones it doesn't.
+_EMBEDDED_TITLE = {"author", "coauthor", "host", "cohost"}
 
 # Trailing tokens removed when building an org dedup key. Conservative: legal /
 # structural suffixes only; interior words are never removed.
@@ -201,10 +217,15 @@ def strip_role_affixes(name: str) -> str:
     return " ".join(parts)
 
 
-def is_noise_name(name: str) -> bool:
+def is_noise_name(name: str, *, org_ok: bool = False) -> bool:
     """True if `name` is scraped boilerplate, navigation chrome, or a page-title
     artifact rather than a real named entity — e.g. "Cookie Policy",
-    "Drew Glover - LinkedIn", "Drew Glover | CEO.com"."""
+    "Drew Glover - LinkedIn", "Drew Glover | CEO.com".
+
+    `org_ok=True` keeps organisation names (an org marker like "Ventures" no
+    longer condemns the string) for the one context where an org is the wanted
+    entity, not an impostor person: a co-investor FIRM in a funding round.
+    """
     raw = (name or "").strip()
     if not raw:
         return True
@@ -249,6 +270,20 @@ def is_noise_name(name: str) -> bool:
     # and it can only remove nodes — it can never fabricate an edge.
     if tokens and all(tok in _ROLE_ONLY_TOKENS or tok in _STOPWORDS
                       or tok in _ROLE_AFFIXES_JOINED for tok in tokens):
+        return True
+    # An org / brand / media token means the whole string names an organisation,
+    # not a person: "Armchair Umbrella", "The Toboni Team", "fiat.ventures".
+    # "co" is excluded — it survives from a stripped "Co-Founder" title that
+    # legitimately precedes a real person's name.
+    if not org_ok and any(tok in ORG_SUFFIXES and tok != "co" for tok in tokens):
+        return True
+    # A job title left in the INTERIOR of a name after end-stripping is a glued
+    # scrape: "Xbox Co-Founder Ed Fries" keeps "founder"; "Seth Levine Co-Author"
+    # keeps "author". End titles are stripped first, so a real person carrying
+    # only an edge title ("Co-Founder Jane Doe" -> "Jane Doe") is preserved.
+    resid = normalize(strip_role_affixes(raw)).split()
+    if len(resid) >= 3 and any(t in _ROLE_AFFIXES_JOINED or t in _EMBEDDED_TITLE
+                               for t in resid):
         return True
     return any(tok in _NOISE_TOKENS for tok in tokens)
 
