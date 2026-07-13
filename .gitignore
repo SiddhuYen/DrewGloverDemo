@@ -16,3 +16,6 @@ data/ig_mutuals.json
 data/drew_ig_mutuals.json
 .ig_session
 data/*.progress.json
+.x_session
+data/x_mutuals.json
+data/x_mutuals.progress.json
