@@ -9,3 +9,10 @@ __pycache__/
 venv/
 .pytest_cache/
 .DS_Store
+
+# Instagram scraper session + output (never commit a login session)
+.ig_profile/
+data/ig_mutuals.json
+data/drew_ig_mutuals.json
+.ig_session
+data/*.progress.json

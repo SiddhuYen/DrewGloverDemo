@@ -46,6 +46,7 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "fiat_colleague":     RelationshipSpec(1, "colleagues at Fiat", True),
     "same_firm_partner":  RelationshipSpec(1, "partners at the same firm", True),
     "linkedin_1st":       RelationshipSpec(1, "a direct LinkedIn connection", True),
+    "instagram_mutual":   RelationshipSpec(1, "follow each other on Instagram", True),
 
     # --- tier 2: an ongoing professional tie ------------------------------
     "board_member":       RelationshipSpec(2, "served on the same board", True),
