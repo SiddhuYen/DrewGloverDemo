@@ -471,6 +471,37 @@ def test_a_person_leading_a_round_is_not_an_investor():
     assert parsed["investors"] == ["Sequoia Capital"]
 
 
+def test_round_for_company_reads_a_company_first_announcement(monkeypatch):
+    """Portfolio-first discovery: firm-name search misses a round that leads with
+    the company ("Odynn raises …"); searching the company recovers it."""
+    import types
+    from app.providers import funding as fmod
+    from app.edges.names import org_norm_key
+
+    monkeypatch.setattr(fmod.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(fmod.cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(fmod, "html_to_text", lambda html: html)
+    monkeypatch.setattr(fmod, "fetch_page", lambda url, **k: types.SimpleNamespace(
+        status_code=200,
+        content="Odynn raises $9.5M seed led by Bonfire Ventures and "
+                "co-led by Fiat Ventures."))
+
+    class FakeSearch:
+        def available(self):
+            return True
+
+        def search(self, q):
+            return [types.SimpleNamespace(url="https://news.example/odynn")]
+
+    prov = fmod.FundingProvider(FakeSearch())
+    r = prov.round_for_company("Odynn",
+                               target_firm_key=org_norm_key("Fiat Ventures"))
+    assert r is not None
+    keys = {org_norm_key(n) for n in r["investors"]}
+    assert org_norm_key("Fiat Ventures") in keys
+    assert org_norm_key("Bonfire Ventures") in keys
+
+
 @pytest.mark.parametrize("name,expected", [
     ("Fiat Ventures", True), ("PBJ Capital", True), ("Verraki Partners", True),
     ("Marcos Fernandez", False),     # a person

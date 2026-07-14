@@ -312,3 +312,46 @@ class FundingProvider:
 
         cache.set(key, "rounds", {"rounds": rounds}, config.CACHE_TTL)
         return rounds
+
+    def round_for_company(self, company_name: str,
+                          target_firm_key: str = "") -> Dict[str, object] | None:
+        """The funding round of ONE company, and who invested in it.
+
+        Firm-name search misses rounds whose announcement leads with the company
+        ("Splitero secures $11.7M …") rather than the investor. Walking a firm's
+        portfolio company-by-company recovers those. When `target_firm_key` is
+        given, only a round that actually NAMES that firm as an investor is
+        returned — so we never assume the anchor was in a round it isn't in.
+        """
+        if not company_name or not self._available():
+            return None
+        key = cache.make_key(self.name, "companyround", org_norm_key(company_name))
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("round")
+
+        urls: List[str] = []
+        for query in (f'"{company_name}" raises funding round investors',
+                      f'"{company_name}" "led by" "participation from"',
+                      f'"{company_name}" seed series funding announcement'):
+            for result in self._search.search(query):
+                if not _is_blocked(result.url) and result.url not in urls:
+                    urls.append(result.url)
+
+        best = None
+        for url in urls[:6]:
+            page = fetch_page(url)
+            if page.status_code != 200 or not page.content:
+                continue
+            parsed = parse_round(html_to_text(page.content),
+                                 target_key=target_firm_key)
+            if len(parsed["investors"]) < 2:
+                continue
+            parsed["source_url"] = url
+            keys = {org_norm_key(n) for n in parsed["investors"]}
+            if not target_firm_key or target_firm_key in keys:
+                best = parsed          # a round naming the anchor — take it
+                break
+            best = best or parsed
+        cache.set(key, "companyround", {"round": best}, config.CACHE_TTL)
+        return best
