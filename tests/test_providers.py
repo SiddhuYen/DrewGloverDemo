@@ -351,6 +351,20 @@ def test_cofounders_resolve_by_qid_and_skip_unlabeled(monkeypatch):
     assert out == [{"person_qid": "Q47213", "person_name": "Peter Thiel"}]
 
 
+def test_costars_resolve_by_qid(monkeypatch):
+    """Co-star rows are QID-resolved (parsed from the entity URI) like family."""
+    from app.providers import wikidata as wdmod
+    w = wdmod.WikidataProvider()
+    monkeypatch.setattr(wdmod.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(wdmod.cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(w, "_sparql", lambda q, f: [
+        {"co": "http://www.wikidata.org/entity/Q167768", "coLabel": "Samuel L. Jackson"},
+        {"co": "http://www.wikidata.org/entity/Q1", "coLabel": "Q1"},   # unlabeled
+    ])
+    assert w.costars_for_person("Q358306") == [
+        {"person_qid": "Q167768", "person_name": "Samuel L. Jackson"}]
+
+
 # --- wikipedia: the page title must BE the person -------------------------
 def test_best_title_rejects_a_mismatched_top_hit(monkeypatch):
     """Regression: Wikipedia's top hit for "Drew Glover" resolves to Nikolas

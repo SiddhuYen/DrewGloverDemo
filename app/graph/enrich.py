@@ -166,6 +166,7 @@ class Enricher:
             )
         created += self._from_wikidata_family(db, subject, qid, progress)
         created += self._from_wikidata_cofounders(db, subject, qid, progress)
+        created += self._from_wikidata_entertainment(db, subject, qid, progress)
         if created:
             _note(progress, f"    wikidata: {created} edges")
         return created
@@ -222,6 +223,43 @@ class Enricher:
                 created += 1
         if created:
             _note(progress, f"    cofounders: {created} edges")
+        return created
+
+    def _from_wikidata_entertainment(self, db: Session, subject: Person,
+                                     qid: str, progress: Progress) -> int:
+        """Co-appearance ties for entertainers/athletes: same film cast, same
+        band, same (small) sports team. Each is resolved BY QID and is a real,
+        bounded co-appearance — Drew's Instagram network includes actors,
+        musicians and athletes, so these are their bridges into that world.
+        """
+        source = builder.get_or_create_source(
+            db, f"https://www.wikidata.org/wiki/{qid}",
+            title=subject.canonical_name, provider="structured")
+        specs = (
+            ("co_star", self.wikidata.costars_for_person,
+             "appeared in the same film or show as"),
+            ("bandmate", self.wikidata.bandmates_for_person,
+             "played in the same band as"),
+            ("teammate", self.wikidata.teammates_for_person,
+             "played on the same sports team as"),
+        )
+        created = 0
+        for rtype, fetch, phrase in specs:
+            n = 0
+            for rel in fetch(qid):
+                other = builder.get_or_create_person(
+                    db, rel["person_name"], qid=rel["person_qid"])
+                if other is None or other.id == subject.id:
+                    continue
+                edge = builder.add_edge(
+                    db, subject, other, rtype, source=source,
+                    evidence=(f"Wikidata records that {subject.canonical_name} "
+                              f"{phrase} {other.canonical_name}."))
+                if edge is not None:
+                    n += 1
+            if n:
+                _note(progress, f"    {rtype}: {n} edges")
+            created += n
         return created
 
     def _from_edgar(self, db: Session, subject: Person, progress: Progress) -> int:

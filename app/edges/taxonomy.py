@@ -63,6 +63,9 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "cohost":             RelationshipSpec(3, "co-host the same show", True),
     "colleague":          RelationshipSpec(3, "worked at the same organization", True),
     "family_member":      RelationshipSpec(3, "are family", True),
+    "co_star":            RelationshipSpec(3, "appeared in the same film/show", True),
+    "bandmate":           RelationshipSpec(3, "played in the same band", True),
+    "teammate":           RelationshipSpec(3, "played on the same team", True),
 
     # --- tier 4: shared professional surface ------------------------------
     "shared_portfolio":   RelationshipSpec(4, "back the same portfolio company", True),

@@ -94,6 +94,9 @@ _ORG_KIND_ALLOW = (
 _MAX_ORGS = 6
 _MAX_FAMILY = 8
 _MAX_COFOUNDERS = 20
+_MAX_COSTARS = 25
+_MAX_BANDMATES = 15
+_MAX_TEAMS = 6
 # Hard ceiling on a SPARQL roster pull. Anything near this is a mega-hub and
 # will be rejected by Rule 1 anyway; the +1 lets the caller see it overflowed.
 _ROSTER_LIMIT = config.MAX_ORG_MEMBERS_FOR_EDGES + 1
@@ -202,6 +205,83 @@ class WikidataProvider:
             if name and co_qid and not _looks_like_qid(name):
                 out.append({"person_qid": co_qid, "person_name": name})
         cache.set(key, "cofounders", {"cofounders": out}, config.CACHE_TTL_WIKI)
+        return out
+
+    def _co_members_qid(self, query: str) -> List[dict]:
+        """Run a co-membership SPARQL that SELECTs ?co ?coLabel and return
+        [{person_qid, person_name}] — QID-resolved, so identity is exact."""
+        out, seen = [], set()
+        for r in self._sparql(query, ["co", "coLabel"]):
+            name = r.get("coLabel")
+            qid = (r.get("co") or "").rsplit("/", 1)[-1]
+            if qid and name and qid not in seen and not _looks_like_qid(name):
+                seen.add(qid)
+                out.append({"person_qid": qid, "person_name": name})
+        return out
+
+    def costars_for_person(self, qid: str) -> List[dict]:
+        """People CAST IN THE SAME film/show (Wikidata P161, on the WORK — reverse
+        SPARQL). A shared cast is a real co-appearance and a film's cast is
+        bounded, so no clique explosion (unlike a shared employer)."""
+        if not qid:
+            return []
+        key = cache.make_key(self.name, "costars", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("costars", [])
+        out = self._co_members_qid(
+            f"SELECT DISTINCT ?co ?coLabel WHERE {{ ?w wdt:P161 wd:{qid} . "
+            f"?w wdt:P161 ?co . ?co wdt:P31 wd:Q5 . FILTER(?co != wd:{qid}) "
+            f"SERVICE wikibase:label {{ bd:serviceParam wikibase:language 'en'. }} "
+            f"}} LIMIT {_MAX_COSTARS}")
+        cache.set(key, "costars", {"costars": out}, config.CACHE_TTL_WIKI)
+        return out
+
+    def bandmates_for_person(self, qid: str) -> List[dict]:
+        """Members of the same MUSICAL group (P463 restricted to a musical
+        ensemble, Q2088357). Bands are small, so co-membership is a real tie."""
+        if not qid:
+            return []
+        key = cache.make_key(self.name, "bandmates", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("bandmates", [])
+        out = self._co_members_qid(
+            f"SELECT DISTINCT ?co ?coLabel WHERE {{ wd:{qid} wdt:P463 ?b . "
+            f"?b wdt:P31/wdt:P279* wd:Q2088357 . ?co wdt:P463 ?b . "
+            f"?co wdt:P31 wd:Q5 . FILTER(?co != wd:{qid}) "
+            f"SERVICE wikibase:label {{ bd:serviceParam wikibase:language 'en'. }} "
+            f"}} LIMIT {_MAX_BANDMATES}")
+        cache.set(key, "bandmates", {"bandmates": out}, config.CACHE_TTL_WIKI)
+        return out
+
+    def teammates_for_person(self, qid: str) -> List[dict]:
+        """Players on the same sports team (P54) — but ONLY for teams whose
+        Wikidata roster is under the Rule 1 cap. A pro team's all-time roster is
+        a false clique (hundreds who never overlapped), exactly like a shared
+        employer, so those teams are skipped rather than materialised."""
+        if not qid:
+            return []
+        key = cache.make_key(self.name, "teammates", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("teammates", [])
+        claims = self._entity_claims(qid)
+        teams = [t for t in (_claim_target_qid(s) for s in claims.get("P54", []))
+                 if t][:_MAX_TEAMS]
+        out, seen = [], {qid}
+        for team in teams:
+            if self.org_member_count(team, "P54") > config.MAX_ORG_MEMBERS_FOR_EDGES:
+                continue                       # all-time roster = false clique
+            for row in self._co_members_qid(
+                    f"SELECT DISTINCT ?co ?coLabel WHERE {{ ?co wdt:P54 wd:{team} . "
+                    f"?co wdt:P31 wd:Q5 . SERVICE wikibase:label "
+                    f"{{ bd:serviceParam wikibase:language 'en'. }} }} "
+                    f"LIMIT {config.MAX_ORG_MEMBERS_FOR_EDGES + 1}"):
+                if row["person_qid"] not in seen:
+                    seen.add(row["person_qid"])
+                    out.append(row)
+        cache.set(key, "teammates", {"teammates": out}, config.CACHE_TTL_WIKI)
         return out
 
     # --- what kind of thing is this org? ----------------------------------
