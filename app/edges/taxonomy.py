@@ -63,12 +63,16 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "cohost":             RelationshipSpec(3, "co-host the same show", True),
     "colleague":          RelationshipSpec(3, "worked at the same organization", True),
     "family_member":      RelationshipSpec(3, "are family", True),
-    "co_star":            RelationshipSpec(3, "appeared in the same film/show", True),
     "bandmate":           RelationshipSpec(3, "played in the same band", True),
     "teammate":           RelationshipSpec(3, "played on the same team", True),
+    "co_inventor":        RelationshipSpec(3, "co-invented a patent", True),
 
     # --- tier 4: shared professional surface ------------------------------
     "shared_portfolio":   RelationshipSpec(4, "back the same portfolio company", True),
+    # A shared film/show cast is structural but weak — the Kevin Bacon effect
+    # collapses everyone to ~3 hops, and a cameo shares a cast with the leads.
+    # Tier 4 keeps it a last resort so a real tie always outranks it.
+    "co_star":            RelationshipSpec(4, "appeared in the same film/show", True),
 
     # --- tier 5: weak but still asserted ----------------------------------
     "co_speaker":         RelationshipSpec(5, "spoke at the same event", True),
