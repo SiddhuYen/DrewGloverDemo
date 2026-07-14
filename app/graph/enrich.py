@@ -165,6 +165,7 @@ class Enricher:
                           f"{org['org_name']}."),
             )
         created += self._from_wikidata_family(db, subject, qid, progress)
+        created += self._from_wikidata_cofounders(db, subject, qid, progress)
         if created:
             _note(progress, f"    wikidata: {created} edges")
         return created
@@ -193,6 +194,34 @@ class Enricher:
                 created += 1
         if created:
             _note(progress, f"    family: {created} edges")
+        return created
+
+    def _from_wikidata_cofounders(self, db: Session, subject: Person, qid: str,
+                                  progress: Progress) -> int:
+        """Co-founders of an org this person founded -> `cofounder` edges (tier 1).
+
+        Resolved BY QID, so identity is exact. Founding together is one of the
+        strongest ties there is, and it is clique-free (few founders per org),
+        so no Rule 1 cap is needed.
+        """
+        created = 0
+        source = builder.get_or_create_source(
+            db, f"https://www.wikidata.org/wiki/{qid}",
+            title=subject.canonical_name, provider="structured")
+        for rel in self.wikidata.cofounders_for_person(qid):
+            other = builder.get_or_create_person(
+                db, rel["person_name"], qid=rel["person_qid"])
+            if other is None or other.id == subject.id:
+                continue
+            edge = builder.add_edge(
+                db, subject, other, "cofounder", source=source,
+                evidence=(f"Wikidata records {subject.canonical_name} and "
+                          f"{other.canonical_name} as co-founders of the same "
+                          f"organisation."))
+            if edge is not None:
+                created += 1
+        if created:
+            _note(progress, f"    cofounders: {created} edges")
         return created
 
     def _from_edgar(self, db: Session, subject: Person, progress: Progress) -> int:

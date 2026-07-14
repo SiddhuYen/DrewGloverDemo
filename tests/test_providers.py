@@ -336,6 +336,21 @@ def test_org_is_board_like(monkeypatch, kinds, expected):
     assert wd.org_is_board_like("Qtest") is expected
 
 
+def test_cofounders_resolve_by_qid_and_skip_unlabeled(monkeypatch):
+    """Co-founder rows carry the QID (parsed from the entity URI), so identity is
+    exact; an unlabeled entity that falls back to its Q-id is dropped."""
+    from app.providers import wikidata as wdmod
+    w = wdmod.WikidataProvider()
+    monkeypatch.setattr(wdmod.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(wdmod.cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(w, "_sparql", lambda q, f: [
+        {"co": "http://www.wikidata.org/entity/Q47213", "coLabel": "Peter Thiel"},
+        {"co": "http://www.wikidata.org/entity/Q999999", "coLabel": "Q999999"},
+    ])
+    out = w.cofounders_for_person("Q317521")
+    assert out == [{"person_qid": "Q47213", "person_name": "Peter Thiel"}]
+
+
 # --- wikipedia: the page title must BE the person -------------------------
 def test_best_title_rejects_a_mismatched_top_hit(monkeypatch):
     """Regression: Wikipedia's top hit for "Drew Glover" resolves to Nikolas

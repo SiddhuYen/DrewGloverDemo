@@ -93,6 +93,7 @@ _ORG_KIND_ALLOW = (
 
 _MAX_ORGS = 6
 _MAX_FAMILY = 8
+_MAX_COFOUNDERS = 20
 # Hard ceiling on a SPARQL roster pull. Anything near this is a mega-hub and
 # will be rejected by Rule 1 anyway; the +1 lets the caller see it overflowed.
 _ROSTER_LIMIT = config.MAX_ORG_MEMBERS_FOR_EDGES + 1
@@ -169,6 +170,38 @@ class WikidataProvider:
                 out.append({"person_qid": tgt, "person_name": name,
                             "phrase": _FAMILY_PROPS[prop]})
         cache.set(key, "family", {"family": out}, config.CACHE_TTL_WIKI)
+        return out
+
+    def cofounders_for_person(self, qid: str,
+                              limit: int = _MAX_COFOUNDERS) -> List[dict]:
+        """[{person_qid, person_name}] — people who CO-FOUNDED an organisation
+        this person founded (Wikidata P112 'founded by', which lives on the ORG,
+        so this is a reverse SPARQL, not a claim on the person).
+
+        A shared FOUNDING is a strong, clique-free structural tie: an org has a
+        handful of founders, unlike its thousands of employees. Each co-founder
+        is returned WITH its QID, so it resolves by identity — a homonym is never
+        merged, exactly as family claims do.
+        """
+        if not qid:
+            return []
+        key = cache.make_key(self.name, "cofounders", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("cofounders", [])
+        query = (
+            f"SELECT DISTINCT ?co ?coLabel WHERE {{ "
+            f"?org wdt:P112 wd:{qid} . ?org wdt:P112 ?co . "
+            f"?co wdt:P31 wd:Q5 . FILTER(?co != wd:{qid}) "
+            f"SERVICE wikibase:label {{ bd:serviceParam wikibase:language 'en'. }} "
+            f"}} LIMIT {limit}")
+        out: List[dict] = []
+        for r in self._sparql(query, ["co", "coLabel"]):
+            name = r.get("coLabel")
+            co_qid = (r.get("co") or "").rsplit("/", 1)[-1]
+            if name and co_qid and not _looks_like_qid(name):
+                out.append({"person_qid": co_qid, "person_name": name})
+        cache.set(key, "cofounders", {"cofounders": out}, config.CACHE_TTL_WIKI)
         return out
 
     # --- what kind of thing is this org? ----------------------------------
