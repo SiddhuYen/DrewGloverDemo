@@ -9,7 +9,10 @@ Two sources, both structural:
    therefore a VERIFIED MANIFEST, each carrying the source that asserts it —
    not a guess, and not a scrape of a page that asserts nothing.
 
-2. Podcast host<->guest edges, scraped live from RSS. An episode asserts that a
+2. Verified direct connections supplied by Drew, with a public profile URL as
+   their stable identity/evidence anchor.
+
+3. Podcast host<->guest edges, scraped live from RSS. An episode asserts that a
    host interviewed a guest; it asserts nothing between two guests. See
    providers/podcasts.py — a feed with no named human host yields no edges.
 
@@ -40,6 +43,76 @@ FIAT_PARTNERS = [
     {"name": "Marcos Fernandez",
      "role": "Co-Founder & Partner",
      "source": "https://www.fiat.vc"},
+]
+
+# Direct first-degree relationships verified by Drew. Keep these separate from
+# scraped social data: the profile URL anchors identity, while Drew's explicit
+# confirmation is what asserts the relationship.
+DIRECT_CONNECTIONS = [
+    {"name": "Bryce Johnson",
+     "handle": "@brycent",
+     "relationship_type": "instagram_mutual",
+     "source": "https://www.instagram.com/brycent/"},
+]
+
+# Public, structurally asserted Bryce "Brycent" Johnson relationships. Podcast
+# entries connect only the named host(s) to Bryce/the named guest; affiliation
+# or article co-mentions are intentionally excluded.
+BRYCE_CONNECTIONS = [
+    {"name": "Matt Zahab", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/ca/podcast/180-brycent-on-web3-gaming-content-creation-and-loot-bolt/id1559291408?i=1000586926103",
+     "evidence": "Matt Zahab interviewed Brycent on CryptoNews Podcast episode 180."},
+    {"name": "Kevin Logan Jr.", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/the-immutable-mindset/id1672112862",
+     "evidence": "Kevin Logan Jr. co-hosted The Immutable Mindset episode featuring Brycent Johnson."},
+    {"name": "Adam Posner", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/the-immutable-mindset/id1672112862",
+     "evidence": "Adam Posner co-hosted The Immutable Mindset episode featuring Brycent Johnson."},
+    {"name": "Carly Reilly", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/nz/podcast/10-going-mainstream-a-players-perspective-on-web3/id1637105783?i=1000597697613",
+     "evidence": "Carly Reilly hosted Between 2 Layers episode 10 featuring Brycent."},
+    {"name": "Robbie Ferguson", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/nz/podcast/10-going-mainstream-a-players-perspective-on-web3/id1637105783?i=1000597697613",
+     "evidence": "Robbie Ferguson co-hosted Between 2 Layers episode 10 featuring Brycent."},
+    {"name": "Cathleen Kuo", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/vesting-with-brycent/id1871729234",
+     "evidence": "Brycent interviewed Cathleen Kuo of Opalite Health on Vesting."},
+    {"name": "Georgia Witchel", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/vesting-with-brycent/id1871729234",
+     "evidence": "Brycent interviewed Georgia Witchel of Mantis Biotech on Vesting."},
+    {"name": "Philip Johnston", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/vesting-with-brycent/id1871729234",
+     "evidence": "Brycent interviewed Philip Johnston of Starcloud on Vesting."},
+    {"name": "Skyler Chan", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/us/podcast/vesting-with-brycent/id1871729234",
+     "evidence": "Brycent interviewed Skyler Chan of Gru Space on Vesting."},
+]
+
+BRYCE_INTERVIEWED_COMPANIES = [
+    {"company": "Opalite Health", "guest": "Cathleen Kuo",
+     "founders": ["Cathleen Kuo", "Alex Mehregan"],
+     "url": "https://www.ycombinator.com/companies/opalite-health"},
+    {"company": "Mantis Biotech", "guest": "Georgia Witchel",
+     "founders": ["Georgia Witchel"],
+     "url": "https://www.ycombinator.com/companies/mantis"},
+    {"company": "Starcloud", "guest": "Philip Johnston",
+     "founders": ["Philip Johnston", "Ezra Feilden", "Adi Oltean"],
+     "url": "https://www.starcloud.com/"},
+    {"company": "GRU Space", "guest": "Skyler Chan",
+     "founders": ["Skyler Chan"],
+     "url": "https://www.gru.space/team"},
+]
+
+ATLAS_CONNECTIONS = [
+    {"name": "Drew Glover", "type": "podcast_guest",
+     "url": "https://podcasts.apple.com/es/podcast/atlas-berry-m1c/id1843993412?i=1000751794298",
+     "evidence": "Drew Glover interviewed Atlas Berry of M1C on VC Uncovered."},
+    {"name": "Gopi Rangan", "type": "podcast_guest",
+     "url": "https://podcast.sure.ventures/episodes/tsse142-appeal-to-human-side-atlas-berry",
+     "evidence": "Gopi Rangan interviewed Atlas Berry on The Sure Shot Entrepreneur."},
+    {"name": "Mark Suster", "type": "notable_affiliation",
+     "url": "https://www.linkedin.com/posts/atlasberry_early-looks-crazy-late-looks-obvious-activity-7338592942112108544-J0Qc",
+     "evidence": "Atlas Berry identifies Mark Suster as one of his most important venture mentors."},
 ]
 
 
@@ -75,6 +148,122 @@ def seed_fiat(db: Session, progress: Progress = None) -> int:
     db.commit()
     _note(progress, f"  Fiat: {len(people)} partners, {len(edges)} edges")
     return len(edges)
+
+
+def seed_direct_connections(db: Session, progress: Progress = None) -> int:
+    """Drew's explicitly verified direct contacts. Idempotent and offline."""
+    owner = builder.get_or_create_person(db, config.DEMO_SEED_NAME, is_warm=True)
+    if owner is None:
+        return 0
+
+    created = 0
+    for contact in DIRECT_CONNECTIONS:
+        person = builder.get_or_create_person(db, contact["name"], is_warm=True)
+        if person is None or person.id == owner.id:
+            continue
+        meta = dict(person.meta or {})
+        meta.update({"instagram_handle": contact["handle"],
+                     "instagram_url": contact["source"]})
+        person.meta = meta
+        source = builder.get_or_create_source(
+            db, contact["source"], title=f"{contact['name']} on Instagram",
+            provider="verified_seed")
+        edge = builder.add_edge(
+            db, owner, person, contact["relationship_type"], source=source,
+            evidence=(f"{owner.canonical_name} and {person.canonical_name} "
+                      f"({contact['handle']}) are verified direct Instagram "
+                      "connections."))
+        if edge is not None:
+            created += 1
+
+    db.commit()
+    _note(progress, f"  verified direct connections: {created} edges")
+    return created
+
+
+def seed_bryce_connections(db: Session, progress: Progress = None) -> int:
+    """Verified public first-degree connections for Bryce Johnson."""
+    bryce = builder.get_or_create_person(db, "Bryce Johnson", is_warm=True)
+    if bryce is None:
+        return 0
+    created = 0
+    for item in BRYCE_CONNECTIONS:
+        person = builder.get_or_create_person(db, item["name"])
+        if person is None:
+            continue
+        source = builder.get_or_create_source(
+            db, item["url"], title=item["evidence"], provider="verified_research")
+        if builder.add_edge(db, bryce, person, item["type"], source=source,
+                            evidence=item["evidence"]):
+            created += 1
+
+    for item in BRYCE_INTERVIEWED_COMPANIES:
+        source = builder.get_or_create_source(
+            db, item["url"], title=f"{item['company']} — founders",
+            provider="verified_research")
+        org = builder.get_or_create_org(
+            db, item["company"], org_type="company",
+            member_count=len(item["founders"]))
+        founders = []
+        for name in item["founders"]:
+            founder = builder.get_or_create_person(db, name)
+            if founder is None:
+                continue
+            founders.append(founder)
+            builder.add_membership(
+                db, founder, org, source=source,
+                evidence=f"{name} is a founder of {item['company']}.")
+        # The source explicitly identifies these people as co-founders; use the
+        # precise relationship instead of generic company colleagues.
+        if len(founders) > 1:
+            builder.materialize_org_edges(
+                db, org, founders, source=source,
+                relationship_type="cofounder",
+                evidence=f"Co-founders of {item['company']}.")
+    db.commit()
+    _note(progress, f"  Bryce Johnson: {created} verified public edges")
+    return created
+
+
+def seed_atlas_connections(db: Session, progress: Progress = None) -> int:
+    """Identity, firm membership, and asserted public ties for Atlas Berry."""
+    atlas = builder.get_or_create_person(db, "Atlas Berry", is_warm=True)
+    if atlas is None:
+        return 0
+    meta = dict(atlas.meta or {})
+    meta.update({
+        "linkedin_url": "https://www.linkedin.com/in/atlasberry/",
+        "instagram_handle": "@atlasberry008",
+        "instagram_url": "https://www.instagram.com/atlasberry008/",
+        "role": "Founder & General Partner",
+        "firm": "Mission One Capital (M1C)",
+        "location": "Miami, Florida",
+    })
+    atlas.meta = meta
+
+    firm_source = builder.get_or_create_source(
+        db, "https://www.linkedin.com/in/atlasberry/",
+        title="Atlas Berry — LinkedIn", provider="verified_research")
+    firm = builder.get_or_create_org(
+        db, "Mission One Capital (M1C)", org_type="firm", member_count=1)
+    builder.add_membership(
+        db, atlas, firm, source=firm_source,
+        evidence="Atlas Berry is Founder & General Partner of Mission One Capital (M1C).")
+
+    created = 0
+    for item in ATLAS_CONNECTIONS:
+        other = builder.get_or_create_person(db, item["name"])
+        if other is None or other.id == atlas.id:
+            continue
+        source = builder.get_or_create_source(
+            db, item["url"], title=item["evidence"],
+            provider="verified_research")
+        if builder.add_edge(db, atlas, other, item["type"], source=source,
+                            evidence=item["evidence"]):
+            created += 1
+    db.commit()
+    _note(progress, f"  Atlas Berry: {created} verified public edges")
+    return created
 
 
 def seed_podcasts(db: Session, progress: Progress = None,
@@ -187,7 +376,12 @@ def seed_drew(db: Session, progress: Progress = None,
     """Build Drew's warm layer. Idempotent — safe to re-run."""
     _note(progress, f"seeding {config.DEMO_SEED_NAME}'s first degree…")
     fiat = seed_fiat(db, progress)
+    direct = seed_direct_connections(db, progress)
+    bryce = seed_bryce_connections(db, progress)
+    atlas = seed_atlas_connections(db, progress)
     podcasts = seed_podcasts(db, progress, discover=discover)
     warm = mark_warm_first_degree(db)
     _note(progress, f"  marked {warm} people as first-degree warm")
-    return {"fiat_edges": fiat, "podcast_edges": podcasts, "warm_people": warm}
+    return {"fiat_edges": fiat, "direct_edges": direct, "bryce_edges": bryce,
+            "atlas_edges": atlas,
+            "podcast_edges": podcasts, "warm_people": warm}

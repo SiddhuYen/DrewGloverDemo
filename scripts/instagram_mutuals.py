@@ -161,7 +161,13 @@ def _api_list(client, user_id: str, kind: str, *, cap: int,
             if progress:
                 progress(f"  ! {kind} HTTP {r.status_code} at {len(found)}")
             break
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:
+            if progress:
+                progress(f"  ! Instagram challenge on {kind} at "
+                         f"{len(found)} — stopping")
+            break
         for u in data.get("users", []):
             found[u["username"]] = u.get("full_name") or ""
         max_id = data.get("next_max_id") or ""
@@ -188,7 +194,13 @@ def _api_list_full(client, user_id: str, kind: str, *, cap: int,
             if progress:
                 progress(f"  ! {kind} HTTP {r.status_code} at {len(out)} — stop")
             break
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:
+            if progress:
+                progress(f"  ! Instagram challenge on {kind} at "
+                         f"{len(out)} — stopping")
+            break
         for u in data.get("users", []):
             if u["username"] in seen:
                 continue
@@ -214,7 +226,14 @@ def _follows_target(client, x_pk: str, target_handle: str):
         return "ratelimited"
     if r.status_code != 200:
         return None
-    for u in r.json().get("users", []):
+    try:
+        data = r.json()
+    except ValueError:
+        # Instagram sometimes answers 200 with an HTML login/challenge page.
+        # Treat it like throttling so the caller checkpoints and pauses instead
+        # of crashing midway through a long, authenticated run.
+        return "ratelimited"
+    for u in data.get("users", []):
         if u.get("username", "").lower() == target_handle.lower():
             return True
     return False
@@ -446,6 +465,11 @@ def cmd_mutuals(args) -> int:
         log(f"Fetching everyone @{handle} follows…")
         following = _api_list_full(client, drew_pk, "following", cap=args.cap,
                                    progress=log)
+        if not following:
+            log("No following rows returned — session is challenged or "
+                "rate-limited; nothing checkpointed. Retry after cooldown.")
+            client.close()
+            return 0
         state = {"target": handle, "drew_pk": drew_pk,
                  "following": following, "checked": {}, "mutuals": []}
         ckpt.write_text(json.dumps(state))
