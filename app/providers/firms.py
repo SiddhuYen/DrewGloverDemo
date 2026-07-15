@@ -433,7 +433,8 @@ class FirmsProvider:
         return result
 
     # --- person -> firm ---------------------------------------------------
-    def find_person_firms(self, person_name: str, max_firms: int = 0) -> List[dict]:
+    def find_person_firms(self, person_name: str, max_firms: int = 0,
+                          hint: str = "") -> List[dict]:
         """Roster pages that LIST this person, with the firm they belong to.
 
         Guard 3: the person's name must appear on the roster we scraped. A page
@@ -449,15 +450,17 @@ class FirmsProvider:
         target = person_norm_key(person_name)
         if not target:
             return []
-        key = cache.make_key(self.name, "personfirms", target)
+        hk = target + ("|" + person_norm_key(hint) if hint and hint.strip() else "")
+        key = cache.make_key(self.name, "personfirms", hk)
         cached = cache.get(key)
         if cached is not None:
             return cached.get("firms", [])
 
+        h = f" {hint.strip()}" if hint and hint.strip() else ""
         candidates: List[str] = []
-        for query in (f'"{person_name}" venture capital team',
-                      f'"{person_name}" partner venture firm team page',
-                      f'"{person_name}" team'):
+        for query in (f'"{person_name}"{h} venture capital team',
+                      f'"{person_name}"{h} partner venture firm team page',
+                      f'"{person_name}"{h} team'):
             for result in self._search.search(query):
                 if is_roster_url(result.url) and result.url not in candidates:
                     candidates.append(result.url)

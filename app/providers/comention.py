@@ -74,15 +74,18 @@ class CoMentionProvider:
     def _available(self) -> bool:
         return self._search is not None and self._search.available()
 
-    def co_mentions(self, name: str) -> List[Dict[str, str]]:
-        """[{name, source_url}] — people co-mentioned with the subject."""
+    def co_mentions(self, name: str, hint: str = "") -> List[Dict[str, str]]:
+        """[{name, source_url}] — people co-mentioned with the subject. `hint`
+        (e.g. "biotech founder", a company) disambiguates a common name by
+        steering the search to the right person's pages."""
         if not name or not self._available() or not extract.available():
             return []
         subject_key = person_norm_key(name)
         subject_tokens = set(subject_key.split())
+        h = f" {hint.strip()}" if hint and hint.strip() else ""
         urls: List[str] = []
-        for query in (f'"{name}"',
-                      f'"{name}" interview OR profile OR news OR announcement'):
+        for query in (f'"{name}"{h}',
+                      f'"{name}"{h} interview OR profile OR news OR announcement'):
             for result in self._search.search(query):
                 if result.url not in urls:
                     urls.append(result.url)

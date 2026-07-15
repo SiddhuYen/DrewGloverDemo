@@ -78,6 +78,7 @@ class Enricher:
         self.openalex = OpenAlexProvider()
         self.propublica = ProPublicaProvider()
         self.comention = CoMentionProvider(_search_provider())
+        self._hint = ""
 
     # --- one org's roster -> membership + (maybe) pairwise edges ----------
     def _absorb_org(self, db: Session, subject: Person, org_name: str,
@@ -124,7 +125,8 @@ class Enricher:
 
     # --- providers ---------------------------------------------------------
     def _from_wikidata(self, db: Session, subject: Person, progress: Progress) -> int:
-        qid = subject.wikidata_qid or self.wikipedia.qid_for_name(subject.canonical_name)
+        qid = subject.wikidata_qid or self.wikipedia.qid_for_name(
+            subject.canonical_name, hint=self._hint)
         if not qid or not self.wikidata.is_human(qid):
             return 0
         if not subject.wikidata_qid:
@@ -290,7 +292,7 @@ class Enricher:
         if not (config.CO_MENTION_ENABLED or config.DEEP_SEARCH):
             return 0
         created = 0
-        for hit in self.comention.co_mentions(subject.canonical_name):
+        for hit in self.comention.co_mentions(subject.canonical_name, hint=self._hint):
             source = builder.get_or_create_source(
                 db, hit["source_url"], title=f"co-mention: {subject.canonical_name}",
                 provider="comention")
@@ -422,7 +424,7 @@ class Enricher:
         """
         known = [o.name for o in _orgs_of(db, subject)]
         appearances = self.podcasts.appearances(subject.canonical_name,
-                                                known_orgs=known)
+                                                known_orgs=known, hint=self._hint)
         created = 0
         for appearance in appearances:
             source = builder.get_or_create_source(
@@ -530,7 +532,7 @@ class Enricher:
         guest like Charles Hudson stays a lone node with no firm at all.
         """
         created = 0
-        for roster in self.firms.find_person_firms(subject.canonical_name):
+        for roster in self.firms.find_person_firms(subject.canonical_name, hint=self._hint):
             created += self._absorb_roster(db, subject, roster, progress)
         if created:
             _note(progress, f"    person->firm rosters: {created} edges")
@@ -562,7 +564,7 @@ class Enricher:
 
     # --- public ------------------------------------------------------------
     def enrich_person(self, db: Session, name: str, *, progress: Progress = None,
-                      force: bool = False) -> Optional[Person]:
+                      force: bool = False, hint: str = "") -> Optional[Person]:
         """Pull structured sources for one person and persist the edges.
 
         Idempotent: a person already marked `enriched` is skipped unless forced,
@@ -574,6 +576,10 @@ class Enricher:
         if subject.enriched >= target_enrichment_level() and not force:
             return subject   # already enriched at the current-or-higher richness
 
+        # A disambiguation hint ("biotech founder", a company) for THIS person,
+        # read by the search-based silos to steer to the right namesake. Set per
+        # call so a frontier person (enriched with no hint) never inherits it.
+        self._hint = (hint or "").strip()
         _note(progress, f"  enriching {subject.canonical_name}…")
         total = 0
         # Ordered cheapest/most-authoritative first. `_from_firm_rosters` runs
@@ -605,7 +611,8 @@ class Enricher:
                             opposite_component: "set | None" = None,
                             deadline: "float | None" = None,
                             prefer_notable: bool = False,
-                            fanout: "int | None" = None) -> Optional[Person]:
+                            fanout: "int | None" = None,
+                            hint: str = "") -> Optional[Person]:
         """Enrich `name`, then walk its neighbourhood outward, hop by hop.
 
         A multi-hop BFS (ArtemisV2's `expand_graph` shape): each hop enriches a
@@ -620,7 +627,7 @@ class Enricher:
         report what was skipped — a silently thin graph reads as "no path" when
         the truth is "we stopped looking".
         """
-        subject = self.enrich_person(db, name, progress=progress)
+        subject = self.enrich_person(db, name, progress=progress, hint=hint)
         if subject is None or depth <= 1:
             return subject
 

@@ -134,6 +134,9 @@
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
     <button id="go" onclick="run()">Find path</button>
   </div>
+  <div class="row">
+    <input id="ctx" placeholder="Which one? (optional) — e.g. biotech founder, or their company / firm" autocomplete="off" style="width:100%">
+  </div>
 
   <div class="banner">
     <b>What this shows.</b> Every hop comes from a source that <i>structurally asserts</i> the
@@ -180,10 +183,14 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 
 const NEEDS_NAME = new Set(['connect', 'tree', 'compare']);
 
+const CTX = () => {
+  const c = (document.getElementById('ctx').value || '').trim();
+  return c ? `&context=${encodeURIComponent(c)}` : '';
+};
 const ENDPOINT = {
-  connect:  q => `/connect?target=${encodeURIComponent(q)}`,
-  discover: q => `/discover?person=${encodeURIComponent(q)}`,
-  tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2`,
+  connect:  q => `/connect?target=${encodeURIComponent(q)}${CTX()}`,
+  discover: q => `/discover?person=${encodeURIComponent(q)}${CTX()}`,
+  tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
   compare:  q => `/compare?person=${encodeURIComponent(q)}&radius=3&limit=6`,
 };
 

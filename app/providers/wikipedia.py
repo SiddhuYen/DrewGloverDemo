@@ -87,8 +87,10 @@ class WikipediaProvider(SearchProvider):
         cache.set(key, "wdid", {"qid": qid}, self.cache_ttl)
         return qid
 
-    def best_title(self, name: str) -> Optional[str]:
-        """The search hit whose TITLE IS the person's name, or None.
+    def best_title(self, name: str, hint: str = "") -> Optional[str]:
+        """The search hit whose TITLE IS the person's name, or None. `hint`
+        (e.g. "biotech founder") is added to the QUERY to rank the right namesake
+        first — the title-equals-name guard below still prevents a wrong match.
 
         Never trust the top hit blindly. Wikipedia's first result for
         "Drew Glover" is a page whose Wikidata entity is Nikolas Cruz — a human,
@@ -99,16 +101,17 @@ class WikipediaProvider(SearchProvider):
         target = person_norm_key(name)
         if not target:
             return None
-        for result in self.search(name):
+        query = f"{name} {hint.strip()}" if hint and hint.strip() else name
+        for result in self.search(query):
             # "Charles Hudson (disambiguation)" and "The Pitch (podcast)" both
             # fail this, which is exactly right.
             if person_norm_key(result.title) == target:
                 return result.title
         return None
 
-    def qid_for_name(self, name: str) -> Optional[str]:
+    def qid_for_name(self, name: str, hint: str = "") -> Optional[str]:
         """QID of the page that is unambiguously about `name`, or None."""
-        title = self.best_title(name)
+        title = self.best_title(name, hint=hint)
         return self.wikidata_id(title) if title else None
 
 

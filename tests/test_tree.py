@@ -62,7 +62,7 @@ def test_build_tree_reports_hops_tiers_and_hubs(db, monkeypatch):
     for guest in guests:
         _link(db, bree, guest, "podcast_guest")
 
-    monkeypatch.setattr(tree_mod, "_ensure", lambda db_, name, depth, progress=None: drew)
+    monkeypatch.setattr(tree_mod, "_ensure", lambda db_, name, depth, progress=None, **kw: drew)
     result = tree_mod.build_tree(db, "Drew Glover", max_hops=3)
 
     assert result["found"] and result["reachable"] == 5
@@ -88,7 +88,7 @@ def test_compare_excludes_contacts_reachable_only_through_the_other(db, monkeypa
 
     lookup = {"Drew Glover": drew, "Sheel Mohnot": sheel}
     monkeypatch.setattr(tree_mod, "_ensure",
-                        lambda db_, name, depth, progress=None: lookup[name])
+                        lambda db_, name, depth, progress=None, **kw: lookup[name])
     result = tree_mod.compare_trees(db, "Drew Glover", "Sheel Mohnot", radius=3)
 
     names = [m["label"] for m in result["mutual_contacts"]]
@@ -113,7 +113,7 @@ def test_mutual_contact_chains_carry_evidence_and_source(db, monkeypatch):
 
     lookup = {"Drew Glover": drew, "Sheel Mohnot": sheel}
     monkeypatch.setattr(tree_mod, "_ensure",
-                        lambda db_, name, depth, progress=None: lookup[name])
+                        lambda db_, name, depth, progress=None, **kw: lookup[name])
     result = tree_mod.compare_trees(db, "Drew Glover", "Sheel Mohnot", radius=2)
 
     hop = result["mutual_contacts"][0]["chain_from_a"][0]
@@ -140,7 +140,7 @@ def test_compare_radius_bounds_the_network(db, monkeypatch):
 
     lookup = {"Drew Glover": drew, "Sheel Mohnot": sheel}
     monkeypatch.setattr(tree_mod, "_ensure",
-                        lambda db_, name, depth, progress=None: lookup[name])
+                        lambda db_, name, depth, progress=None, **kw: lookup[name])
 
     tight = tree_mod.compare_trees(db, "Drew Glover", "Sheel Mohnot", radius=1)
     assert [m["label"] for m in tight["mutual_contacts"]] == ["Bree Hanson"]
@@ -160,7 +160,7 @@ def test_compare_reports_no_overlap_honestly(db, monkeypatch):
 
     lookup = {"Drew Glover": drew, "Immad Akhund": immad}
     monkeypatch.setattr(tree_mod, "_ensure",
-                        lambda db_, name, depth, progress=None: lookup[name])
+                        lambda db_, name, depth, progress=None, **kw: lookup[name])
     result = tree_mod.compare_trees(db, "Drew Glover", "Immad Akhund", radius=2)
 
     assert result["shared"] == 0
@@ -205,6 +205,6 @@ def test_compare_refuses_the_same_person(db, monkeypatch):
     from app.graph import tree as tree_mod
     drew = _p(db, "Drew Glover")
     monkeypatch.setattr(tree_mod, "_ensure",
-                        lambda db_, name, depth, progress=None: drew)
+                        lambda db_, name, depth, progress=None, **kw: drew)
     result = tree_mod.compare_trees(db, "Drew Glover", "Drew Glover")
     assert not result["found"] and "same person" in result["reason"]

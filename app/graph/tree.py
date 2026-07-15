@@ -66,11 +66,12 @@ def _dijkstra(adj, root_id: str, max_hops: int, banned: Optional[set] = None):
     return cost, hops, parent
 
 
-def _ensure(db: Session, name: str, depth: int, progress=None) -> Optional[Person]:
+def _ensure(db: Session, name: str, depth: int, progress=None,
+            hint: str = "") -> Optional[Person]:
     """Resolve a person, enriching only when we hold nothing on them yet."""
     person = _lookup(db, name)
     if person is None or person.enriched < target_enrichment_level():
-        get_enricher().enrich_neighborhood(db, name, depth=depth, progress=progress)
+        get_enricher().enrich_neighborhood(db, name, depth=depth, progress=progress, hint=hint)
         person = _lookup(db, name)
     return person
 
@@ -99,7 +100,7 @@ def _node_payload(person: Person, cost: float, hops: int,
 
 
 def build_tree(db: Session, name: str, depth: int = None, max_hops: int = None,
-               progress=None) -> dict:
+               progress=None, hint: str = "") -> dict:
     """The warmest-path tree rooted at `name`, plus an ArtemisV2-style summary."""
     depth = depth or config.CONNECT_DEPTH
     # A tree is for reading, so it keeps a display bound even when pathfinding
@@ -107,7 +108,7 @@ def build_tree(db: Session, name: str, depth: int = None, max_hops: int = None,
     max_hops = config.hop_limit(max_hops or 0) if max_hops is not None \
         else config.hop_limit()
 
-    root = _ensure(db, name, depth, progress=progress)
+    root = _ensure(db, name, depth, progress=progress, hint=hint)
     if root is None:
         return {"found": False,
                 "reason": f"'{name}' is not in the graph — no structured source "
