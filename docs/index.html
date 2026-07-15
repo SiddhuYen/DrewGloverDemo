@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download Artemis (Drew Glover Demo)</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#16140f; --panel:#1c1911; --line:#3a3325; --ink:#f2ece0;
+    --muted:#a99c85; --accent:#c68a3f; --accent-ink:#1a1509; --ok:#7fa06b;
+    --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+    --body:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--body)}
+  .wrap{max-width:960px;width:92%;margin:0 auto;padding:clamp(36px,6vw,64px) 0 100px}
+
+  .eyebrow{font:500 12px/1 var(--mono);color:var(--accent);letter-spacing:.14em;
+    text-transform:uppercase;margin:0 0 14px}
+  h1{font:700 clamp(30px,4vw,42px)/1.1 var(--display);margin:0 0 8px;letter-spacing:-.01em;
+    text-wrap:balance}
+  .sub{color:var(--muted);margin:0 0 clamp(32px,5vw,52px);font-size:16px;max-width:60ch}
+
+  .step{display:grid;grid-template-columns:clamp(44px,6vw,64px) 1fr;column-gap:clamp(16px,3vw,28px);
+    padding:clamp(28px,4vw,40px) 0;border-top:1px solid var(--line)}
+  .step:last-child{padding-bottom:0}
+  .num{font:500 15px/1 var(--mono);color:var(--accent);letter-spacing:.03em;padding-top:6px}
+  .step h2{font:600 clamp(19px,2vw,23px)/1.3 var(--display);margin:0 0 12px;letter-spacing:-.005em}
+  .step p{color:var(--muted);margin:0 0 18px;font-size:15.5px;max-width:none}
+
+  .choices{display:flex;gap:14px;flex-wrap:wrap}
+  .choice{flex:1 1 240px;border:1px solid var(--line);border-radius:4px;padding:18px 20px}
+  .choice.detected{border-color:var(--accent)}
+  .os-row{display:flex;align-items:baseline;gap:8px;margin-bottom:14px}
+  .os{font:600 15px/1 var(--body)}
+  .detected-tag{font:500 11px/1 var(--mono);color:var(--accent);letter-spacing:.08em;
+    text-transform:uppercase}
+
+  a.btn, span.btn{display:block;width:100%;text-align:center;padding:11px 14px;
+    border-radius:4px;font:600 14.5px/1 var(--body);text-decoration:none;box-sizing:border-box}
+  .btn.ready{background:var(--accent);color:var(--accent-ink)}
+  .btn.pending{background:transparent;border:1px dashed var(--line);color:var(--muted);
+    padding:10px 14px}
+
+  code, .cmd{font-family:var(--mono)}
+  .cmd-row{display:flex;gap:10px;align-items:center;background:var(--bg);
+    border:1px solid var(--line);border-radius:4px;padding:14px 16px}
+  .cmd-row code{flex:1;color:var(--ok);font-size:14.5px;overflow-x:auto;white-space:nowrap}
+  .copy{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:3px;font:500 12.5px var(--body);padding:7px 13px;cursor:pointer;flex:none}
+  .copy:hover{color:var(--ink);border-color:var(--accent)}
+
+  .why{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);max-width:none}
+  .why .eyebrow{margin-bottom:8px}
+  .why p{margin:0;color:var(--muted);font-size:14.5px;max-width:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Setup guide</p>
+  <h1>Download Artemis</h1>
+  <p class="sub">Demo build of Drew Glover's mapped network.</p>
+
+  <div class="step">
+    <div class="num">01</div>
+    <div>
+      <h2>Download Artemis</h2>
+      <p>Pick your operating system below. Artemis installers are on the way and will appear
+        here as soon as they are available.</p>
+      <div class="choices" id="artemis-choices">
+        <div class="choice" data-os="mac">
+          <div class="os-row"><span class="os">macOS</span></div>
+          <span class="btn pending" id="artemis-mac-btn">Coming soon</span>
+        </div>
+        <div class="choice" data-os="windows">
+          <div class="os-row"><span class="os">Windows</span></div>
+          <span class="btn pending" id="artemis-win-btn">Coming soon</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">02</div>
+    <div>
+      <h2>Install Ollama</h2>
+      <p>Ollama runs a small language model on your own machine. Artemis uses it to judge
+        whether two people in the network are <em>actually</em> connected from the wording on
+        a page, on top of the deterministic rules that catch clear-cut cases like a team
+        roster or a podcast credit.</p>
+      <div class="choices">
+        <div class="choice" data-os="mac">
+          <div class="os-row"><span class="os">macOS</span></div>
+          <a class="btn ready" href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama</a>
+        </div>
+        <div class="choice" data-os="windows">
+          <div class="os-row"><span class="os">Windows</span></div>
+          <a class="btn ready" href="https://ollama.com/download" target="_blank" rel="noopener">Download Ollama</a>
+        </div>
+      </div>
+      <div class="why">
+        <p class="eyebrow">Why this step exists</p>
+        <p>Structural sources, like rosters, filings, and episode credits, are certain, so
+          Artemis trusts them outright. Everything else, a sentence that merely implies a
+          relationship, is fuzzy. That is what the local model on Ollama is for, instead of
+          guessing with fixed rules.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">03</div>
+    <div>
+      <h2>Pull the model Artemis uses</h2>
+      <p>Once Ollama is installed, open a terminal and run:</p>
+      <div class="cmd-row">
+        <code id="pull-cmd">ollama pull llama3.2</code>
+        <button class="copy" id="copy-btn">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">04</div>
+    <div>
+      <h2>Launch Artemis</h2>
+      <p>Open the app you downloaded in step 1 and sign in.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // TODO(teammate): fill these in once the Artemis installers are built and
+  // hosted somewhere, e.g.
+  //   mac: "https://cdn.example.com/artemis/Artemis-1.0.0.dmg",
+  //   windows: "https://cdn.example.com/artemis/Artemis-1.0.0-setup.exe",
+  // Leaving a value as null keeps that button in its "Coming soon" state.
+  const ARTEMIS_DOWNLOADS = {
+    mac: null,
+    windows: null,
+  };
+
+  function renderArtemisButton(id, url, label) {
+    const el = document.getElementById(id);
+    if (url) {
+      const a = document.createElement("a");
+      a.className = "btn ready";
+      a.href = url;
+      a.textContent = label;
+      el.replaceWith(a);
+    }
+  }
+  renderArtemisButton("artemis-mac-btn", ARTEMIS_DOWNLOADS.mac, "Download for macOS");
+  renderArtemisButton("artemis-win-btn", ARTEMIS_DOWNLOADS.windows, "Download for Windows");
+
+  // Highlight the visitor's own OS across both steps.
+  const ua = navigator.userAgent;
+  const detected = /Mac/i.test(ua) ? "mac" : /Win/i.test(ua) ? "windows" : null;
+  if (detected) {
+    document.querySelectorAll(`.choice[data-os="${detected}"]`).forEach((choice) => {
+      choice.classList.add("detected");
+      const tag = document.createElement("span");
+      tag.className = "detected-tag";
+      tag.textContent = "Detected";
+      choice.querySelector(".os-row").appendChild(tag);
+    });
+  }
+
+  document.getElementById("copy-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("copy-btn");
+    try {
+      await navigator.clipboard.writeText(document.getElementById("pull-cmd").textContent);
+      btn.textContent = "Copied";
+    } catch {
+      btn.textContent = "Select & copy";
+    }
+    setTimeout(() => (btn.textContent = "Copy"), 1500);
+  });
+</script>
+</body>
+</html>
