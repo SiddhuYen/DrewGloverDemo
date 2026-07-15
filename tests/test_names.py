@@ -6,6 +6,7 @@ from app.edges.names import (
     looks_like_person_name,
     org_norm_key,
     person_norm_key,
+    person_search_keys,
     strip_role_affixes,
 )
 from app.graph.builder import clean_person_names
@@ -205,3 +206,47 @@ def test_clean_person_names_dedups():
 ])
 def test_site_navigation_headings_are_not_people(heading):
     assert clean_person_names([heading]) == []
+
+
+# --- resolving a typed name -------------------------------------------------
+#
+# Regression: after importing a LinkedIn export, searching for someone ON that
+# export returned "not in the graph". LinkedIn stores "José Álvarez", "Robert
+# Chen Jr." and "Sheel Mohnot (BTV)"; people type "Jose Alvarez", "Robert Chen",
+# "Sheel Mohnot". Six of nine realistic variants failed to resolve.
+
+@pytest.mark.parametrize("typed, stored", [
+    ("Jose Alvarez", "José Álvarez"),            # nobody types accents
+    ("JOSE ALVAREZ", "José Álvarez"),
+    ("Robert Chen", "Robert Chen Jr."),          # generational suffix
+    ("John Smith", "John Andrew Smith"),         # spelled-out middle name
+    ("John Smith", "John Smith, CFA"),           # credentials after a comma
+    ("Mary Kate OBrien", "Mary-Kate O'Brien"),   # punctuation disagreement
+    ("Sheel Mohnot", "Sheel Mohnot (BTV)"),      # parenthetical note
+    ("sarah  kim", "Sarah Kim"),                 # sloppy whitespace
+])
+def test_typed_name_resolves_to_stored_name(typed, stored):
+    assert person_search_keys(typed) & person_search_keys(stored)
+
+
+@pytest.mark.parametrize("a, b", [
+    ("John Smith", "Jane Smith"),
+    ("Robert Chen", "Robert Cheng"),
+    ("Bree Hanson", "Bree Hansen"),
+    ("Sheel Mohnot", "Sheel Mehta"),
+])
+def test_different_people_do_not_resolve_to_each_other(a, b):
+    assert not (person_search_keys(a) & person_search_keys(b))
+
+
+def test_search_keys_never_loosen_the_dedup_key():
+    """The strict key decides whether two NODES are one person, so it must stay
+    strict — loosening it would merge strangers into a false bridge. Only the
+    search key is allowed to be generous."""
+    assert person_norm_key("Jose Alvarez") != person_norm_key("José Álvarez")
+    assert person_search_keys("Jose Alvarez") & person_search_keys("José Álvarez")
+
+
+@pytest.mark.parametrize("junk", ["", "   ", ",", "(BTV)", "Jr."])
+def test_unnameable_input_yields_no_search_keys(junk):
+    assert person_search_keys(junk) == set()

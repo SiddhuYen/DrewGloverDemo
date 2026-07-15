@@ -24,7 +24,7 @@ from .ingest.seed import seed_drew
 from .models import Organization, Person, RelationshipEdge, Source
 from .paths import resource_path
 from .providers.brave import brave_status, set_key as set_brave_key
-from .providers.serper import serper_status
+from .providers.serper import serper_status, set_key as set_serper_key
 from .providers.stats import STATS
 
 app = FastAPI(title="VC Warm-Intro Pathfinder", version="1.0")
@@ -65,17 +65,27 @@ def search_status() -> dict:
 
 
 @app.post("/search/key")
-def set_search_key(key: str = Form(default="")) -> dict:
-    """Install a Brave key for this run.
+def set_search_key(key: str = Form(default=""),
+                   engine: str = Form(default="serper")) -> dict:
+    """Install a search key for this run.
 
     Deliberately not persisted to disk: it is the user's credential, and writing
     it into the app's data dir would outlive the session they typed it in for.
     Put it in a .env beside the .exe to make it permanent.
+
+    Both engines can hold a key at once — they are searched together, not as
+    fallbacks, so a second key is more coverage rather than a spare.
     """
-    if not set_brave_key(key):
+    setters = {"serper": set_serper_key, "brave": set_brave_key}
+    engine = (engine or "serper").strip().lower()
+    if engine not in setters:
         raise HTTPException(status_code=400,
-                            detail="That does not look like a Brave API key.")
-    return {"ok": True, "brave": brave_status()}
+                            detail=f"Unknown engine {engine!r}. Use serper or brave.")
+    if not setters[engine](key):
+        raise HTTPException(status_code=400,
+                            detail=f"That does not look like a {engine} API key.")
+    return {"ok": True, "engine": engine,
+            "serper": serper_status(), "brave": brave_status()}
 
 
 @app.get("/connect")

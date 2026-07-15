@@ -23,15 +23,16 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..edges import taxonomy
-from ..edges.names import person_norm_key
 from ..models import Organization, Person, RelationshipEdge, Source
+from .resolve import resolve_person
 from .connect import _adjacency
 from .enrich import get_enricher
 
 
 def _lookup(db: Session, name: str) -> Optional[Person]:
-    return db.execute(select(Person).where(
-        Person.norm_name == person_norm_key(name))).scalar_one_or_none()
+    """Same resolver the pathfinder uses; the tree must not disagree with it
+    about who exists."""
+    return resolve_person(db, name)
 
 
 def _dijkstra(adj, root_id: str, max_hops: int, banned: Optional[set] = None):

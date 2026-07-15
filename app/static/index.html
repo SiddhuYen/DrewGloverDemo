@@ -165,7 +165,8 @@
   .stat .v{font:600 19px/1 var(--sans);font-variant-numeric:tabular-nums}
   .stat .v.good{color:var(--ok)}
 
-  .keystate{margin:10px 0 0;font:400 12.5px/1.5 var(--mono);color:var(--muted)}
+  .keyhint{margin:6px 0 0;font:400 12px/1.4 var(--mono);color:var(--muted)}
+  .keystate{margin:14px 0 0;font:400 12.5px/1.5 var(--mono);color:var(--muted)}
   .keystate.on{color:var(--ok)}
   .keystate.err{color:var(--hot)}
 
@@ -244,15 +245,22 @@
       <div class="istep">
         <span class="inum">01</span>
         <div>
-          <b>Paste a Brave Search API key.</b>
-          <p>Free at <a href="https://brave.com/search/api/" target="_blank" rel="noopener">brave.com/search/api</a>
-             — the free tier is 2,000 queries a month and needs no card. Without a key the
-             app still works: it falls back to DuckDuckGo, which rate-limits hard and finds
-             fewer roster pages.</p>
+          <b>Paste a search API key.</b>
+          <p>A key finds far more roster pages than the keyless fallback, which rate-limits
+             hard. Both engines can hold a key at once — they are searched together, so a
+             second key is more coverage, not a spare.</p>
           <div class="row" style="margin-top:12px">
-            <input id="bkey" type="password" placeholder="BSA..." autocomplete="off" spellcheck="false">
-            <button id="bsave" onclick="saveKey()">Use key</button>
+            <input id="skey" type="password" placeholder="Serper API key" autocomplete="off" spellcheck="false">
+            <button id="ssave" onclick="saveKey('serper')">Use key</button>
           </div>
+          <p class="keyhint"><a href="https://serper.dev" target="_blank" rel="noopener">serper.dev</a>
+             — 2,500 free searches</p>
+          <div class="row" style="margin-top:12px">
+            <input id="bkey" type="password" placeholder="Brave API key (optional)" autocomplete="off" spellcheck="false">
+            <button id="bsave" class="ghost" onclick="saveKey('brave')">Use key</button>
+          </div>
+          <p class="keyhint"><a href="https://brave.com/search/api/" target="_blank" rel="noopener">brave.com/search/api</a>
+             — 2,000 free queries a month</p>
           <p id="bstate" class="keystate">Checking…</p>
         </div>
       </div>
@@ -272,8 +280,8 @@
       </div>
     </div>
     <div class="banner">
-      <b>A search engine cannot create a connection.</b> Brave only tells the app which page
-      to read. The page still has to <i>assert</i> the relationship — a roster listing both
+      <b>A search engine cannot create a connection.</b> It only tells the app which page to
+      read. The page still has to <i>assert</i> the relationship — a roster listing both
       people, an episode, a filing — or no edge is made. A better search engine finds more
       pages; it never lowers the bar for what counts.
     </div>
@@ -617,31 +625,48 @@ function renderImport(d){
 }
 
 // --- Brave key + deep search ----------------------------------------------
+// Engines are searched TOGETHER, so the state names all of them rather than
+// implying one wins.
+function engineState(s){
+  const on = [];
+  if (s.serper && s.serper.ok) on.push('Serper');
+  if (s.brave && s.brave.ok) on.push('Brave');
+  if (on.length) {
+    return [true, on.join(' + ') + (on.length > 1 ? ' are' : ' is')
+            + ' in use, searched in parallel. Keys last until you close the app.'];
+  }
+  // A key that was typed but rejected upstream must not read as "no key".
+  const bad = [s.serper, s.brave].filter(e => e && e.state === 'invalid_key').length;
+  if (bad) return [false, 'That key was rejected by the provider. Falling back to DuckDuckGo.'];
+  const spent = [s.serper, s.brave].filter(e => e && e.state === 'exhausted').length;
+  if (spent) return [false, 'That key is out of quota. Falling back to DuckDuckGo.'];
+  return [false, 'No key set — using DuckDuckGo, which finds fewer roster pages.'];
+}
+
 async function refreshKeyState(){
   const el = document.getElementById('bstate');
   try {
     const s = await (await fetch('/search/status')).json();
     const mins = Math.round((s.deep_budget_s || 240) / 60);
     document.getElementById('deepmins').textContent = mins + (mins === 1 ? ' minute' : ' minutes');
-    el.className = 'keystate ' + (s.brave.ok ? 'on' : '');
-    el.textContent = s.brave.ok
-      ? 'Brave is in use for this session. Searches will use it until you close the app.'
-      : (s.serper && s.serper.ok
-          ? 'No Brave key. Serper is configured and will be used instead.'
-          : 'No key set — falling back to DuckDuckGo.');
+    const [ok, text] = engineState(s);
+    el.className = 'keystate ' + (ok ? 'on' : '');
+    el.textContent = text;
   } catch (_) {
+    el.className = 'keystate err';
     el.textContent = 'Cannot reach the app.';
   }
 }
 
-async function saveKey(){
-  const input = document.getElementById('bkey');
-  const btn = document.getElementById('bsave');
+async function saveKey(engine){
+  const input = document.getElementById(engine === 'brave' ? 'bkey' : 'skey');
+  const btn = document.getElementById(engine === 'brave' ? 'bsave' : 'ssave');
   const el = document.getElementById('bstate');
   btn.disabled = true;
   try {
     const fd = new FormData();
     fd.append('key', input.value.trim());
+    fd.append('engine', engine);
     const res = await fetch('/search/key', {method: 'POST', body: fd});
     const d = await res.json();
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
@@ -697,7 +722,8 @@ async function deepSearch(){
 }
 
 document.getElementById('dq').addEventListener('keydown', e => { if (e.key === 'Enter') deepSearch(); });
-document.getElementById('bkey').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
+document.getElementById('skey').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey('serper'); });
+document.getElementById('bkey').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey('brave'); });
 
 document.getElementById('csv').addEventListener('change', e => uploadCsv(e.target.files[0]));
 

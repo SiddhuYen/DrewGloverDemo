@@ -9,6 +9,7 @@ artifacts like "Drew Glover - LinkedIn". Name shape is a syntactic property, so
 a syntactic filter is both cheaper and strictly more reliable.
 """
 import re
+import unicodedata
 
 _PUNCT = re.compile(r"[^\w\s]", flags=re.UNICODE)
 _WS = re.compile(r"\s+")
@@ -315,13 +316,80 @@ def strip_middle_initials(name: str) -> str:
 
 def person_norm_key(name: str) -> str:
     """Canonical dedup key for a person: normalised, middle initials stripped,
-    first name canonicalised through the diminutive map."""
+    first name canonicalised through the diminutive map.
+
+    Deliberately STRICT. This key decides whether two nodes are the same person,
+    so loosening it would merge strangers and manufacture exactly the false
+    bridges Rule 0 exists to prevent. To find a person the user typed, use
+    `person_search_keys` instead — being wrong there costs a wrong search
+    result, not a fabricated edge.
+    """
     base = normalize(strip_middle_initials(name))
     if not base:
         return ""
     parts = base.split()
     parts[0] = _DIMINUTIVES.get(parts[0], parts[0])
     return " ".join(parts)
+
+
+# Trailing tokens that are titles or credentials, not part of the name. LinkedIn
+# exports carry these constantly: "Robert Chen Jr.", "John Smith, CFA".
+_NAME_SUFFIXES = {
+    "jr", "jnr", "sr", "snr", "ii", "iii", "iv", "v",
+    "phd", "md", "mba", "cfa", "cpa", "esq", "jd", "dds", "rn", "pe", "msc",
+    "ma", "bs", "ba", "mps", "pmp", "cissp", "faia",
+}
+# Anything in brackets is a note, not a name: "Sheel Mohnot (BTV)".
+_PARENTHETICAL = re.compile(r"[\(\[\{][^\)\]\}]*[\)\]\}]")
+
+
+def fold_accents(text: str) -> str:
+    """'José' -> 'Jose'. Decompose, then drop the combining marks.
+
+    Nobody types accents into a search box, and LinkedIn stores them faithfully,
+    so without this an accented contact is unfindable by the person who imported
+    them.
+    """
+    if not text:
+        return ""
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in decomposed if not unicodedata.combining(c))
+
+
+def person_search_keys(name: str) -> set:
+    """Loose keys for FINDING a person the user typed. Never for dedup.
+
+    Two keys, because neither alone covers how names actually differ:
+
+      * squashed — every alphanumeric, no separators. Absorbs punctuation that
+        two sources disagree about: "Mary-Kate O'Brien" and "Mary Kate OBrien"
+        both become `marykateobrien`.
+      * first+last — drops interior tokens, so "John Andrew Smith" is findable
+        as "John Smith". A squashed key cannot do this, and a first+last key
+        cannot absorb punctuation, which is why both exist.
+
+    A match on EITHER resolves. That is deliberately generous: the cost of a
+    false positive here is showing the wrong person's path, which the user reads
+    and rejects. The cost of a false negative is the app flatly denying that
+    someone it just imported exists.
+    """
+    if not name:
+        return set()
+    cleaned = _PARENTHETICAL.sub(" ", name)
+    cleaned = cleaned.split(",")[0]          # "John Smith, CFA" -> "John Smith"
+    base = normalize(fold_accents(cleaned))
+    if not base:
+        return set()
+
+    parts = [p for p in base.split() if p and p not in _NAME_SUFFIXES]
+    if not parts:
+        return set()
+    parts[0] = _DIMINUTIVES.get(parts[0], parts[0])
+
+    keys = {"".join(parts)}
+    if len(parts) > 2:
+        keys.add(parts[0] + parts[-1])       # squashed first+last
+    return keys
 
 
 def strip_org_suffixes(name: str) -> str:

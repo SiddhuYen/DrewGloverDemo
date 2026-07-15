@@ -37,6 +37,25 @@ def _mark_state(state: str) -> None:
         pass
 
 
+def set_key(key: str) -> bool:
+    """Install a Serper key at runtime, from the UI.
+
+    The packaged app has no terminal to export SERPER_API_KEY in and no project
+    root to drop a .env into, so a key typed into the window is the only route a
+    user of the .exe actually has.
+
+    Clearing a persisted `invalid_key` / `exhausted` state matters: those are
+    sticky by design so one bad key does not re-fail every query in a run, but a
+    NEW key deserves a fresh verdict rather than inheriting the old one's.
+    """
+    key = (key or "").strip()
+    if key and (len(key) < 8 or " " in key):
+        return False
+    config.SERPER_API_KEY = key
+    _mark_state("")
+    return True
+
+
 def serper_status() -> dict:
     """Availability for /health: monthly usage plus any outage state.
     state is one of: ok | exhausted | invalid_key | not_configured."""

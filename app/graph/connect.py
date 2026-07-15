@@ -23,8 +23,8 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..edges import taxonomy
-from ..edges.names import person_norm_key
 from ..models import Person, RelationshipEdge, Source
+from .resolve import resolve_person
 from .enrich import get_enricher
 
 Hop = Tuple[str, Optional[RelationshipEdge]]
@@ -249,8 +249,13 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
 
 
 def _lookup(db: Session, name: str) -> Optional[Person]:
-    return db.execute(select(Person).where(
-        Person.norm_name == person_norm_key(name))).scalar_one_or_none()
+    """Strict key first, then the loose resolver — see graph/resolve.py.
+
+    An exact-key-only lookup told users that someone they had just imported was
+    "not in the graph", because LinkedIn stores "José Álvarez" and people type
+    "Jose Alvarez".
+    """
+    return resolve_person(db, name)
 
 
 def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
