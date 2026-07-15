@@ -25,7 +25,7 @@ from .. import config
 from ..edges import taxonomy
 from ..edges.names import person_norm_key
 from ..models import Person, RelationshipEdge, Source
-from .enrich import get_enricher
+from .enrich import get_enricher, target_enrichment_level
 
 Hop = Tuple[str, Optional[RelationshipEdge]]
 
@@ -298,7 +298,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
     if not routes:
         for name in (name_a, name_b):
             person = _lookup(db, name)
-            if person is None or not person.enriched:
+            if person is None or person.enriched < target_enrichment_level():
                 if progress:
                     progress(f"[1] enriching {name}…")
                 if config.DEEP_SEARCH:
@@ -390,7 +390,7 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None) -> dict
 
     # Only reach for the network when we have nothing on this person yet.
     root = _lookup(db, name)
-    if root is None or not root.enriched:
+    if root is None or root.enriched < target_enrichment_level():
         get_enricher().enrich_neighborhood(db, name, depth=depth)
         root = _lookup(db, name)
     if root is None:

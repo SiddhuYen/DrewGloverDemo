@@ -26,7 +26,7 @@ from ..edges import taxonomy
 from ..edges.names import person_norm_key
 from ..models import Organization, Person, RelationshipEdge, Source
 from .connect import _adjacency
-from .enrich import get_enricher
+from .enrich import target_enrichment_level, get_enricher
 
 
 def _lookup(db: Session, name: str) -> Optional[Person]:
@@ -69,7 +69,7 @@ def _dijkstra(adj, root_id: str, max_hops: int, banned: Optional[set] = None):
 def _ensure(db: Session, name: str, depth: int, progress=None) -> Optional[Person]:
     """Resolve a person, enriching only when we hold nothing on them yet."""
     person = _lookup(db, name)
-    if person is None or not person.enriched:
+    if person is None or person.enriched < target_enrichment_level():
         get_enricher().enrich_neighborhood(db, name, depth=depth, progress=progress)
         person = _lookup(db, name)
     return person
