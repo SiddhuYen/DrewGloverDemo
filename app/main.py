@@ -51,25 +51,38 @@ def health(db: Session = Depends(get_db)) -> dict:
 
 @app.get("/settings")
 def get_settings() -> dict:
-    """Whether live search is configured. Never returns the key itself."""
+    """Live-search config. Never returns the key itself."""
     return {"serper_configured": bool(config.SERPER_API_KEY),
-            "serper": serper_status()}
+            "deep_search": config.DEEP_SEARCH, "serper": serper_status()}
 
 
 @app.post("/settings")
-def set_settings(serper_key: str = Body(..., embed=True)) -> dict:
-    """Store the user's own Serper API key (desktop app) and apply it live, so
-    a new target can be searched without shipping anyone's key."""
-    key = (serper_key or "").strip()
-    config.SERPER_API_KEY = key                 # SerperProvider reads this live
-    os.environ["SERPER_API_KEY"] = key
+def set_settings(serper_key: str = Body(None, embed=True),
+                 deep_search: bool = Body(None, embed=True)) -> dict:
+    """Store the user's own Serper key and/or the deep-search toggle, apply live,
+    and persist. `deep_search` = the ArtemisV2-style 2-hop web expansion."""
     path = os.environ.get("VCWI_SETTINGS_FILE")
+    cur = {}
+    if path and os.path.exists(path):
+        try:
+            cur = json.load(open(path))
+        except Exception:
+            cur = {}
+    if serper_key is not None:
+        key = serper_key.strip()
+        config.SERPER_API_KEY = key             # SerperProvider reads this live
+        os.environ["SERPER_API_KEY"] = key
+        cur["serper_key"] = key
+    if deep_search is not None:
+        config.DEEP_SEARCH = bool(deep_search)  # _adjacency / enrich read this live
+        cur["deep_search"] = bool(deep_search)
     if path:
         try:
-            json.dump({"serper_key": key}, open(path, "w"))
+            json.dump(cur, open(path, "w"))
         except Exception as exc:
             raise HTTPException(500, f"could not persist settings: {exc}")
-    return {"ok": True, "serper_configured": bool(key)}
+    return {"ok": True, "serper_configured": bool(config.SERPER_API_KEY),
+            "deep_search": config.DEEP_SEARCH}
 
 
 @app.post("/seed")

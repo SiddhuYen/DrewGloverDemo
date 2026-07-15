@@ -271,7 +271,7 @@ class Enricher:
         `co_mention` edge, labelled as NOT a confirmed relationship. This is the
         one deliberate exception to Rule 0, gated twice (here to create, and
         connect(include_weak=True) to traverse)."""
-        if not config.CO_MENTION_ENABLED:
+        if not (config.CO_MENTION_ENABLED or config.DEEP_SEARCH):
             return 0
         created = 0
         for hit in self.comention.co_mentions(subject.canonical_name):
@@ -606,8 +606,11 @@ class Enricher:
             return subject
 
         if deadline is None:
-            deadline = time.monotonic() + config.ENRICH_TIME_BUDGET_S
-        fanout = fanout or config.ENRICH_FRONTIER_FANOUT
+            budget = (config.DEEP_TIME_BUDGET_S if config.DEEP_SEARCH
+                      else config.ENRICH_TIME_BUDGET_S)
+            deadline = time.monotonic() + budget
+        fanout = fanout or (config.DEEP_FANOUT if config.DEEP_SEARCH
+                            else config.ENRICH_FRONTIER_FANOUT)
 
         enriched_here, skipped_total = 0, 0
         frontier = [subject]

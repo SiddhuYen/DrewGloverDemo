@@ -57,9 +57,12 @@ def _configure_env() -> Path:
     settings = data / "settings.json"
     if settings.exists():
         try:
-            key = json.loads(settings.read_text()).get("serper_key", "").strip()
+            s = json.loads(settings.read_text())
+            key = (s.get("serper_key") or "").strip()
             if key:
                 os.environ["SERPER_API_KEY"] = key
+            if s.get("deep_search"):
+                os.environ["VCWI_DEEP_SEARCH"] = "1"
         except Exception:
             pass
     # tell the app where to persist a key the user types into the settings UI

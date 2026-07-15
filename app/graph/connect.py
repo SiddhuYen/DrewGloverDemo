@@ -46,8 +46,9 @@ def _adjacency(db: Session, include_weak: bool = False):
     """Undirected person-person adjacency, keeping the WARMEST edge per pair.
 
     `include_weak` opens the opt-in co-occurrence tier: by default weak
-    `co_mention` edges are excluded, so pathfinding stays Rule-0 pure. When True,
-    they are traversable (at their punishing tier-6 cost) as a last resort.
+    `co_mention` edges are excluded, so pathfinding stays Rule-0 pure. When True
+    (or whenever DEEP_SEARCH is on), they are traversable (at their punishing
+    tier-6 cost) so the deep 2-hop web-mined neighbourhood is reachable.
 
     Also returns `node_penalty`: a per-person routing surcharge that grows with
     degree, so a path avoids transiting a mega-hub (a podcast host with hundreds
@@ -55,6 +56,7 @@ def _adjacency(db: Session, include_weak: bool = False):
     exists. This is what stops every long path from collapsing into a chain
     through the same three interview hubs.
     """
+    include_weak = include_weak or config.DEEP_SEARCH
     person_by_id = {p.id: p for p in db.execute(select(Person)).scalars()}
     src_by_id = {s.id: s for s in db.execute(select(Source)).scalars()}
 
@@ -299,7 +301,10 @@ def connect_people(db: Session, name_a: str, name_b: str,
             if person is None or not person.enriched:
                 if progress:
                     progress(f"[1] enriching {name}…")
-                enricher.enrich_person(db, name, progress=progress)
+                if config.DEEP_SEARCH:
+                    enricher.enrich_neighborhood(db, name, depth=2, progress=progress)
+                else:
+                    enricher.enrich_person(db, name, progress=progress)
         a, b = _lookup(db, name_a), _lookup(db, name_b)
         if a is None or b is None:
             missing = name_a if a is None else name_b
