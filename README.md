@@ -21,9 +21,10 @@ Charles Hudson
 
 ## Download (Windows)
 
-Grab **`VCWarmIntro.exe`** and double-click it. No Python, no install, no API key, no
-setup — the graph ships inside the file. A console window opens and your browser lands
-on the UI; **close the console window to quit.**
+**[Download VCWarmIntro.exe](https://github.com/SiddhuYen/DrewGloverDemo/releases/download/windows-app-v1/VCWarmIntro.exe)**
+(72 MB) and double-click it. No Python, no install, no API key, no setup — the graph
+ships inside the file. A console window opens and your browser lands on the UI;
+**close the console window to quit.**
 
 Two things worth knowing on first launch:
 
