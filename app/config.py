@@ -76,6 +76,16 @@ CO_MENTION_ENABLED = _flag("VCWI_CO_MENTION_ENABLED", "0")  # OFF by default
 CO_MENTION_MAX_PER_PERSON = int(os.environ.get("VCWI_CO_MENTION_MAX", "25"))
 CO_MENTION_MAX_PAGES = int(os.environ.get("VCWI_CO_MENTION_PAGES", "4"))
 
+# --- DEEP SEARCH (the "ArtemisV2 for two hops" mode) -----------------------
+# When on, a query aggressively web-mines a dense 2-hop neighbourhood around the
+# target: co_mention (co-occurrence) is enabled, the frontier fan-out jumps from
+# a few to DEEP_FANOUT per hop, and pathfinding TRAVERSES the weak co-occurrence
+# tier so those pulled-in people are actually reachable. Costs a lot more Serper
+# quota per query; off by default so the core demo stays Rule-0 pure.
+DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
+DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
+DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
+
 # Per-node routing surcharge = coefficient x ln(degree), added when a path
 # TRANSITS a person. Discourages funnelling every route through the same few
 # mega-hubs (a podcast host with hundreds of guests) when a lower-degree

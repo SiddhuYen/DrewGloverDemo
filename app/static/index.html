@@ -6,77 +6,120 @@
 <title>Warm Intro Pathfinder — Drew Glover</title>
 <style>
   :root{
-    --bg:#0e1116; --panel:#161b22; --line:#242c37; --ink:#e6edf3;
-    --muted:#8b949e; --accent:#4ea1ff; --warm:#ffb454; --ok:#3fb950; --bad:#f85149;
-    --t1:#3fb950; --t2:#4ea1ff; --t3:#a371f7; --t4:#d29922; --t5:#8b949e;
+    --black:#000; --white:#fff; --red:#e00000;
+    --bg:var(--black); --panel:var(--black); --line:var(--white);
+    --ink:var(--white); --muted:var(--white); --accent:var(--red);
+    --warm:var(--red); --ok:var(--white); --bad:var(--red);
+    --t1:var(--red); --t2:var(--white); --t3:var(--red);
+    --t4:var(--white); --t5:var(--red);
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
-  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
-  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
-  .tabs{display:flex;gap:8px;margin-bottom:16px}
-  .tab{padding:8px 16px;border:1px solid var(--line);background:var(--panel);
-    color:var(--muted);border-radius:8px;cursor:pointer;font-size:14px}
-  .tab[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+  *{box-sizing:border-box;border-radius:0!important}
+  html{background:var(--black)}
+  body{margin:0;background-color:var(--bg);color:var(--ink);
+    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:16px 16px;
+    font:14px/1.6 "Courier New",Courier,monospace;image-rendering:pixelated}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+    background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,
+      rgba(255,255,255,.025) 3px,rgba(255,255,255,.025) 4px)}
+  ::selection{background:var(--red);color:var(--white)}
+  .wrap{max-width:960px;margin:0 auto;padding:38px 22px 80px}
+  h1{font-size:27px;line-height:1.2;margin:0 0 8px;letter-spacing:.07em;
+    text-transform:uppercase;text-shadow:3px 3px 0 var(--red)}
+  h1::before{content:"> ";color:var(--red)}
+  .sub{color:var(--white);margin:0 0 28px;font-size:13px;opacity:.78}
+  .sub b{color:var(--red)}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+  .tab{padding:10px 12px;border:2px solid var(--white);background:var(--black);
+    color:var(--white);cursor:pointer;font:700 12px/1.2 "Courier New",monospace;
+    letter-spacing:.08em;text-transform:uppercase;box-shadow:3px 3px 0 var(--white)}
+  .tab:hover,.tab[aria-selected="true"]{color:var(--white);background:var(--red);
+    border-color:var(--red);box-shadow:3px 3px 0 var(--white)}
   .row{display:flex;gap:8px}
-  input{flex:1;padding:11px 13px;background:var(--panel);border:1px solid var(--line);
-    border-radius:8px;color:var(--ink);font-size:15px}
-  input:focus{outline:none;border-color:var(--accent)}
-  button{padding:11px 20px;background:var(--accent);border:0;border-radius:8px;
-    color:#04121f;font-weight:600;cursor:pointer;font-size:15px}
-  button:disabled{opacity:.5;cursor:default}
-  .banner{margin:16px 0;padding:12px 14px;border:1px solid var(--line);
-    border-left:3px solid var(--warm);border-radius:6px;background:var(--panel);
-    color:var(--muted);font-size:13px}
-  .banner b{color:var(--ink);font-weight:600}
-  .route{margin:20px 0;border:1px solid var(--line);border-radius:10px;
-    background:var(--panel);overflow:hidden}
+  input{min-width:0;flex:1;padding:12px 13px;background:var(--black);
+    border:2px solid var(--white);color:var(--white);font:700 14px/1.2 "Courier New",monospace;
+    box-shadow:3px 3px 0 var(--white)}
+  input::placeholder{color:var(--white);opacity:.55}
+  input:focus{outline:3px solid var(--red);outline-offset:2px;border-color:var(--white)}
+  button{padding:12px 20px;background:var(--red);border:2px solid var(--red);
+    color:var(--white);font:700 13px/1.2 "Courier New",monospace;letter-spacing:.04em;
+    text-transform:uppercase;cursor:pointer;box-shadow:3px 3px 0 var(--white)}
+  button:hover{background:var(--white);border-color:var(--white);color:var(--black);
+    box-shadow:3px 3px 0 var(--red)}
+  button:disabled{opacity:.45;cursor:default}
+  .gear{float:right;padding:0!important;background:var(--black)!important;
+    border:2px solid var(--white)!important;color:var(--white)!important;
+    width:34px;height:34px;font-size:17px!important;box-shadow:3px 3px 0 var(--red)!important}
+  .settings-panel{display:none;border:2px solid var(--white);padding:14px;margin:14px 0;
+    background:var(--black);box-shadow:4px 4px 0 var(--red)}
+  .banner{margin:18px 0;padding:12px 14px;border:2px solid var(--white);
+    border-left:8px solid var(--red);background:var(--black);color:var(--white);
+    font-size:12px;box-shadow:4px 4px 0 var(--red)}
+  .banner b{color:var(--red);font-weight:700;text-transform:uppercase}
+  .route{margin:22px 0;border:2px solid var(--white);background:var(--panel);
+    overflow:hidden;box-shadow:5px 5px 0 var(--red)}
   .route-hd{display:flex;justify-content:space-between;align-items:center;
-    padding:11px 16px;border-bottom:1px solid var(--line);font-size:13px}
-  .route-hd .n{font-weight:600}
-  .score{color:var(--muted)}
+    gap:12px;padding:10px 14px;border-bottom:2px solid var(--white);font-size:12px;
+    background:var(--red);color:var(--white);text-transform:uppercase}
+  .route-hd .n{font-weight:700}
+  .score{color:var(--white);font-weight:700}
   .chain{padding:8px 16px 16px}
-  .person{display:flex;align-items:center;gap:8px;padding:8px 0;font-weight:600}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
-  .person.warm .dot{background:var(--warm)}
-  .star{color:var(--warm);font-size:12px;font-weight:500}
-  .link{margin-left:4px;padding:2px 0 10px 12px;border-left:2px solid var(--line)}
+  .person{display:flex;align-items:center;gap:9px;padding:9px 0;font-weight:700;
+    text-transform:uppercase;letter-spacing:.03em}
+  .dot{width:10px;height:10px;background:var(--white);border:2px solid var(--white);flex:none}
+  .person.warm .dot{background:var(--red)}
+  .star{color:var(--red);font-size:11px;font-weight:700}
+  .link{margin-left:4px;padding:3px 0 11px 13px;border-left:3px dashed var(--red)}
   .why{font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .tier{font-size:11px;padding:1px 7px;border-radius:20px;font-weight:600;
-    border:1px solid currentColor}
+  .tier{font-size:10px;padding:1px 6px;font-weight:700;border:1px solid currentColor;
+    text-transform:uppercase}
   .t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}
   .t4{color:var(--t4)}.t5{color:var(--t5)}
-  .ev{color:var(--muted);font-size:12.5px;font-style:italic;margin-top:5px}
+  .ev{color:var(--white);opacity:.72;font-size:12px;margin-top:6px}
   .src{font-size:12px;margin-top:4px}
-  .src a{color:var(--accent);text-decoration:none;word-break:break-all}
-  .src a:hover{text-decoration:underline}
-  .msg{padding:16px;border:1px solid var(--line);border-radius:10px;
-    background:var(--panel);color:var(--muted);font-size:14px}
-  .msg.err{border-left:3px solid var(--bad)}
+  .src a{color:var(--red);text-decoration:underline;word-break:break-all}
+  .src a:hover{color:var(--white);background:var(--red)}
+  .msg{padding:16px;border:2px solid var(--white);background:var(--panel);
+    color:var(--white);font-size:13px;box-shadow:4px 4px 0 var(--red)}
+  .msg.err{border-left:8px solid var(--bad)}
   ul.nb{list-style:none;padding:0;margin:16px 0 0}
   ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;
-    border:1px solid var(--line);border-radius:8px;margin-bottom:7px;
-    background:var(--panel);font-size:14px}
-  ul.nb .via{color:var(--muted);font-size:12.5px}
-  .spin{color:var(--muted);font-size:14px;padding:16px}
-  footer{margin-top:40px;color:var(--muted);font-size:12px;line-height:1.7}
+    border:2px solid var(--white);margin-bottom:8px;background:var(--panel);
+    font-size:13px;box-shadow:3px 3px 0 var(--red)}
+  ul.nb .via{color:var(--white);opacity:.68;font-size:11px}
+  .spin{color:var(--white);font-size:13px;padding:16px;border-left:8px solid var(--red)}
+  .spin::before{content:"[ LOADING ] ";color:var(--red);font-weight:700}
+  footer{margin-top:44px;padding-top:14px;border-top:2px dashed var(--white);
+    color:var(--white);font-size:11px;line-height:1.8;opacity:.8}
+  @media(max-width:640px){
+    .wrap{padding:24px 14px 60px}h1{font-size:20px;padding-right:42px;position:relative}
+    .gear{position:absolute;right:0;top:0}.tabs{grid-template-columns:repeat(2,1fr)}
+    .row{flex-direction:column}.row button{width:100%}.route-hd{align-items:flex-start;
+      flex-direction:column}.chain{padding:8px 12px 14px}
+  }
+  @media(prefers-reduced-motion:no-preference){
+    .spin{animation:blink 1s steps(2,end) infinite}@keyframes blink{50%{opacity:.45}}
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Warm Intro Pathfinder
-    <button onclick="toggleSettings()" title="Settings" style="float:right;font-size:18px;background:none;border:none;cursor:pointer;color:inherit">⚙</button>
+    <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">⚙</button>
   </h1>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
-  <div id="settings" style="display:none;border:1px solid #3a3a3a;border-radius:8px;padding:12px;margin:10px 0;background:rgba(0,0,0,0.15)">
+  <div id="settings" class="settings-panel">
     <div style="margin-bottom:6px"><b>Live search</b> — a Serper API key lets you search for people not yet in the graph. The bundled graph works without one.</div>
     <div class="row">
       <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
       <button onclick="saveKey()">Save</button>
     </div>
+    <label style="display:block;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="deepSearch" onchange="saveDeep()">
+      <b>Deep search (2 hops)</b> — aggressively web-mine a dense neighborhood around new targets. Finds far more, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
+    </label>
     <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
   </div>
 
@@ -307,9 +350,19 @@ async function saveKey(){
     msg.textContent = r.serper_configured ? 'Live search enabled ✓' : 'Key cleared.';
   } catch(e){ msg.textContent = 'Could not save the key.'; }
 }
+async function saveDeep(){
+  const on = document.getElementById('deepSearch').checked;
+  const msg = document.getElementById('settingsMsg');
+  msg.textContent = on ? 'Deep search ON — slower, denser, more quota.' : 'Deep search off.';
+  try {
+    await fetch('/settings', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({deep_search: on})});
+  } catch(e){ msg.textContent = 'Could not save.'; }
+}
 (async function checkSettings(){
   try {
     const s = await (await fetch('/settings')).json();
+    document.getElementById('deepSearch').checked = !!s.deep_search;
     if (!s.serper_configured) {
       document.getElementById('settings').style.display = 'block';
       document.getElementById('settingsMsg').textContent =
