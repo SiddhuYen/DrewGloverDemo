@@ -72,7 +72,7 @@ WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 # co_mention edges (two people named together on a page) as a tier-6 last
 # resort. Even when created, they are only TRAVERSED when a query passes
 # include_weak=True (`connect --weak`). Double-gated on purpose.
-CO_MENTION_ENABLED = _flag("VCWI_CO_MENTION_ENABLED")
+CO_MENTION_ENABLED = _flag("VCWI_CO_MENTION_ENABLED", "0")  # OFF by default
 CO_MENTION_MAX_PER_PERSON = int(os.environ.get("VCWI_CO_MENTION_MAX", "25"))
 CO_MENTION_MAX_PAGES = int(os.environ.get("VCWI_CO_MENTION_PAGES", "4"))
 
