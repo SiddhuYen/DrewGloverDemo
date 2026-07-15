@@ -20,9 +20,8 @@
 
   .eyebrow{font:500 12px/1 var(--mono);color:var(--accent);letter-spacing:.14em;
     text-transform:uppercase;margin:0 0 14px}
-  h1{font:700 clamp(30px,4vw,42px)/1.1 var(--display);margin:0 0 8px;letter-spacing:-.01em;
-    text-wrap:balance}
-  .sub{color:var(--muted);margin:0 0 clamp(32px,5vw,52px);font-size:16px;max-width:60ch}
+  h1{font:700 clamp(30px,4vw,42px)/1.1 var(--display);margin:0 0 clamp(32px,5vw,52px);
+    letter-spacing:-.01em;text-wrap:balance}
 
   .step{display:grid;grid-template-columns:clamp(44px,6vw,64px) 1fr;column-gap:clamp(16px,3vw,28px);
     padding:clamp(28px,4vw,40px) 0;border-top:1px solid var(--line)}
@@ -62,7 +61,6 @@
 <div class="wrap">
   <p class="eyebrow">Setup guide</p>
   <h1>Download Artemis</h1>
-  <p class="sub">Demo build of Drew Glover's mapped network.</p>
 
   <div class="step">
     <div class="num">01</div>
@@ -127,7 +125,8 @@
     <div class="num">04</div>
     <div>
       <h2>Launch Artemis</h2>
-      <p>Open the app you downloaded in step 1 and sign in.</p>
+      <p>Open the app you downloaded in step 1. Your network is already loaded, no account
+        or login needed.</p>
     </div>
   </div>
 </div>
