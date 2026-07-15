@@ -142,8 +142,20 @@ def test_every_non_cooccurrence_type_is_structural():
     for rtype, spec in taxonomy.RELATIONSHIPS.items():
         if rtype == taxonomy.COOCCURRENCE:
             assert not spec.structural
+        elif taxonomy.is_weak(rtype):
+            # The opt-in weak tier is deliberately NON-structural (Rule 0 stays
+            # the default) and priced at tier 6.
+            assert not spec.structural and spec.tier == 6
         else:
             assert spec.structural and 1 <= spec.tier <= 5
+
+
+def test_co_mention_is_double_gated():
+    """The weak tier: non-structural (never persisted by Rule 0), yet weak (so
+    add_edge and _adjacency can admit it behind the two explicit toggles)."""
+    assert not taxonomy.is_structural("co_mention")
+    assert taxonomy.is_weak("co_mention")
+    assert taxonomy.edge_cost("co_mention") == config.WARMTH_TIER_COST[6]
 
 
 # --- membership (person -> org, never a person-person tie) -----------------

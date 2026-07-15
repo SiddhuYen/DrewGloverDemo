@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..models import Person
+from ..providers.comention import CoMentionProvider
 from ..providers.edgar import EdgarProvider
 from ..providers.firms import FirmsProvider
 from ..providers.opencorporates import OpenCorporatesProvider
@@ -60,6 +61,7 @@ class Enricher:
         self.podcasts = PodcastProvider()
         self.openalex = OpenAlexProvider()
         self.propublica = ProPublicaProvider()
+        self.comention = CoMentionProvider(_search_provider())
 
     # --- one org's roster -> membership + (maybe) pairwise edges ----------
     def _absorb_org(self, db: Session, subject: Person, org_name: str,
@@ -260,6 +262,34 @@ class Enricher:
             if n:
                 _note(progress, f"    {rtype}: {n} edges")
             created += n
+        return created
+
+    def _from_comention(self, db: Session, subject: Person,
+                        progress: Progress) -> int:
+        """OPT-IN weak tier. Off unless config.CO_MENTION_ENABLED — then every
+        person co-mentioned with the subject on a fetched page becomes a tier-6
+        `co_mention` edge, labelled as NOT a confirmed relationship. This is the
+        one deliberate exception to Rule 0, gated twice (here to create, and
+        connect(include_weak=True) to traverse)."""
+        if not config.CO_MENTION_ENABLED:
+            return 0
+        created = 0
+        for hit in self.comention.co_mentions(subject.canonical_name):
+            source = builder.get_or_create_source(
+                db, hit["source_url"], title=f"co-mention: {subject.canonical_name}",
+                provider="comention")
+            other = builder.get_or_create_person(db, hit["name"])
+            if other is None or other.id == subject.id:
+                continue
+            edge = builder.add_edge(
+                db, subject, other, "co_mention", source=source,
+                evidence=(f"{subject.canonical_name} and {other.canonical_name} "
+                          f"were named together on {hit['source_url']} — a "
+                          f"co-mention, NOT a confirmed relationship."))
+            if edge is not None:
+                created += 1
+        if created:
+            _note(progress, f"    co_mention (weak): {created} edges")
         return created
 
     def _from_edgar(self, db: Session, subject: Person, progress: Progress) -> int:
@@ -539,7 +569,8 @@ class Enricher:
         for step in (self._from_wikidata, self._from_edgar,
                      self._from_opencorporates, self._from_openalex,
                      self._from_propublica, self._from_person_firms,
-                     self._from_firm_rosters, self._from_podcasts):
+                     self._from_firm_rosters, self._from_podcasts,
+                     self._from_comention):
             try:
                 total += step(db, subject, progress)
             except Exception as exc:  # one dead provider must not sink the run

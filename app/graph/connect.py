@@ -42,8 +42,12 @@ def _edge_cost(edge: RelationshipEdge) -> float:
     return taxonomy.edge_cost(edge.relationship_type)
 
 
-def _adjacency(db: Session):
+def _adjacency(db: Session, include_weak: bool = False):
     """Undirected person-person adjacency, keeping the WARMEST edge per pair.
+
+    `include_weak` opens the opt-in co-occurrence tier: by default weak
+    `co_mention` edges are excluded, so pathfinding stays Rule-0 pure. When True,
+    they are traversable (at their punishing tier-6 cost) as a last resort.
 
     Also returns `node_penalty`: a per-person routing surcharge that grows with
     degree, so a path avoids transiting a mega-hub (a podcast host with hundreds
@@ -64,7 +68,11 @@ def _adjacency(db: Session):
             continue
         # Defense in depth. add_edge already refuses these, but a hand-edited DB
         # or a future migration must never be able to route a path through one.
-        if not edge.structural or not taxonomy.is_structural(edge.relationship_type):
+        rtype = edge.relationship_type
+        if taxonomy.is_weak(rtype):
+            if not include_weak:
+                continue            # weak co-occurrence tier: opt-in only
+        elif not edge.structural or not taxonomy.is_structural(rtype):
             continue
         key = (a, b) if a < b else (b, a)
         current = best.get(key)
@@ -245,15 +253,16 @@ def _lookup(db: Session, name: str) -> Optional[Person]:
         Person.norm_name == person_norm_key(name))).scalar_one_or_none()
 
 
-def _try_paths(db: Session, a: Person, b: Person):
-    adj, person_by_id, src_by_id, node_penalty = _adjacency(db)
+def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
+    adj, person_by_id, src_by_id, node_penalty = _adjacency(db, include_weak)
     routes = _diverse_paths(adj, a.id, b.id, config.hop_limit(),
                             config.CONNECT_MAX_PATHS, node_penalty)
     return routes, person_by_id, src_by_id
 
 
 def connect_people(db: Session, name_a: str, name_b: str,
-                   depth: int = None, progress=None) -> dict:
+                   depth: int = None, progress=None,
+                   include_weak: bool = False) -> dict:
     """Top-K warmest distinct intro paths from `name_a` to `name_b`.
 
     Enrichment escalates only as far as it must:
@@ -281,7 +290,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
     if a is not None and b is not None:
         if progress:
             progress("[0] searching the existing graph…")
-        routes, person_by_id, src_by_id = _try_paths(db, a, b)
+        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
     # Stage 1 — pull structured sources for the endpoints only.
     if not routes:
@@ -299,7 +308,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                               f"source places them in the VC/startup network."}
         if a.id == b.id:
             return {"connected": False, "reason": "those are the same person"}
-        routes, person_by_id, src_by_id = _try_paths(db, a, b)
+        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
     # Stage 2 — widen until the two sides meet, or the budget is spent.
     #
@@ -315,7 +324,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             progress(f"[2] expanding {name_a} (depth {depth})…")
         enricher.enrich_neighborhood(db, name_a, depth=depth, progress=progress,
                                      deadline=deadline)
-        routes, person_by_id, src_by_id = _try_paths(db, a, b)
+        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
         if not routes:
             drew_reach = set(_reachable_ids(db, a.id))
@@ -325,7 +334,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             enricher.enrich_neighborhood(
                 db, name_b, depth=config.CONNECT_TARGET_DEPTH, progress=progress,
                 opposite_component=drew_reach, deadline=deadline)
-            routes, person_by_id, src_by_id = _try_paths(db, a, b)
+            routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
     if not routes:
         # With no hop limit, the only way to fail is genuine disconnection: no

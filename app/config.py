@@ -65,7 +65,16 @@ MAX_ORG_MEMBERS_FOR_EDGES = int(os.environ.get("VCWI_MAX_ORG_MEMBERS", "40"))
 
 # Warmth tier -> pathfinding cost. Lower = warmer. Tier 1 is a demonstrated,
 # on-the-record relationship; tier 5 is a weak structural affiliation.
-WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0}
+WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
+
+# --- opt-in weak co-occurrence tier (the hybrid) ---------------------------
+# OFF by default: the graph stays Rule-0 pure. When enabled, enrichment mines
+# co_mention edges (two people named together on a page) as a tier-6 last
+# resort. Even when created, they are only TRAVERSED when a query passes
+# include_weak=True (`connect --weak`). Double-gated on purpose.
+CO_MENTION_ENABLED = _flag("VCWI_CO_MENTION_ENABLED")
+CO_MENTION_MAX_PER_PERSON = int(os.environ.get("VCWI_CO_MENTION_MAX", "25"))
+CO_MENTION_MAX_PAGES = int(os.environ.get("VCWI_CO_MENTION_PAGES", "4"))
 
 # Per-node routing surcharge = coefficient x ln(degree), added when a path
 # TRANSITS a person. Discourages funnelling every route through the same few

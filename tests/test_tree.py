@@ -188,6 +188,19 @@ def test_fame_gradient_inverts_with_prefer_notable(db, monkeypatch):
     assert up[0].id == famous.id              # famous first (walk up)
 
 
+def test_co_mention_weak_tier_is_excluded_unless_toggled(db):
+    """The opt-in hybrid: a co_mention edge is invisible to pathfinding by
+    default (Rule 0 stays pure), and traversable only when include_weak=True."""
+    drew, weak = _p(db, "Drew Glover"), _p(db, "Weak Link")
+    builder.add_edge(db, drew, weak, "co_mention")
+
+    adj_default, _, _, _ = _adjacency(db)
+    assert weak.id not in [nb for nb, _e in adj_default.get(drew.id, [])]
+
+    adj_weak, _, _, _ = _adjacency(db, include_weak=True)
+    assert weak.id in [nb for nb, _e in adj_weak.get(drew.id, [])]
+
+
 def test_compare_refuses_the_same_person(db, monkeypatch):
     from app.graph import tree as tree_mod
     drew = _p(db, "Drew Glover")

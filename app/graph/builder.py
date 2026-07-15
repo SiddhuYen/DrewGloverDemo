@@ -217,7 +217,8 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
     """
     if person_a is None or person_b is None or person_a.id == person_b.id:
         return None
-    if not taxonomy.is_structural(relationship_type):
+    if not (taxonomy.is_structural(relationship_type)
+            or taxonomy.is_weak(relationship_type)):
         raise NonStructuralEdgeError(
             f"refusing to persist a non-structural edge: {relationship_type!r} "
             f"({person_a.canonical_name} <-> {person_b.canonical_name}). "

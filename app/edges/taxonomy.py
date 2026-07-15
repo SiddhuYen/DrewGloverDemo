@@ -78,6 +78,16 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "co_speaker":         RelationshipSpec(5, "spoke at the same event", True),
     "notable_affiliation": RelationshipSpec(5, "share a documented affiliation", True),
 
+    # --- tier 6: OPT-IN weak co-occurrence (NOT Rule-0 structural) ---------
+    # Two people merely NAMED TOGETHER on a page — a co-occurrence, not an
+    # asserted tie. structural=False keeps Rule 0 the default: it is never
+    # persisted or traversed unless BOTH gates are opened — config.
+    # CO_MENTION_ENABLED to create it, and connect(include_weak=True) to route
+    # through it. Tier 6 is punishing, so a real tie of any length outranks it,
+    # and every such hop is labelled "not a confirmed relationship".
+    "co_mention":         RelationshipSpec(
+        6, "were co-mentioned in a source (not a confirmed relationship)", False),
+
     # --- person -> ORG membership (never a person-person tie) --------------
     # Recorded so a person carries their firm, which is what lets enrichment
     # fetch that firm's roster. It has no person_b, so pathfinding never sees
@@ -90,6 +100,16 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
 }
 
 COOCCURRENCE = "cooccurrence"
+
+# The OPT-IN weak tier. NOT structural (Rule 0 stays the default): a co_mention
+# is created only when config.CO_MENTION_ENABLED, and traversed only when a
+# query passes include_weak=True. `add_edge` allows persisting these; `_adjacency`
+# excludes them unless the toggle is on.
+WEAK_RELATIONSHIPS = {"co_mention"}
+
+
+def is_weak(relationship_type: str) -> bool:
+    return relationship_type in WEAK_RELATIONSHIPS
 
 # Org membership implies this person-person relationship when materialized.
 ORG_TYPE_TO_RELATIONSHIP = {
@@ -118,10 +138,12 @@ def label_for(relationship_type: str) -> str:
 
 def edge_cost(relationship_type: str) -> float:
     """Pathfinding weight. Lower = warmer. A non-traversable type costs
-    infinity, so even a buggy caller can never route through one."""
-    if not is_structural(relationship_type):
-        return float("inf")
-    return config.WARMTH_TIER_COST[warmth_tier(relationship_type)]
+    infinity, so even a buggy caller can never route through one. The weak
+    co-occurrence tier IS traversable (at a punishing tier-6 cost) — but only
+    reaches `_adjacency` when a query opts into it."""
+    if is_structural(relationship_type) or is_weak(relationship_type):
+        return config.WARMTH_TIER_COST[warmth_tier(relationship_type)]
+    return float("inf")
 
 
 def path_cost(relationship_types) -> float:

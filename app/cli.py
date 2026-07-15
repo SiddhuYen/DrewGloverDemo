@@ -146,6 +146,9 @@ def main(argv=None) -> int:
     p_connect.add_argument("person_a")
     p_connect.add_argument("person_b")
     p_connect.add_argument("--depth", type=int, default=config.CONNECT_DEPTH)
+    p_connect.add_argument("--weak", action="store_true",
+                           help="also traverse the opt-in weak co-occurrence "
+                                "(co_mention) tier — short paths, labelled weak")
 
     p_disc = sub.add_parser("discover", help="warmest reachable people")
     p_disc.add_argument("person")
@@ -183,7 +186,8 @@ def main(argv=None) -> int:
 
         elif args.cmd == "connect":
             _print_paths(connect_people(db, args.person_a, args.person_b,
-                                        depth=args.depth, progress=_progress))
+                                        depth=args.depth, progress=_progress,
+                                        include_weak=args.weak))
 
         elif args.cmd == "discover":
             result = discover(db, args.person, limit=args.limit)
