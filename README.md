@@ -9,17 +9,38 @@ ever inferred from two names appearing on the same page.
 
 ```
 Drew Glover
-  │  sat down together on the podcast   [tier 1 · podcast_guest]
+  │  sat down together on the podcast   [tier 2 · podcast_guest]
   │  "Bree Hanson interviewed Drew Glover on DrinksWithAVC (Ep. 37)."
   │  https://www.buzzsprout.com/1525162/episodes/17361266-dwavc-drew-glover-ep-37
 Bree Hanson ★
-  │  sat down together on the podcast   [tier 1 · podcast_guest]
+  │  sat down together on the podcast   [tier 2 · podcast_guest]
   │  "Bree Hanson interviewed Charles Hudson on DrinksWithAVC (Ep. 10)."
   │  https://www.buzzsprout.com/1525162/episodes/8637084-dwavc-charles-hudson-ep-10
 Charles Hudson
 ```
 
-## Quickstart
+## Download (Windows)
+
+Grab **`VCWarmIntro.exe`** and double-click it. No Python, no install, no API key, no
+setup — the graph ships inside the file. A console window opens and your browser lands
+on the UI; **close the console window to quit.**
+
+Two things worth knowing on first launch:
+
+- **SmartScreen will warn you** ("Windows protected your PC"). The .exe is unsigned —
+  code-signing certificates cost money and this is a demo. Click **More info →
+  Run anyway**.
+- **Your data lives in `%LOCALAPPDATA%\VCWarmIntro`**, not next to the .exe. The graph is
+  copied there on first run and every query you make enriches *your* copy. Delete that
+  folder to reset to the shipped graph. (The .exe unpacks itself to a temp directory that
+  is wiped on exit, so nothing it writes could survive there.)
+
+Optional: drop a `.env` next to the .exe with `SERPER_API_KEY=...` to give live enrichment
+better search coverage. Everything works without it.
+
+## Quickstart (from source)
+
+macOS / Linux:
 
 ```bash
 python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
@@ -31,8 +52,42 @@ cp .env.example .env          # optional: SERPER_API_KEY, OPENCORPORATES_API_TOK
 ./.venv/bin/python -m uvicorn app.main:app --reload      # then open /ui
 ```
 
+Windows (PowerShell) — same steps, different venv layout (`Scripts\`, not `bin/`):
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m spacy download en_core_web_sm
+Copy-Item .env.example .env   # optional
+
+.\.venv\Scripts\python.exe scripts\demo.py
+.\.venv\Scripts\python.exe -m app.cli connect "Drew Glover" "Sheel Mohnot"
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
+
+Python **3.12** specifically: spaCy 3.7 publishes no wheels for 3.13+, so a newer
+interpreter tries to compile `blis` from source and fails.
+
 No API key is required. Serper and OpenCorporates are optional boosters; without
 them the system falls back to DuckDuckGo and skips OpenCorporates entirely.
+
+## Building the .exe
+
+```powershell
+powershell -ExecutionPolicy Bypass -File build_windows.ps1
+# -RefreshGraph   rebuild the bundled graph instead of reusing build_assets\
+# -Precrawl       also crawl ~25 firm rosters (needs SERPER_API_KEY)
+```
+
+It provisions the venv, builds the graph into `build_assets\vcwarmintro.db`, and runs
+PyInstaller, leaving `dist\VCWarmIntro.exe` — the one file you send.
+
+The graph is checkpointed (`wal_checkpoint(TRUNCATE)`) before bundling, because only the
+`.db` is copied: anything left in the `-wal` sidecar would be silently missing from the
+shipped graph. And `vcwarmintro.spec` `collect_all`s spaCy and `en_core_web_sm` — their
+pipeline components load through `catalogue` entry points, which no static import graph
+can see, so without it `spacy.load` fails inside the bundle and extraction degrades to
+structured providers only.
 
 ## The two rules that make it trustworthy
 
@@ -123,8 +178,8 @@ beats three.
 
 | Tier | Cost | Relationships | Structural source |
 |---|---|---|---|
-| 1 | 1.0 | `podcast_guest`, `cohost`, `cofounder`, `fiat_colleague`, `linkedin_1st` | episode, team page, CSV |
-| 2 | 2.0 | `same_firm_partner`, `board_member` | firm roster, EDGAR, OpenCorporates |
+| 1 | 1.0 | `cohost`, `cofounder`, `fiat_colleague`, `linkedin_1st` | team page, CSV |
+| 2 | 2.0 | `podcast_guest`, `same_firm_partner`, `board_member` | episode, firm roster, EDGAR, OpenCorporates |
 | 3 | 3.0 | `co_investor` (same round), `investor_of` | funding announcement |
 | 4 | 4.5 | `shared_portfolio`, `coauthor`, `colleague` | two portfolio pages, Wikidata employer |
 | 5 | 7.0 | `co_speaker`, `notable_affiliation` | event page, Wikidata |
@@ -138,8 +193,12 @@ below for what it currently yields.
 
 ```
 app/
-  main.py        FastAPI: /connect /discover /tree /compare /health /seed /network/csv /ui
+  main.py        FastAPI: /connect /discover /tree /compare /edges /health /seed /network/csv /ui
   cli.py         connect | discover | tree | compare | seed | stats
+  desktop.py     packaged-app entry: pick a port, serve, open the browser
+  paths.py       bundled-resource vs. writable-data paths (source and frozen)
+  firstrun.py    installs the shipped graph into the user's data dir, once
+  console.py     UTF-8 stdout — a cp1252 console cannot encode a rendered path
   config.py      every knob; Drew's sources
   db.py          engine, WAL, additive migrations
   models.py      Person, Organization, RelationshipEdge, Source, LocalProfile
@@ -157,8 +216,12 @@ app/
   ingest/
     seed.py      Drew's warm first degree
     linkedin_csv.py   optional booster
-scripts/  demo.py  precrawl.py
-tests/    211 tests, no network
+scripts/  demo.py  precrawl.py  checkpoint_db.py
+tests/    294 tests, no network
+
+vcwarmintro.py    PyInstaller entry point
+vcwarmintro.spec  one-file build: spaCy model + UI + prebuilt graph
+build_windows.ps1 venv -> graph -> dist\VCWarmIntro.exe
 ```
 
 **How it reaches people.** Free data has no clean co-investment edges, so the connective
@@ -204,6 +267,14 @@ finds a path. Enriching unconditionally cost **3m48s** of network to rediscover 
 already in the graph; the staged version answers the same query in **0.26s**. Widening is
 bounded by a fan-out and a wall-clock budget, and reports how many neighbours it left
 unexplored rather than letting "we stopped looking" masquerade as "no path exists".
+
+One budget covers the **whole** call, and it starts at entry. It used to be created at
+stage 2, so an unknown name paid unbounded endpoint enrichment *and* a full widening
+budget on top — measured at over 240s, which a browser reports only as "Failed to fetch".
+`enrich_person` now honours the same deadline between provider silos, and a truncated pass
+deliberately leaves the person UNMARKED so a later call retries the silos it never reached
+instead of treating a partial pass as complete. `VCWI_CONNECT_WORK_BUDGET` defaults to 40s
+for the desktop app; raise it for offline CLI runs where recall matters more than latency.
 
 ## Why no LLM
 
@@ -275,8 +346,24 @@ Drew Glover  vs  Sheel Mohnot          Drew Glover  vs  Immad Akhund
 ```
 
 Also on the API (`GET /tree?person=…`, `GET /compare?person=…&against=…`) and in the UI,
-which now has four tabs: Connect, Discover, Tree, Compare. Every rendered hop links to the
-page that asserts it.
+which has five tabs: Connect, Discover, Tree, Compare, All connections. Every rendered hop
+links to the page that asserts it.
+
+## Every connection in the graph
+
+`GET /edges?limit=2000&q=` — the graph as it stands, warmest first, each row carrying its
+relationship, tier, quoted evidence and source URL. The **All connections** tab renders it;
+`q` filters to rows naming a person.
+
+It is read-only: no write lock, no enrichment, so it never blocks and never grows the graph
+just by being looked at. Membership rows (`person_b IS NULL`) are excluded — those record
+that someone belongs to an org, which Rule 1 may deliberately have refused to turn into
+contacts, so listing them as connections would assert exactly what the graph declined to.
+
+```
+1,205 connections in the graph, warmest first.       # the shipped build
+by tier: {1: 8, 2: 1181, 3: 15, 5: 1}
+```
 
 ## No hop limit
 
@@ -398,7 +485,10 @@ Two fabrications were caught and fixed here, both worth knowing about:
 ## Tests
 
 ```bash
-./.venv/bin/python -m pytest tests/ -q      # 211 passed, no network
+./.venv/bin/python -m pytest tests/ -q          # 294 passed, no network
+```
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/ -q  # same, on Windows
 ```
 
 They cover the junk-vs-real name sets, Rule 0 (co-occurrence creates zero edges and

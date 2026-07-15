@@ -8,26 +8,30 @@ from __future__ import annotations
 
 import threading
 
-from fastapi import Depends, FastAPI, HTTPException, Query, UploadFile, File
+from fastapi import Depends, FastAPI, Form, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from . import config
 from .db import get_db, init_db
+from .edges import taxonomy
 from .graph.connect import connect_people, discover
 from .graph.tree import build_tree, compare_trees
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
-from .models import Organization, Person, RelationshipEdge
+from .models import Organization, Person, RelationshipEdge, Source
+from .paths import resource_path
+from .providers.brave import brave_status, set_key as set_brave_key
 from .providers.serper import serper_status
 from .providers.stats import STATS
 
 app = FastAPI(title="VC Warm-Intro Pathfinder", version="1.0")
 
-_STATIC = Path(__file__).parent / "static"
+# Not `Path(__file__).parent`: inside a one-file bundle this module is imported
+# from the PYZ archive and `__file__` names a path that does not exist on disk.
+_STATIC = resource_path("app", "static")
 _write_lock = threading.Lock()
 
 
@@ -53,16 +57,48 @@ def seed(db: Session = Depends(get_db)) -> dict:
         return seed_drew(db)
 
 
+@app.get("/search/status")
+def search_status() -> dict:
+    """Which search engine the next lookup would use, and why."""
+    return {"brave": brave_status(), "serper": serper_status(),
+            "deep_budget_s": int(config.DEEP_SEARCH_BUDGET_S)}
+
+
+@app.post("/search/key")
+def set_search_key(key: str = Form(default="")) -> dict:
+    """Install a Brave key for this run.
+
+    Deliberately not persisted to disk: it is the user's credential, and writing
+    it into the app's data dir would outlive the session they typed it in for.
+    Put it in a .env beside the .exe to make it permanent.
+    """
+    if not set_brave_key(key):
+        raise HTTPException(status_code=400,
+                            detail="That does not look like a Brave API key.")
+    return {"ok": True, "brave": brave_status()}
+
+
 @app.get("/connect")
 def connect(
     target: str = Query(..., min_length=2, description="who you want to reach"),
     source: str = Query(default="", description="defaults to the demo seed"),
     depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
+    deep: bool = Query(default=False,
+                       description="search the web up to DEEP_SEARCH_BUDGET_S"),
     db: Session = Depends(get_db),
 ) -> dict:
     source = source or config.DEMO_SEED_NAME
     with _write_lock:
-        return connect_people(db, source, target, depth=depth)
+        # A deep search is opt-in per request because it holds the write lock for
+        # minutes. The default 40s budget exists to keep the UI responsive; here
+        # the user has asked to wait, so raise the ceiling for this call only.
+        budget = config.CONNECT_WORK_BUDGET_S
+        if deep:
+            config.CONNECT_WORK_BUDGET_S = config.DEEP_SEARCH_BUDGET_S
+        try:
+            return connect_people(db, source, target, depth=depth)
+        finally:
+            config.CONNECT_WORK_BUDGET_S = budget
 
 
 @app.get("/discover")
@@ -112,6 +148,59 @@ def compare(
     if not result.get("found"):
         raise HTTPException(status_code=404, detail=result.get("reason"))
     return result
+
+
+@app.get("/edges")
+def edges(
+    q: str = Query(default="", description="filter to connections naming this person"),
+    limit: int = Query(default=1000, ge=1, le=5000),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Every person-person connection currently in the graph, warmest first.
+
+    Read-only, so it takes no write lock and never enriches: this is the graph as
+    it stands, not a search. Membership rows (`person_b` is NULL) are excluded —
+    they record that someone belongs to an org, which Rule 1 may deliberately
+    have refused to turn into contacts, so listing them as connections would
+    assert exactly what the graph declined to.
+    """
+    A, B = aliased(Person), aliased(Person)
+    stmt = (
+        select(RelationshipEdge, A, B, Source)
+        .join(A, RelationshipEdge.person_a_id == A.id)
+        .join(B, RelationshipEdge.person_b_id == B.id)
+        .outerjoin(Source, RelationshipEdge.source_id == Source.id)
+        .where(RelationshipEdge.person_b_id.isnot(None))
+        .order_by(RelationshipEdge.warmth_tier, RelationshipEdge.cost)
+    )
+    term = q.strip()
+    if term:
+        like = f"%{term}%"
+        stmt = stmt.where(or_(A.canonical_name.ilike(like),
+                             B.canonical_name.ilike(like)))
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+    rows = db.execute(stmt.limit(limit)).all()
+
+    return {
+        "total": total,
+        "shown": len(rows),
+        "truncated": total > len(rows),
+        "edges": [
+            {
+                "a": a.canonical_name,
+                "b": b.canonical_name,
+                "a_warm": bool(a.is_warm),
+                "b_warm": bool(b.is_warm),
+                "relationship": edge.relationship_type,
+                "why": taxonomy.label_for(edge.relationship_type),
+                "tier": edge.warmth_tier,
+                "evidence": edge.evidence_snippet,
+                "url": src.url if src else None,
+            }
+            for edge, a, b, src in rows
+        ],
+    }
 
 
 @app.post("/network/csv")

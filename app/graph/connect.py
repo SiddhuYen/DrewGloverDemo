@@ -279,6 +279,13 @@ def connect_people(db: Session, name_a: str, name_b: str,
     depth = depth or config.CONNECT_DEPTH
     enricher = get_enricher()
 
+    # ONE budget for the whole call, started here. It used to begin at stage 2,
+    # so an unknown name paid unbounded endpoint enrichment AND a full widening
+    # budget on top — measured at over 240s, which the browser reports simply as
+    # "Failed to fetch". Stage 0 never touches this: a target already in the
+    # graph still answers in well under a second.
+    deadline = time.monotonic() + config.CONNECT_WORK_BUDGET_S
+
     a, b = _lookup(db, name_a), _lookup(db, name_b)
     if a is not None and b is not None and a.id == b.id:
         return {"connected": False, "reason": "those are the same person"}
@@ -299,7 +306,8 @@ def connect_people(db: Session, name_a: str, name_b: str,
             if person is None or not person.enriched:
                 if progress:
                     progress(f"[1] enriching {name}…")
-                enricher.enrich_person(db, name, progress=progress)
+                enricher.enrich_person(db, name, progress=progress,
+                                       deadline=deadline)
         a, b = _lookup(db, name_a), _lookup(db, name_b)
         if a is None or b is None:
             missing = name_a if a is None else name_b
@@ -318,8 +326,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
     # frontier down the fame gradient toward ordinary reachable networks, and
     # hand it Drew's current reachable set as a meeting beacon: any target-side
     # node already in Drew's component is expanded first to lock in the join.
-    if not routes and depth > 1:
-        deadline = time.monotonic() + config.CONNECT_WORK_BUDGET_S
+    if not routes and depth > 1 and time.monotonic() < deadline:
         if progress:
             progress(f"[2] expanding {name_a} (depth {depth})…")
         enricher.enrich_neighborhood(db, name_a, depth=depth, progress=progress,

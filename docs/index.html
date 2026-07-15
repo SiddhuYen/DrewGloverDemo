@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download Warm Intro Pathfinder for Windows</title>
+<meta name="description" content="Find the warmest real introduction path into the VC world. Every hop is backed by a source that asserts it.">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Saira:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ARTEMIS hyperfuturistic, run red. Same tokens as the app, so the page you
+     download from and the app you download are visibly one system. Chakra Petch
+     + Saira load here because this page is served over the web; the app itself
+     runs offline at 127.0.0.1 and deliberately uses a system stack instead. */
+  :root{
+    --bg:#05070D; --panel:#0A0F1C; --line:#16304a; --ink:#DBE9F5;
+    --muted:#6F86A6; --accent:#FF2130; --accent-ink:#0a0203; --ok:#3ad6a0;
+    --hot:#FF2E9A;
+    --glow:0 0 14px rgba(255,33,48,.45);
+    --display:'Chakra Petch',ui-sans-serif,system-ui,sans-serif;
+    --body:'Saira',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --mono:ui-monospace,'Cascadia Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(38,120,180,.055) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(38,120,180,.055) 1px,transparent 1px);
+    background-size:64px 64px;
+  }
+  .wrap{position:relative;z-index:1}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--body)}
+  .wrap{max-width:960px;width:92%;margin:0 auto;padding:clamp(36px,6vw,64px) 0 100px}
+
+  .eyebrow{font:500 11px/1 var(--body);color:var(--accent);letter-spacing:.34em;
+    text-transform:uppercase;margin:0 0 14px}
+  h1{font:700 clamp(34px,5vw,54px)/1 var(--display);margin:0 0 14px;
+    letter-spacing:.02em;text-transform:uppercase;text-wrap:balance}
+  h1 em{font-style:normal;color:var(--accent);text-shadow:0 0 22px rgba(255,33,48,.55)}
+  .deck{color:var(--muted);margin:0 0 clamp(32px,5vw,52px);max-width:62ch;font-size:16.5px}
+
+  /* Steps are numbered because installing IS a sequence: you cannot run the app
+     before downloading it. The reference section below is not, so it is not. */
+  .step{display:grid;grid-template-columns:clamp(44px,6vw,64px) 1fr;column-gap:clamp(16px,3vw,28px);
+    padding:clamp(28px,4vw,40px) 0;border-top:1px solid var(--line)}
+  .num{font:500 15px/1 var(--mono);color:var(--accent);letter-spacing:.03em;padding-top:6px}
+  .step h2{font:600 clamp(19px,2vw,23px)/1.3 var(--display);margin:0 0 12px;letter-spacing:-.005em}
+  .step p{color:var(--muted);margin:0 0 18px;font-size:15.5px;max-width:none}
+  .step p:last-child{margin-bottom:0}
+
+  .choices{display:flex;gap:14px;flex-wrap:wrap}
+  .choice{flex:1 1 240px;border:1px solid var(--line);border-radius:4px;padding:18px 20px}
+  .choice.detected{border-color:var(--accent)}
+  .os-row{display:flex;align-items:baseline;gap:8px;margin-bottom:14px}
+  .os{font:600 15px/1 var(--body)}
+  .detected-tag{font:500 11px/1 var(--mono);color:var(--accent);letter-spacing:.08em;
+    text-transform:uppercase}
+  .os-meta{font:400 12.5px/1 var(--mono);color:var(--muted);margin-top:10px;text-align:center}
+
+  /* Clipped corner + neon fill, per the components sheet. */
+  a.btn, span.btn{display:block;width:100%;text-align:center;padding:12px 14px;
+    font:600 13px/1 var(--body);letter-spacing:.13em;text-transform:uppercase;
+    text-decoration:none;box-sizing:border-box;
+    clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+  .btn.ready{background:var(--accent);color:var(--accent-ink);box-shadow:var(--glow)}
+  .btn.ready:hover{box-shadow:0 0 24px rgba(255,33,48,.75)}
+  .btn.pending{background:transparent;border:1px dashed var(--line);color:var(--muted);
+    padding:11px 14px}
+  /* Corner brackets frame every console. */
+  .choice{position:relative}
+  .choice.detected::before{content:"";position:absolute;left:-1px;top:-1px;width:12px;height:12px;
+    border-left:2px solid var(--accent);border-top:2px solid var(--accent)}
+  .choice.detected::after{content:"";position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;
+    border-right:2px solid var(--accent);border-bottom:2px solid var(--accent)}
+
+  code, .cmd{font-family:var(--mono)}
+  .cmd-row{display:flex;gap:10px;align-items:center;background:var(--bg);
+    border:1px solid var(--line);border-radius:4px;padding:14px 16px}
+  .cmd-row code{flex:1;color:var(--ok);font-size:14.5px;overflow-x:auto;white-space:nowrap}
+  .copy{background:transparent;border:1px solid var(--line);color:var(--muted);
+    border-radius:3px;font:500 12.5px var(--body);padding:7px 13px;cursor:pointer;flex:none}
+  .copy:hover{color:var(--ink);border-color:var(--accent)}
+
+  .why{margin-top:20px;padding-top:16px;border-top:1px solid var(--line);max-width:none}
+  .why .eyebrow{margin-bottom:8px}
+  .why p{margin:0;color:var(--muted);font-size:14.5px;max-width:none}
+
+  /* --- how to use ------------------------------------------------------- */
+  .tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+  .card{border:1px solid var(--line);border-radius:4px;padding:16px 18px;background:var(--panel)}
+  .card h3{font:600 14.5px/1 var(--body);margin:0 0 7px}
+  .card p{color:var(--muted);font-size:14px;margin:0}
+  .card .ex{display:block;font-family:var(--mono);font-size:12.5px;color:var(--accent);margin-top:9px}
+
+  .speed{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+  .speed div{display:flex;gap:12px;align-items:baseline;font-size:14.5px;color:var(--muted)}
+  .speed b{font:500 13px/1.5 var(--mono);color:var(--ok);flex:none;min-width:74px}
+  .speed b.slow{color:var(--accent)}
+
+  footer{border-top:1px solid var(--line);margin-top:clamp(36px,5vw,56px);padding-top:22px;
+    font:400 13px/1.6 var(--mono);color:var(--muted);display:flex;justify-content:space-between;
+    gap:14px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Network intelligence</p>
+  <h1>Arte<em>m</em>is</h1>
+  <p class="deck">Find the warmest real introduction into the VC and startup world. Every hop is
+    backed by a source that <em>asserts</em> the relationship, an episode, a team page, an SEC
+    filing. Two names on the same page is not a relationship, and it will tell you plainly when
+    no path exists.</p>
+
+  <div class="step">
+    <div class="num">01</div>
+    <div>
+      <h2>Download</h2>
+      <p>One file. No installer, no Python, no account, and no API key. The network is built
+        into the download, so it answers the moment it opens.</p>
+      <div class="choices" id="choices">
+        <div class="choice" data-os="windows">
+          <div class="os-row"><span class="os">Windows 10 / 11</span></div>
+          <span class="btn pending" id="win-btn">Preparing download</span>
+          <p class="os-meta" id="win-meta">VCWarmIntro.exe &middot; 72 MB</p>
+        </div>
+        <div class="choice" data-os="mac">
+          <div class="os-row"><span class="os">macOS</span></div>
+          <span class="btn pending">Not available</span>
+          <p class="os-meta">Windows only for now</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">02</div>
+    <div>
+      <h2>Open it</h2>
+      <p>Double-click <code>VCWarmIntro.exe</code>. A console window opens and your browser
+        lands on the app. That console window <em>is</em> the app running, so leave it open
+        while you work and close it when you are done.</p>
+      <div class="why">
+        <p class="eyebrow">Windows will warn you first</p>
+        <p>You will see &ldquo;Windows protected your PC&rdquo; because the file is not signed
+          by a registered publisher. Choose <strong>More info</strong>, then
+          <strong>Run anyway</strong>. Nothing is installed and nothing is sent anywhere, the
+          app runs on your own machine at <code>127.0.0.1</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">03</div>
+    <div>
+      <h2>How to use it</h2>
+      <p>Type a name and press enter. Four tabs, each answering a different question:</p>
+      <div class="tabs">
+        <div class="card">
+          <h3>Connect</h3>
+          <p>The warmest routes to one person, with the evidence for every hop.</p>
+          <span class="ex">try: Charles Hudson</span>
+        </div>
+        <div class="card">
+          <h3>Discover</h3>
+          <p>Who is reachable, warmest first, and who would introduce you.</p>
+          <span class="ex">leave blank for the seed</span>
+        </div>
+        <div class="card">
+          <h3>Tree</h3>
+          <p>A whole network as a tree. Each person hangs off whoever would introduce them.</p>
+          <span class="ex">try: Sheel Mohnot</span>
+        </div>
+        <div class="card">
+          <h3>Compare</h3>
+          <p>Two networks side by side, and the contacts they genuinely share.</p>
+          <span class="ex">try: Immad Akhund</span>
+        </div>
+      </div>
+      <div class="why">
+        <p class="eyebrow">What to expect</p>
+        <div class="speed">
+          <div><b>instant</b><span>Anyone already in the built-in network, answered without touching the internet.</span></div>
+          <div><b class="slow">a minute+</b><span>A name it has never seen. It goes and reads Wikidata, SEC filings, firm rosters and podcast feeds first.</span></div>
+          <div><b>no path</b><span>Not a failure. It means no source asserts a chain, and it will not invent one.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">04</div>
+    <div>
+      <h2>Before you send the intro</h2>
+      <p>Every hop links to the page that asserts it. Open it. These are real, sourced
+        relationships, but the app has not verified that the two people would vouch for each
+        other, so read the evidence and use your judgement before asking.</p>
+    </div>
+  </div>
+
+  <footer>
+    <span>Warm Intro Pathfinder</span>
+    <span>Structural assertions only &middot; no LLM</span>
+  </footer>
+</div>
+
+<script>
+  // Netlify serves the binary from the deploy root alongside this page. Set to
+  // null to put the button back into its "preparing" state.
+  const DOWNLOADS = {
+    windows: "/VCWarmIntro.exe",
+    mac: null,
+  };
+
+  function wireButton(id, url, label) {
+    const el = document.getElementById(id);
+    if (!el || !url) return;           // no URL: the pending state stands
+    const a = document.createElement("a");
+    a.className = "btn ready";
+    a.href = url;
+    a.setAttribute("download", "");
+    a.textContent = label;
+    el.replaceWith(a);
+  }
+  wireButton("win-btn", DOWNLOADS.windows, "Download for Windows");
+
+  // Highlight the visitor's own OS.
+  const ua = navigator.userAgent;
+  const detected = /Mac/i.test(ua) ? "mac" : /Win/i.test(ua) ? "windows" : null;
+  if (detected) {
+    document.querySelectorAll('.choice[data-os="' + detected + '"]').forEach((choice) => {
+      choice.classList.add("detected");
+      const tag = document.createElement("span");
+      tag.className = "detected-tag";
+      tag.textContent = "Detected";
+      choice.querySelector(".os-row").appendChild(tag);
+    });
+  }
+</script>
+</body>
+</html>

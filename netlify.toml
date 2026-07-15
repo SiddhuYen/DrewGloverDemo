@@ -1,0 +1,26 @@
+# Netlify deploy for the download page.
+#
+# `docs/` is also GitHub Pages' convention, so the same directory serves both if
+# the repo ever goes public.
+#
+# The 72MB .exe is NOT in git — it is copied into docs/ at deploy time by
+# scripts/stage_download.ps1. Netlify uploads whatever is in the publish dir, so
+# the binary ships without ever being committed.
+
+[build]
+  publish = "docs"
+  command = ""
+
+[[headers]]
+  for = "/VCWarmIntro.exe"
+  [headers.values]
+    # Force a download rather than a navigation, and let the CDN keep it.
+    Content-Type = "application/octet-stream"
+    Content-Disposition = "attachment; filename=\"VCWarmIntro.exe\""
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

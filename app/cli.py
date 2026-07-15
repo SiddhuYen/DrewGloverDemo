@@ -12,10 +12,15 @@ import argparse
 import sys
 
 from . import config
+from .console import enable_utf8
 from .db import SessionLocal, init_db
 from .graph.connect import connect_people, discover
 from .graph.tree import build_tree, compare_trees
 from .ingest.seed import seed_drew
+
+# Before any output: every route this CLI prints contains box characters that a
+# default Windows console cannot encode.
+enable_utf8()
 
 
 def _progress(msg: str) -> None:

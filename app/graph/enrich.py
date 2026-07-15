@@ -43,12 +43,20 @@ def _note(progress: Progress, msg: str) -> None:
 
 
 def _search_provider():
-    """Serper when configured, else DuckDuckGo. Used only to locate roster pages."""
+    """Serper, then Brave, else DuckDuckGo. Used only to locate roster pages.
+
+    Built per call, never cached: a key typed into the UI must take effect on the
+    next search, and a provider that has burned through its quota mid-run must be
+    able to hand over to the next one.
+    """
+    from ..providers.brave import BraveProvider
     from ..providers.duckduckgo import DuckDuckGoProvider
     from ..providers.serper import SerperProvider
 
-    serper = SerperProvider()
-    return serper if serper.available() else DuckDuckGoProvider()
+    for provider in (SerperProvider(), BraveProvider()):
+        if provider.available():
+            return provider
+    return DuckDuckGoProvider()
 
 
 class Enricher:
@@ -546,11 +554,19 @@ class Enricher:
 
     # --- public ------------------------------------------------------------
     def enrich_person(self, db: Session, name: str, *, progress: Progress = None,
-                      force: bool = False) -> Optional[Person]:
+                      force: bool = False,
+                      deadline: "float | None" = None) -> Optional[Person]:
         """Pull structured sources for one person and persist the edges.
 
         Idempotent: a person already marked `enriched` is skipped unless forced,
         so a second connect() reuses the graph instead of re-fetching.
+
+        `deadline` (a `time.monotonic()` stamp) bounds the silo loop below. Each
+        silo is several network round-trips, so an unknown name could otherwise
+        run for minutes — with connect() holding the write lock the whole time,
+        which reads to the user as a hung app. On expiry we stop between silos
+        and leave the person UNMARKED, so a later call retries the rest rather
+        than treating a truncated pass as complete.
         """
         subject = builder.get_or_create_person(db, name)
         if subject is None:
@@ -566,19 +582,28 @@ class Enricher:
         # podcast silo then uses to corroborate identity against homonyms.
         # OpenAlex and ProPublica run after the org-attaching layers, because
         # both corroborate identity against the person's known organisations.
+        truncated = False
         for step in (self._from_wikidata, self._from_edgar,
                      self._from_opencorporates, self._from_openalex,
                      self._from_propublica, self._from_person_firms,
                      self._from_firm_rosters, self._from_podcasts,
                      self._from_comention):
+            if deadline is not None and time.monotonic() > deadline:
+                truncated = True
+                _note(progress, "    budget spent; stopping enrichment here")
+                break
             try:
                 total += step(db, subject, progress)
             except Exception as exc:  # one dead provider must not sink the run
                 _note(progress, f"    {step.__name__} failed: {exc}")
 
-        subject.enriched = 1
+        # Only a COMPLETE pass earns the flag. Marking a truncated one would
+        # permanently skip the silos we never reached.
+        if not truncated:
+            subject.enriched = 1
         db.commit()
-        _note(progress, f"  {subject.canonical_name}: {total} structural edges")
+        _note(progress, f"  {subject.canonical_name}: {total} structural edges"
+                        + (" (partial — budget spent)" if truncated else ""))
         return subject
 
     def enrich_neighborhood(self, db: Session, name: str, depth: int = 1,

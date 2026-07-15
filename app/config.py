@@ -1,13 +1,37 @@
 """Central configuration for the VC Warm-Intro Pathfinder.
 
-Secrets live in a `.env` file at the project root (never committed).
+Secrets live in a `.env` file at the project root (never committed). In the
+packaged Windows app there is no project root, so a `.env` placed beside the
+.exe or in the app's data directory is read too — those are the only two
+locations a user of the installed app can reach.
 """
 import os
+from pathlib import Path
+
+from . import paths
+
+
+def _dotenv_candidates() -> list[str]:
+    """Every place a .env may sit, most local first.
+
+    The frozen locations are appended only when frozen — not merely because they
+    are useless from source, but because resolving the data dir creates it, and
+    importing config must not litter %LOCALAPPDATA% during a test run.
+
+    They matter in the .exe because there `os.path.dirname(__file__)` points into
+    PyInstaller's temp unpack dir, which the user cannot put anything into.
+    """
+    here = os.path.dirname(__file__)
+    candidates = [".env", os.path.join(here, "..", ".env")]
+    if paths.is_frozen():
+        candidates += [str(paths.exe_dir() / ".env"),
+                       str(paths.user_data_dir() / ".env")]
+    return candidates
 
 
 def _load_dotenv() -> None:
     """Minimal .env loader (no dependency). Existing env vars take precedence."""
-    for path in (".env", os.path.join(os.path.dirname(__file__), "..", ".env")):
+    for path in _dotenv_candidates():
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 for line in fh:
@@ -25,13 +49,33 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 
+def _data_path(filename: str) -> str:
+    """Default location for a file we WRITE.
+
+    Frozen: the per-user data dir, because the .exe's own folder is typically
+    read-only. From source: the CWD, exactly as before — `./vcwarmintro.db`.
+    """
+    if paths.is_frozen():
+        return str(paths.user_data_dir() / filename)
+    return f"./{filename}"
+
+
+def _sqlite_url(path: str) -> str:
+    """A SQLite URL from a filesystem path.
+
+    `as_posix()` matters on Windows: SQLAlchemy parses the URL, so the
+    backslashes in `C:\\Users\\...` would be read as escapes.
+    """
+    return "sqlite:///" + Path(path).as_posix()
+
+
 def _flag(name: str, default: str = "1") -> bool:
     return os.environ.get(name, default) not in ("0", "false", "False", "")
 
 
 # --- storage ---------------------------------------------------------------
-DB_URL = os.environ.get("VCWI_DB_URL", "sqlite:///./vcwarmintro.db")
-CACHE_DB = os.environ.get("VCWI_CACHE_DB", "./vcwarmintro_cache.db")
+DB_URL = os.environ.get("VCWI_DB_URL") or _sqlite_url(_data_path("vcwarmintro.db"))
+CACHE_DB = os.environ.get("VCWI_CACHE_DB") or _data_path("vcwarmintro_cache.db")
 CACHE_TTL = int(os.environ.get("VCWI_CACHE_TTL", str(30 * 86400)))
 CACHE_TTL_SEARCH = CACHE_TTL
 CACHE_TTL_PAGE = CACHE_TTL
@@ -111,6 +155,19 @@ SERPER_ENDPOINT = "https://google.serper.dev/search"
 SERPER_QPS = float(os.environ.get("VCWI_SERPER_QPS", "5.0"))
 SERPER_MONTHLY_QUOTA = int(os.environ.get("VCWI_SERPER_QUOTA", "2500"))
 
+# Brave Search. Mutable at runtime: the packaged app has no terminal to export
+# an env var in, so providers/brave.set_key() rewrites this when a key is typed
+# into the Search tab. Read it through `config.BRAVE_API_KEY`, never copy it into
+# a module-level constant, or the runtime key will not be seen.
+BRAVE_API_KEY = os.environ.get("BRAVE_API_KEY", "").strip()
+# Brave's free tier is documented at 1 query/second; above it returns 429.
+BRAVE_QPS = float(os.environ.get("VCWI_BRAVE_QPS", "1.0"))
+# Deep search: the ceiling a user-initiated "search the web for a path" may
+# spend. Distinct from CONNECT_WORK_BUDGET_S (40s), which bounds an ordinary
+# query so the UI stays responsive. This one is opt-in per request and the user
+# is told it may take minutes, so it can afford to be patient.
+DEEP_SEARCH_BUDGET_S = float(os.environ.get("VCWI_DEEP_SEARCH_BUDGET", "240"))
+
 WIKI_MIN_INTERVAL = float(os.environ.get("VCWI_WIKI_MIN_INTERVAL", "0.1"))
 # Wikimedia's robot policy (https://w.wiki/4wJS) 403s a spoofed browser UA.
 # It requires a descriptive agent naming the tool and a contact address.
@@ -152,8 +209,14 @@ ENRICH_FRONTIER_FANOUT = int(os.environ.get("VCWI_ENRICH_FRONTIER_FANOUT", "3"))
 # Wall-clock ceiling for widening one neighborhood. On expiry we stop and SAY SO
 # rather than silently returning a thinner graph than the caller believes.
 ENRICH_TIME_BUDGET_S = float(os.environ.get("VCWI_ENRICH_TIME_BUDGET", "45"))
-# Total wall-clock a single cold connect() may spend widening both sides.
-CONNECT_WORK_BUDGET_S = float(os.environ.get("VCWI_CONNECT_WORK_BUDGET", "180"))
+# Total wall-clock a single cold connect() may spend on network, across BOTH the
+# endpoint enrichment and the widening. 180 was a batch-CLI figure; it is three
+# minutes of a frozen browser tab in the desktop app, and the request holds the
+# write lock throughout, so the whole UI is dead for the duration. A target in
+# the seeded graph is unaffected — it answers from stage 0 without a request.
+# Raise it (VCWI_CONNECT_WORK_BUDGET=180) for offline CLI runs where recall
+# matters more than latency.
+CONNECT_WORK_BUDGET_S = float(os.environ.get("VCWI_CONNECT_WORK_BUDGET", "40"))
 # How many hops to walk OUTWARD from a cold target (its island is small and far;
 # the fixed seed's neighbourhood is already dense, so it stays at CONNECT_DEPTH).
 CONNECT_TARGET_DEPTH = int(os.environ.get("VCWI_CONNECT_TARGET_DEPTH", "4"))

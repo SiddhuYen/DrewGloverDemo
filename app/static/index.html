@@ -3,30 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Warm Intro Pathfinder — Drew Glover</title>
+<title>Warm Intro Pathfinder</title>
 <style>
+  /* Same world as the download page: warm ground, amber accent, mono for
+     anything the app is ASSERTING. No webfont link — the app runs on
+     127.0.0.1 and is expected to work with no internet at all, so a CDN
+     font would simply fail and fall back. The identity is carried by
+     colour, density and the mono/sans split instead. */
+  /* ARTEMIS hyperfuturistic, run red: the sheet's void/panel/ice/slate ladder
+     kept exactly, with the cyan primary swapped for red and magenta pulled to a
+     hot pink-red so the two accents stay separable at a glance.
+     No webfont link on purpose — Chakra Petch and Saira are CDN faces, and this
+     app serves from 127.0.0.1 and is expected to work with no internet, so a
+     linked font would silently fall back to nothing. The HUD is carried by the
+     condensed system stack, uppercase tracking, clipped corners and brackets. */
   :root{
-    --bg:#0e1116; --panel:#161b22; --line:#242c37; --ink:#e6edf3;
-    --muted:#8b949e; --accent:#4ea1ff; --warm:#ffb454; --ok:#3fb950; --bad:#f85149;
-    --t1:#3fb950; --t2:#4ea1ff; --t3:#a371f7; --t4:#d29922; --t5:#8b949e;
+    --bg:#05070D; --panel:#0A0F1C; --line:#16304a; --ink:#DBE9F5;
+    --muted:#6F86A6; --accent:#FF2130; --accent-ink:#0a0203;
+    --hot:#FF2E9A; --warm:#FF7A4D; --ok:#3ad6a0; --bad:#FF2E9A;
+    /* Tiers must never be the accent: red means "control" or "target" here. */
+    --t1:#3ad6a0; --t2:#4aa8ff; --t3:#b083c4; --t4:#e0b341; --t5:#6F86A6;
+    --glow:0 0 12px rgba(255,33,48,.45);
+    --sans:"Saira","Chakra Petch",-apple-system,"Segoe UI Variable Display",
+           "Segoe UI",Roboto,sans-serif;
+    --disp:"Chakra Petch","Saira","Segoe UI Variable Display",
+           "Franklin Gothic Medium","Arial Narrow",sans-serif;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,SFMono-Regular,Menlo,monospace;
   }
+  /* The grid is the sheet's signature: a faint console lattice under everything. */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:linear-gradient(rgba(38,120,180,.055) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(38,120,180,.055) 1px,transparent 1px);
+    background-size:64px 64px;
+  }
+  .wrap{position:relative;z-index:1}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-  .wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
-  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
-  .sub{color:var(--muted);margin:0 0 24px;font-size:14px}
-  .tabs{display:flex;gap:8px;margin-bottom:16px}
-  .tab{padding:8px 16px;border:1px solid var(--line);background:var(--panel);
-    color:var(--muted);border-radius:8px;cursor:pointer;font-size:14px}
-  .tab[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+  /* A class like .row{display:flex} outranks the UA's [hidden] rule, so the
+     search bar stayed on screen through the Import tab. Restate it with enough
+     weight to win. */
+  [hidden]{display:none !important}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--sans)}
+  .wrap{max-width:900px;margin:0 auto;padding:30px 20px 80px}
+  .eyebrow{font:500 10.5px/1 var(--sans);letter-spacing:.34em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 9px}
+  .mark{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  h1{font:700 30px/1 var(--disp);margin:0;letter-spacing:.02em;text-transform:uppercase}
+  /* The sheet glows one syllable of the wordmark, not the whole thing. */
+  h1 em{font-style:normal;color:var(--accent);text-shadow:0 0 18px rgba(255,33,48,.55)}
+  .mark .rule{flex:1;height:1px;background:var(--line)}
+  .mark .tag{font:500 10px/1 var(--mono);letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);border:1px solid var(--line);padding:4px 9px}
+  .sub{color:var(--muted);margin:0 0 22px;font-size:14px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  /* Clipped corner + thin neon border, per the components sheet. */
+  .clip{clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px)}
+  .tab{padding:8px 15px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);cursor:pointer;
+    font:600 11.5px/1.35 var(--sans);letter-spacing:.11em;text-transform:uppercase;
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px)}
+  .tab:hover{color:var(--ink);border-color:var(--accent)}
+  .tab[aria-selected="true"]{color:var(--accent-ink);background:var(--accent);
+    border-color:var(--accent);box-shadow:var(--glow)}
   .row{display:flex;gap:8px}
-  input{flex:1;padding:11px 13px;background:var(--panel);border:1px solid var(--line);
-    border-radius:8px;color:var(--ink);font-size:15px}
-  input:focus{outline:none;border-color:var(--accent)}
-  button{padding:11px 20px;background:var(--accent);border:0;border-radius:8px;
-    color:#04121f;font-weight:600;cursor:pointer;font-size:15px}
-  button:disabled{opacity:.5;cursor:default}
+  input{flex:1;padding:12px 14px;background:var(--panel);border:1px solid var(--line);
+    color:var(--ink);font:400 15px var(--sans);border-radius:0}
+  input::placeholder{color:var(--muted);opacity:.75}
+  input:focus{outline:none;border-color:var(--accent);box-shadow:inset 0 0 0 1px rgba(255,33,48,.35)}
+  button{padding:12px 22px;background:var(--accent);border:1px solid var(--accent);
+    color:var(--accent-ink);cursor:pointer;box-shadow:var(--glow);
+    font:600 12.5px/1.2 var(--sans);letter-spacing:.13em;text-transform:uppercase;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+  button:hover:not(:disabled){box-shadow:0 0 20px rgba(255,33,48,.7)}
+  button:disabled{opacity:.45;cursor:default;box-shadow:none}
+  /* Secondary: neon outline, no fill. */
+  button.ghost{background:transparent;color:var(--accent);box-shadow:none}
+  button.ghost:hover:not(:disabled){box-shadow:var(--glow)}
+  a{color:var(--accent)}
+  /* Corner brackets frame every console, per the sheet. */
+  .route,.stat,.drop,ul.edges{position:relative}
+  .route::before,.stat::before{content:"";position:absolute;left:-1px;top:-1px;
+    width:11px;height:11px;border-left:2px solid var(--accent);border-top:2px solid var(--accent)}
+  .route::after,.stat::after{content:"";position:absolute;right:-1px;bottom:-1px;
+    width:11px;height:11px;border-right:2px solid var(--accent);border-bottom:2px solid var(--accent)}
   .banner{margin:16px 0;padding:12px 14px;border:1px solid var(--line);
     border-left:3px solid var(--warm);border-radius:6px;background:var(--panel);
     color:var(--muted);font-size:13px}
@@ -60,25 +119,164 @@
     border:1px solid var(--line);border-radius:8px;margin-bottom:7px;
     background:var(--panel);font-size:14px}
   ul.nb .via{color:var(--muted);font-size:12.5px}
-  .spin{color:var(--muted);font-size:14px;padding:16px}
+
+  /* All-connections list. One row per connection: over a thousand of them, so
+     it is a scannable list, not a card each. The tier dot carries the warmth at
+     a glance; the evidence stays one click away rather than on every row. */
+  ul.edges{list-style:none;padding:0;margin:14px 0 0;
+    border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  ul.edges li{display:flex;align-items:baseline;gap:10px;padding:8px 13px;
+    background:var(--panel);border-bottom:1px solid var(--line);font-size:13.5px}
+  ul.edges li:last-child{border-bottom:0}
+  ul.edges li:hover{background:var(--bg)}
+  .tdot{width:7px;height:7px;border-radius:50%;flex:none;align-self:center}
+  .pair{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pair b{font-weight:600}
+  .dash{color:var(--muted);margin:0 5px}
+  .rel{color:var(--muted);font-size:12px;flex:none;white-space:nowrap}
+  .cite{flex:none;font-size:12px;text-decoration:none;color:var(--accent);opacity:.75}
+  .cite:hover{opacity:1;text-decoration:underline}
+  .nocite{flex:none;font-size:12px;color:var(--line)}
+  @media (max-width:640px){
+    ul.edges li{flex-wrap:wrap;gap:6px}
+    .pair{flex:1 0 100%;white-space:normal}
+  }
+
+  /* Import: numbered because it genuinely is a sequence — you cannot drop a file
+     you have not exported yet. */
+  .steps{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+  .istep{display:grid;grid-template-columns:38px 1fr;gap:12px;padding:16px 0;
+    border-top:1px solid var(--line)}
+  .istep:first-child{border-top:0;padding-top:4px}
+  .inum{font:500 13px/1.6 var(--mono);color:var(--accent)}
+  .istep b{font-size:14.5px}
+  .istep p{color:var(--muted);font-size:13.5px;margin:5px 0 0;max-width:64ch}
+  .kbd{font:500 12.5px var(--mono);color:var(--ink);background:var(--panel);
+    border:1px solid var(--line);border-radius:3px;padding:1px 5px;white-space:nowrap}
+  .drop{margin-top:12px;padding:16px;border:1px dashed var(--line);border-radius:4px;
+    background:var(--panel);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .drop.over{border-color:var(--accent);background:var(--bg)}
+  .dropnote{color:var(--muted);font-size:13px}
+  .stat{display:flex;gap:26px;flex-wrap:wrap;padding:14px 16px;background:var(--panel);
+    border:1px solid var(--line);border-radius:4px;margin-top:14px}
+  .stat div{display:flex;flex-direction:column;gap:3px}
+  .stat .k{font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted)}
+  .stat .v{font:600 19px/1 var(--sans);font-variant-numeric:tabular-nums}
+  .stat .v.good{color:var(--ok)}
+
+  .keystate{margin:10px 0 0;font:400 12.5px/1.5 var(--mono);color:var(--muted)}
+  .keystate.on{color:var(--ok)}
+  .keystate.err{color:var(--hot)}
+
+  .spin{color:var(--accent);font:400 13px/1.7 var(--mono);padding:16px;
+    border:1px solid var(--line);background:var(--panel)}
   footer{margin-top:40px;color:var(--muted);font-size:12px;line-height:1.7}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Warm Intro Pathfinder</h1>
-  <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
+  <p class="eyebrow">Network intelligence</p>
+  <div class="mark">
+    <h1>Arte<em>m</em>is</h1>
+    <span class="rule"></span>
+    <span class="tag">warm-intro router</span>
+  </div>
+  <p class="sub">Every hop is backed by a source that asserts it. No path is invented, and
+    it says so plainly when none exists.</p>
 
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
     <button class="tab" id="tab-tree"     role="tab" aria-selected="false" onclick="mode('tree')">Tree</button>
     <button class="tab" id="tab-compare"  role="tab" aria-selected="false" onclick="mode('compare')">Compare</button>
+    <button class="tab" id="tab-all"      role="tab" aria-selected="false" onclick="mode('all')">All connections</button>
+    <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import LinkedIn</button>
+    <button class="tab" id="tab-search"   role="tab" aria-selected="false" onclick="mode('search')">Web search</button>
   </div>
 
-  <div class="row">
+  <div class="row" id="searchrow">
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
     <button id="go" onclick="run()">Find path</button>
+  </div>
+
+  <!-- Import is the one tab that is not a search, so it gets its own control
+       instead of pretending the name box means something here. -->
+  <div id="importpanel" hidden>
+    <div class="steps">
+      <div class="istep">
+        <span class="inum">01</span>
+        <div>
+          <b>Export your connections from LinkedIn.</b>
+          <p>Go to <span class="kbd">Settings &amp; Privacy</span> &rarr;
+             <span class="kbd">Data privacy</span> &rarr;
+             <span class="kbd">Get a copy of your data</span>. Tick
+             <span class="kbd">Connections</span> — not the full archive — and request it.
+             LinkedIn emails you a <span class="kbd">Connections.csv</span>, usually within
+             minutes.</p>
+        </div>
+      </div>
+      <div class="istep">
+        <span class="inum">02</span>
+        <div>
+          <b>Drop that file here.</b>
+          <p>It is read on this machine and never uploaded anywhere. Each row becomes a
+             tier&nbsp;1 connection — the warmest kind, because you are asserting it
+             yourself rather than inferring it from a page.</p>
+          <div class="drop" id="drop">
+            <input type="file" id="csv" accept=".csv,text/csv" hidden>
+            <button type="button" onclick="document.getElementById('csv').click()">Choose Connections.csv</button>
+            <span class="dropnote">or drag it onto this box</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="banner">
+      <b>Why this is worth doing.</b> The built-in network is what public sources assert:
+      episodes, rosters, filings. Your own first degree is invisible to all of them. Import
+      it and every one of those people becomes a real starting point, so paths that were
+      four cold hops can collapse to one warm introduction you can actually make.
+    </div>
+  </div>
+
+  <div id="searchpanel" hidden>
+    <div class="steps">
+      <div class="istep">
+        <span class="inum">01</span>
+        <div>
+          <b>Paste a Brave Search API key.</b>
+          <p>Free at <a href="https://brave.com/search/api/" target="_blank" rel="noopener">brave.com/search/api</a>
+             — the free tier is 2,000 queries a month and needs no card. Without a key the
+             app still works: it falls back to DuckDuckGo, which rate-limits hard and finds
+             fewer roster pages.</p>
+          <div class="row" style="margin-top:12px">
+            <input id="bkey" type="password" placeholder="BSA..." autocomplete="off" spellcheck="false">
+            <button id="bsave" onclick="saveKey()">Use key</button>
+          </div>
+          <p id="bstate" class="keystate">Checking…</p>
+        </div>
+      </div>
+      <div class="istep">
+        <span class="inum">02</span>
+        <div>
+          <b>Run a deep search.</b>
+          <p>An ordinary query gives up after <b>40 seconds</b> so the window stays
+             responsive. A deep search keeps reading — rosters, filings, episodes — for up
+             to <b id="deepmins">4 minutes</b> to find a route to someone the graph has
+             never heard of. The app is busy for the whole time.</p>
+          <div class="row" style="margin-top:12px">
+            <input id="dq" placeholder="Who do you want to reach? e.g. Immad Akhund" autocomplete="off">
+            <button id="dgo" onclick="deepSearch()">Search the web</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="banner">
+      <b>A search engine cannot create a connection.</b> Brave only tells the app which page
+      to read. The page still has to <i>assert</i> the relationship — a roster listing both
+      people, an episode, a filing — or no edge is made. A better search engine finds more
+      pages; it never lowers the bar for what counts.
+    </div>
   </div>
 
   <div class="banner">
@@ -97,27 +295,47 @@
     <span class="t3">3</span> investor–founder ·
     <span class="t4">4</span> shared portfolio or employer ·
     <span class="t5">5</span> weak affiliation.
-    <span class="star">★</span> marks Drew's real first degree.
+    <span class="star">★</span> marks the seed's real first degree.
   </footer>
 </div>
 
 <script>
 let MODE = 'connect';
 
-const MODES = {
-  connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
-  discover: {placeholder: 'Whose neighborhood? (blank = Drew Glover)',        button: 'Discover'},
-  tree:     {placeholder: "Whose network? e.g. Sam Altman",                   button: 'Build tree'},
-  compare:  {placeholder: "Compare whose network to Drew's? e.g. Sam Altman", button: 'Compare'},
-};
+// Whoever the server is seeded with. /health reports it, so the UI never has to
+// hardcode a name that config.DEMO_SEED_NAME could change out from under it.
+let SEED = 'the seed contact';
+
+const MODES = () => ({
+  connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',   button: 'Find path'},
+  discover: {placeholder: 'Whose neighborhood? (blank = the seed contact)',  button: 'Discover'},
+  tree:     {placeholder: 'Whose network? e.g. Sam Altman',                  button: 'Build tree'},
+  compare:  {placeholder: 'Compare whose network? e.g. Sam Altman',          button: 'Compare'},
+  all:      {placeholder: 'Filter by name (blank = every connection)',       button: 'Show all'},
+});
 
 function mode(m){
   MODE = m;
-  for (const key of Object.keys(MODES)) {
+  const modes = MODES();
+  for (const key of Object.keys(modes)) {
     document.getElementById('tab-' + key).ariaSelected = (m === key);
   }
-  document.getElementById('q').placeholder = MODES[m].placeholder;
-  document.getElementById('go').textContent = MODES[m].button;
+  document.getElementById('tab-import').ariaSelected = (m === 'import');
+
+  document.getElementById('tab-search').ariaSelected = (m === 'search');
+
+  // Import takes a file and Web search takes a key: each shows its own control
+  // rather than pretending the name box means something there.
+  const importing = (m === 'import');
+  const searching = (m === 'search');
+  document.getElementById('searchrow').hidden = importing || searching;
+  document.getElementById('importpanel').hidden = !importing;
+  document.getElementById('searchpanel').hidden = !searching;
+  if (searching) { refreshKeyState(); }
+  if (importing || searching) { document.getElementById('out').innerHTML = ''; return; }
+
+  document.getElementById('q').placeholder = modes[m].placeholder;
+  document.getElementById('go').textContent = modes[m].button;
   document.getElementById('out').innerHTML = '';
 }
 
@@ -131,11 +349,12 @@ const ENDPOINT = {
   discover: q => `/discover?person=${encodeURIComponent(q)}`,
   tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2`,
   compare:  q => `/compare?person=${encodeURIComponent(q)}&radius=3&limit=6`,
+  all:      q => `/edges?limit=2000&q=${encodeURIComponent(q)}`,
 };
 
 const RENDER = {
   connect: renderPaths, discover: renderNeighborhood,
-  tree: renderTree, compare: renderCompare,
+  tree: renderTree, compare: renderCompare, all: renderEdges,
 };
 
 async function run(){
@@ -147,15 +366,44 @@ async function run(){
   }
 
   btn.disabled = true;
-  out.innerHTML = '<div class="spin">Pulling structured sources…</div>';
+  out.innerHTML = '<div class="spin">Searching the graph…</div>';
+
+  // A name already in the graph answers in well under a second. An unknown one
+  // goes to the network — several silos, each a few round-trips — so tell the
+  // user that's what the wait is, instead of leaving a spinner to look hung.
+  const slow = setTimeout(() => {
+    out.innerHTML = '<div class="spin">Not in the graph yet — checking Wikidata, '
+                  + 'SEC EDGAR, firm rosters and podcast feeds. This can take a '
+                  + 'minute or two.</div>';
+  }, 1500);
+
+  const ctl = new AbortController();
+  const cap = setTimeout(() => ctl.abort(), 240000);
+
   try {
-    const res  = await fetch(ENDPOINT[MODE](q));
+    const res  = await fetch(ENDPOINT[MODE](q), {signal: ctl.signal});
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
     out.innerHTML = RENDER[MODE](data);
   } catch (err) {
-    out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+    // "Failed to fetch" is what the browser says when the server went away —
+    // which for a desktop app almost always means its window was closed. Say
+    // that, rather than repeating a message that explains nothing.
+    let msg;
+    if (err.name === 'AbortError') {
+      msg = '<b>Search took too long.</b><br>The lookup ran past four minutes and '
+          + 'was stopped. Names already in the graph answer instantly; an unknown '
+          + 'name has to be crawled first.';
+    } else if (err instanceof TypeError) {
+      msg = '<b>Lost contact with the app.</b><br>Its console window is probably '
+          + 'closed. Start VCWarmIntro.exe again, then reload this page.';
+    } else {
+      msg = esc(err.message);
+    }
+    out.innerHTML = `<div class="msg err">${msg}</div>`;
   } finally {
+    clearTimeout(slow);
+    clearTimeout(cap);
     btn.disabled = false;
   }
 }
@@ -268,6 +516,30 @@ function renderCompare(d){
   return head + `<div class="banner"><b>Mutual contacts</b> — cheapest introduction from both sides.</div>` + contacts;
 }
 
+function renderEdges(d){
+  if (!d.edges.length) {
+    return '<div class="msg">No connections match that name. The graph holds '
+         + d.total + ' in total — clear the box to see them all.</div>';
+  }
+  // Count is the headline: it says how much the app actually knows.
+  const head = `<div class="banner"><b>${d.total} connection${d.total === 1 ? '' : 's'}</b>`
+             + ` in the graph, warmest first.`
+             + (d.truncated ? ` Showing the first ${d.shown} — filter by a name to narrow it.` : '')
+             + ` Every row links to the page that asserts it.`
+             + `</div>`;
+  const rows = d.edges.map(e => `
+    <li>
+      <span class="tdot t${e.tier}" style="background:currentColor" title="tier ${e.tier}"></span>
+      <span class="pair"><b>${esc(e.a)}</b>${e.a_warm ? ' <span class="star">★</span>' : ''}<span class="dash">—</span><b>${esc(e.b)}</b>${e.b_warm ? ' <span class="star">★</span>' : ''}</span>
+      <span class="rel">${esc(e.relationship)}</span>
+      ${e.url
+        ? `<a class="cite" href="${esc(e.url)}" target="_blank" rel="noopener"
+             title="${esc(e.evidence || 'source')}">source</a>`
+        : `<span class="nocite" title="no source URL recorded">—</span>`}
+    </li>`).join('');
+  return head + `<ul class="edges">` + rows + `</ul>`;
+}
+
 function renderNeighborhood(d){
   if (!d.neighborhood.length) return '<div class="msg">Nobody reachable yet — try seeding the graph.</div>';
   return `<ul class="nb">` + d.neighborhood.map(p => `
@@ -280,6 +552,172 @@ function renderNeighborhood(d){
 }
 
 document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+// --- LinkedIn CSV import ---------------------------------------------------
+async function uploadCsv(file){
+  const out = document.getElementById('out');
+  if (!file) return;
+  if (!/\.csv$/i.test(file.name)) {
+    out.innerHTML = '<div class="msg err"><b>That is not a CSV.</b><br>LinkedIn sends '
+                  + 'a file called Connections.csv. If you got a .zip, open it first and '
+                  + 'pick the CSV inside.</div>';
+    return;
+  }
+  out.innerHTML = `<div class="spin">Reading ${esc(file.name)}…</div>`;
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/network/csv', {method: 'POST', body: fd});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    out.innerHTML = renderImport(d);
+  } catch (err) {
+    const msg = (err instanceof TypeError)
+      ? '<b>Lost contact with the app.</b><br>Its console window is probably closed.'
+      : esc(err.message);
+    out.innerHTML = `<div class="msg err">${msg}</div>`;
+  }
+}
+
+function renderImport(d){
+  if (d.error) {
+    return `<div class="msg err"><b>Could not read that file.</b><br>${esc(d.error)}</div>`;
+  }
+  const total = (d.created || 0) + (d.updated || 0);
+  // Lead with edges: that is the number that changes what the app can find.
+  const head = d.edges
+    ? `<div class="banner"><b>${d.edges} warm connection${d.edges === 1 ? '' : 's'} added.</b>
+         They are tier 1 — the warmest — because you asserted them yourself. Search for any
+         of these people now and the path starts with you.</div>`
+    : `<div class="banner"><b>No connections were added.</b> ${total ? 'The names parsed, but '
+      + 'no rows became edges.' : 'That CSV had no readable rows — LinkedIn puts a few '
+      + 'lines of notes above the header, which is expected and handled, so check you sent '
+      + 'Connections.csv rather than another file from the archive.'}</div>`;
+  return head + `
+    <div class="stat">
+      <div><span class="k">edges</span><span class="v good">${d.edges || 0}</span></div>
+      <div><span class="k">people added</span><span class="v">${d.created || 0}</span></div>
+      <div><span class="k">already known</span><span class="v">${d.updated || 0}</span></div>
+      <div><span class="k">rows skipped</span><span class="v">${d.skipped || 0}</span></div>
+    </div>`;
+}
+
+// --- Brave key + deep search ----------------------------------------------
+async function refreshKeyState(){
+  const el = document.getElementById('bstate');
+  try {
+    const s = await (await fetch('/search/status')).json();
+    const mins = Math.round((s.deep_budget_s || 240) / 60);
+    document.getElementById('deepmins').textContent = mins + (mins === 1 ? ' minute' : ' minutes');
+    el.className = 'keystate ' + (s.brave.ok ? 'on' : '');
+    el.textContent = s.brave.ok
+      ? 'Brave is in use for this session. Searches will use it until you close the app.'
+      : (s.serper && s.serper.ok
+          ? 'No Brave key. Serper is configured and will be used instead.'
+          : 'No key set — falling back to DuckDuckGo.');
+  } catch (_) {
+    el.textContent = 'Cannot reach the app.';
+  }
+}
+
+async function saveKey(){
+  const input = document.getElementById('bkey');
+  const btn = document.getElementById('bsave');
+  const el = document.getElementById('bstate');
+  btn.disabled = true;
+  try {
+    const fd = new FormData();
+    fd.append('key', input.value.trim());
+    const res = await fetch('/search/key', {method: 'POST', body: fd});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    input.value = '';
+    await refreshKeyState();
+  } catch (err) {
+    el.className = 'keystate err';
+    el.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deepSearch(){
+  const q = document.getElementById('dq').value.trim();
+  const out = document.getElementById('out');
+  const btn = document.getElementById('dgo');
+  if (!q) { out.innerHTML = '<div class="msg">Enter a name to reach.</div>'; return; }
+
+  btn.disabled = true;
+  const started = Date.now();
+  // A silent four-minute wait is indistinguishable from a hang, so count up.
+  const tick = setInterval(() => {
+    const s = Math.round((Date.now() - started) / 1000);
+    out.innerHTML = `<div class="spin">// SEARCHING THE WEB &middot; ${s}s elapsed<br>`
+                  + `Reading rosters, filings and episodes for a route to `
+                  + `${esc(q)}. This runs up to 4 minutes.</div>`;
+  }, 1000);
+
+  const ctl = new AbortController();
+  // Slightly past the server's own ceiling, so the server gets to answer first
+  // and report its own reason rather than us guessing at one.
+  const cap = setTimeout(() => ctl.abort(), 260000);
+  try {
+    const res = await fetch(`/connect?target=${encodeURIComponent(q)}&deep=true`,
+                            {signal: ctl.signal});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    out.innerHTML = renderPaths(d);
+  } catch (err) {
+    const msg = err.name === 'AbortError'
+      ? '<b>Search ran past its ceiling.</b><br>Nothing was found in the time allowed. '
+        + 'That is not proof no path exists — only that none surfaced in four minutes.'
+      : (err instanceof TypeError
+          ? '<b>Lost contact with the app.</b><br>Its console window is probably closed.'
+          : esc(err.message));
+    out.innerHTML = `<div class="msg err">${msg}</div>`;
+  } finally {
+    clearInterval(tick);
+    clearTimeout(cap);
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('dq').addEventListener('keydown', e => { if (e.key === 'Enter') deepSearch(); });
+document.getElementById('bkey').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
+
+document.getElementById('csv').addEventListener('change', e => uploadCsv(e.target.files[0]));
+
+const drop = document.getElementById('drop');
+for (const ev of ['dragenter', 'dragover']) {
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); });
+}
+for (const ev of ['dragleave', 'drop']) {
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); });
+}
+drop.addEventListener('drop', e => uploadCsv(e.dataTransfer.files[0]));
+
+// Name the seed from the server rather than from markup, so the UI follows
+// VCWI_DEMO_SEED_NAME instead of contradicting it. The page is fully usable if
+// this fails: the generic wording it already carries stays put.
+async function nameTheSeed(){
+  try {
+    const r = await fetch('/health');
+    if (!r.ok) return;
+    const seed = (await r.json()).seed;
+    if (!seed) return;
+    SEED = seed;
+    // Both the subtitle and the import panel name the seed.
+    for (const id of ['seed', 'seed2']) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = seed;
+    }
+  } catch (_) {
+    /* offline or server not up yet; the generic copy is already correct */
+  } finally {
+    mode(MODE);  // placeholders are built from SEED, so refresh them either way
+  }
+}
+nameTheSeed();
 </script>
 </body>
 </html>
