@@ -37,6 +37,22 @@ from .bridge import rank_frontier
 Progress = Optional[Callable[[str], None]]
 
 
+def target_enrichment_level() -> int:
+    """The richness a fresh enrichment can reach right now — stored in
+    Person.enriched so a person done at a LOWER level is re-enriched when a
+    higher one becomes available (a keyless run never caches a thin result):
+
+        1  structured silos only (no Serper key)
+        2  + web-search silos     (Serper key present)
+        3  + deep 2-hop co-occurrence (DEEP_SEARCH)
+    """
+    if config.DEEP_SEARCH:
+        return 3
+    if config.SERPER_API_KEY:
+        return 2
+    return 1
+
+
 def _note(progress: Progress, msg: str) -> None:
     if progress:
         progress(msg)
@@ -555,8 +571,8 @@ class Enricher:
         subject = builder.get_or_create_person(db, name)
         if subject is None:
             return None
-        if subject.enriched and not force:
-            return subject
+        if subject.enriched >= target_enrichment_level() and not force:
+            return subject   # already enriched at the current-or-higher richness
 
         _note(progress, f"  enriching {subject.canonical_name}…")
         total = 0
@@ -576,7 +592,10 @@ class Enricher:
             except Exception as exc:  # one dead provider must not sink the run
                 _note(progress, f"    {step.__name__} failed: {exc}")
 
-        subject.enriched = 1
+        # Record the richness achieved, so a thin (keyless) run is re-done once a
+        # Serper key — or deep search — becomes available, instead of being cached
+        # as "done". Never downgrade a node already enriched at a higher level.
+        subject.enriched = max(subject.enriched, target_enrichment_level())
         db.commit()
         _note(progress, f"  {subject.canonical_name}: {total} structural edges")
         return subject
