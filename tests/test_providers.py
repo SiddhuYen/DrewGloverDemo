@@ -500,6 +500,29 @@ def test_a_person_leading_a_round_is_not_an_investor():
     assert parsed["investors"] == ["Sequoia Capital"]
 
 
+@pytest.mark.parametrize("junk", [
+    "AdAge", "Anderson", "Andrew", "Andrew Andrew",
+    "Andrew Buckley & George Michail", "James Mackintosh Elon",
+    "Elon Musk Thinking", "VC", "Company Tesla", "Daisy Chung 1y Report",
+    "Wharton",
+])
+def test_co_mention_filter_drops_ner_noise(junk):
+    from app.providers.comention import _is_clean_person
+    from app.edges.names import person_norm_key
+    subj = set(person_norm_key("Elon Musk").split())
+    assert not _is_clean_person(junk, subj)
+
+
+@pytest.mark.parametrize("real", [
+    "Donald Trump", "Tim Higgins", "Marcos Fernandez", "Jamie Dimon",
+])
+def test_co_mention_filter_keeps_real_names(real):
+    from app.providers.comention import _is_clean_person
+    from app.edges.names import person_norm_key
+    subj = set(person_norm_key("Elon Musk").split())
+    assert _is_clean_person(real, subj)
+
+
 def test_round_for_company_reads_a_company_first_announcement(monkeypatch):
     """Portfolio-first discovery: firm-name search misses a round that leads with
     the company ("Odynn raises …"); searching the company recovers it."""

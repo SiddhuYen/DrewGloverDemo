@@ -16,9 +16,34 @@ from __future__ import annotations
 from typing import Dict, List
 
 from .. import config, extract
-from ..edges.names import is_noise_name, person_norm_key, strip_role_affixes
+from ..edges.names import (
+    is_noise_name, looks_like_person_name, person_norm_key, strip_role_affixes)
 from .base import fetch_page
 from .htmltext import html_to_text
+
+
+def _is_clean_person(cand: str, subject_tokens: set) -> bool:
+    """Co-occurrence prose is a firehose of NER noise (publications, film
+    titles, bare first names, run-ons), so a co_mention node is held to a much
+    stricter bar than a roster candidate: a clean, full human name.
+
+      * looks_like_person_name  -> 2-4 capitalised tokens, no org suffix, no
+        stopword, no single-token fragment ("Andrew", "Wharton", "VC", "AdAge").
+      * only name characters     -> drops emoji ("Akua 📺"), digits ("Daisy
+        Chung 1y Report") and "&" run-ons ("Buckley & George Michail").
+      * no repeated token        -> drops "Andrew Andrew".
+      * no token shared with the SUBJECT -> an NER span that swallowed the
+        subject's own name ("James Mackintosh Elon", "Elon Musk Thinking") is a
+        boundary error, not a second person.
+    """
+    if not cand or is_noise_name(cand) or not looks_like_person_name(cand):
+        return False
+    if any(not (c.isalpha() or c in " -'.") for c in cand):
+        return False
+    toks = person_norm_key(cand).split()
+    if len(toks) < 2 or len(set(toks)) != len(toks):
+        return False
+    return not (subject_tokens & set(toks))
 
 
 def _readable_text(url: str) -> str:
@@ -54,6 +79,7 @@ class CoMentionProvider:
         if not name or not self._available() or not extract.available():
             return []
         subject_key = person_norm_key(name)
+        subject_tokens = set(subject_key.split())
         urls: List[str] = []
         for query in (f'"{name}"',
                       f'"{name}" interview OR profile OR news OR announcement'):
@@ -73,7 +99,7 @@ class CoMentionProvider:
             readable += 1
             for cand in extract.filter_person_blocks(extract.person_names(text)):
                 cand = strip_role_affixes(cand).strip()
-                if not cand or is_noise_name(cand):
+                if not _is_clean_person(cand, subject_tokens):
                     continue
                 key = person_norm_key(cand)
                 if not key or key in seen:
