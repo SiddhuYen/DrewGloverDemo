@@ -395,10 +395,14 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None) -> dict
     """Warmest reachable people around `name`, by cheapest total path cost."""
     depth = depth or config.CONNECT_DEPTH
 
-    # Only reach for the network when we have nothing on this person yet.
+    # Only reach for the network when we have nothing on this person yet, and
+    # bound it: this holds the write lock, so an unbounded widen freezes the
+    # whole UI. Same budget connect() uses, for the same reason.
     root = _lookup(db, name)
     if root is None or not root.enriched:
-        get_enricher().enrich_neighborhood(db, name, depth=depth)
+        get_enricher().enrich_neighborhood(
+            db, name, depth=depth,
+            deadline=time.monotonic() + config.CONNECT_WORK_BUDGET_S)
         root = _lookup(db, name)
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}

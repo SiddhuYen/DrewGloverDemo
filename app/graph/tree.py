@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import heapq
 import itertools
+import time
 from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Tuple
 
@@ -68,10 +69,18 @@ def _dijkstra(adj, root_id: str, max_hops: int, banned: Optional[set] = None):
 
 
 def _ensure(db: Session, name: str, depth: int, progress=None) -> Optional[Person]:
-    """Resolve a person, enriching only when we hold nothing on them yet."""
+    """Resolve a person, enriching only when we hold nothing on them yet.
+
+    Bounded: this holds the write lock (tree and compare both call it), so an
+    unbounded widen for an unknown name freezes the whole UI. Same budget
+    connect() uses, for the same reason -- measured unbounded compare/discover
+    calls hanging past 90s with no response.
+    """
     person = _lookup(db, name)
     if person is None or not person.enriched:
-        get_enricher().enrich_neighborhood(db, name, depth=depth, progress=progress)
+        get_enricher().enrich_neighborhood(
+            db, name, depth=depth, progress=progress,
+            deadline=time.monotonic() + config.CONNECT_WORK_BUDGET_S)
         person = _lookup(db, name)
     return person
 

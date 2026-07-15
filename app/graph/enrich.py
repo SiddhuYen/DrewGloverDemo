@@ -629,12 +629,16 @@ class Enricher:
         report what was skipped — a silently thin graph reads as "no path" when
         the truth is "we stopped looking".
         """
-        subject = self.enrich_person(db, name, progress=progress)
-        if subject is None or depth <= 1:
-            return subject
-
+        # The deadline must exist BEFORE this call, not after: enrich_person is
+        # itself a loop over 9 provider silos, and unbounded it can run for
+        # minutes on its own. A caller-supplied deadline (discover, compare) was
+        # being silently ignored here, so an unknown name blew straight through
+        # the budget the endpoint promised.
         if deadline is None:
             deadline = time.monotonic() + config.ENRICH_TIME_BUDGET_S
+        subject = self.enrich_person(db, name, progress=progress, deadline=deadline)
+        if subject is None or depth <= 1:
+            return subject
         fanout = fanout or config.ENRICH_FRONTIER_FANOUT
 
         enriched_here, skipped_total = 0, 0
@@ -675,7 +679,8 @@ class Enricher:
                                     f"{skipped_total} neighbours left unexplored")
                     return subject
                 try:
-                    self.enrich_person(db, person.canonical_name, progress=progress)
+                    self.enrich_person(db, person.canonical_name, progress=progress,
+                                       deadline=deadline)
                     enriched_here += 1
                     next_frontier.append(person)
                 except Exception as exc:
