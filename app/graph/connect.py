@@ -387,14 +387,15 @@ def connect_people(db: Session, name_a: str, name_b: str,
 
 
 def discover(db: Session, name: str, limit: int = 20, depth: int = None,
-             hint: str = "") -> dict:
+             hint: str = "", progress=None) -> dict:
     """Warmest reachable people around `name`, by cheapest total path cost."""
     depth = depth or config.CONNECT_DEPTH
 
     # Only reach for the network when we have nothing on this person yet.
     root = _lookup(db, name)
     if root is None or root.enriched < target_enrichment_level():
-        get_enricher().enrich_neighborhood(db, name, depth=depth, hint=hint)
+        get_enricher().enrich_neighborhood(db, name, depth=depth, hint=hint,
+                                           progress=progress)
         root = _lookup(db, name)
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}

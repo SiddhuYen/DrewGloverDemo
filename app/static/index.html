@@ -90,6 +90,17 @@
   ul.nb .via{color:var(--white);opacity:.68;font-size:11px}
   .spin{color:var(--white);font-size:13px;padding:16px;border-left:8px solid var(--red)}
   .spin::before{content:"[ LOADING ] ";color:var(--red);font-weight:700}
+  .prog{padding:16px;border-left:8px solid var(--red)}
+  .progbar{height:18px;border:2px solid var(--white);background:#000;
+    padding:2px;display:flex}
+  .progfill{width:4%;background:var(--red);transition:width .35s linear;
+    background-image:repeating-linear-gradient(90deg,transparent 0,transparent 6px,
+      rgba(0,0,0,.35) 6px,rgba(0,0,0,.35) 8px)}
+  .progpct{margin-left:10px;color:var(--red);font-weight:700;font-size:12px}
+  .progmsg{margin-top:10px;color:var(--white);font-size:12px;opacity:.85;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .progmsg::before{content:"› ";color:var(--red)}
+  .prophd{color:var(--red);font-weight:700;font-size:12px;margin-bottom:10px}
   footer{margin-top:44px;padding-top:14px;border-top:2px dashed var(--white);
     color:var(--white);font-size:11px;line-height:1.8;opacity:.8}
   @media(max-width:640px){
@@ -199,6 +210,56 @@ const RENDER = {
   tree: renderTree, compare: renderCompare,
 };
 
+// Streaming variants (Server-Sent Events) for the modes that enrich the graph
+// live — a cold/deep query can take a couple of minutes, so we show a real
+// progress bar fed by each enrichment step instead of a frozen spinner.
+const STREAM = {
+  connect:  q => `/connect/stream?target=${encodeURIComponent(q)}${CTX()}`,
+  discover: q => `/discover/stream?person=${encodeURIComponent(q)}${CTX()}`,
+  tree:     q => `/tree/stream?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
+};
+
+function runStream(q, out, btn){
+  out.innerHTML =
+    `<div class="prog">
+       <div class="prophd">[ SEARCHING ]</div>
+       <div style="display:flex;align-items:center">
+         <div class="progbar"><div class="progfill" id="pf"></div></div>
+         <span class="progpct" id="pp">4%</span>
+       </div>
+       <div class="progmsg" id="pm">contacting sources…</div>
+     </div>`;
+  const pf = document.getElementById('pf');
+  const pp = document.getElementById('pp');
+  const pm = document.getElementById('pm');
+  let pct = 4;
+  // No true total is known ahead of time, so ease toward 92% — each step takes a
+  // shrinking bite of the remaining bar; the result event snaps it to 100%.
+  const bump = () => { pct = Math.min(92, pct + Math.max(1.4, (92 - pct) * 0.11));
+                       pf.style.width = pct.toFixed(1) + '%';
+                       pp.textContent = Math.round(pct) + '%'; };
+
+  const es = new EventSource(STREAM[MODE](q));
+  es.addEventListener('progress', e => { bump(); pm.textContent = JSON.parse(e.data); });
+  es.addEventListener('result', e => {
+    es.close();
+    pf.style.width = '100%'; pp.textContent = '100%'; pm.textContent = 'done';
+    const data = JSON.parse(e.data);
+    setTimeout(() => {
+      if ((MODE === 'discover' || MODE === 'tree') && !data.found)
+        out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
+      else
+        out.innerHTML = RENDER[MODE](data);
+      btn.disabled = false;
+    }, 200);
+  });
+  es.onerror = () => {
+    es.close();
+    out.innerHTML = '<div class="msg err">Connection lost mid-search — please try again.</div>';
+    btn.disabled = false;
+  };
+}
+
 async function run(){
   const q = document.getElementById('q').value.trim();
   const out = document.getElementById('out');
@@ -208,6 +269,8 @@ async function run(){
   }
 
   btn.disabled = true;
+  if (STREAM[MODE]) { runStream(q, out, btn); return; }   // btn re-enabled by the stream
+
   out.innerHTML = '<div class="spin">Pulling structured sources…</div>';
   try {
     const res  = await fetch(ENDPOINT[MODE](q));
