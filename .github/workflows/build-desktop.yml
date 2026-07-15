@@ -35,6 +35,10 @@ jobs:
           pip install pywebview platformdirs pyinstaller zipp httpx
           python -m spacy download en_core_web_sm
 
+      - name: Windows webview backend (pywebview uses EdgeChromium via pythonnet)
+        if: runner.os == 'Windows'
+        run: pip install pythonnet
+
       - name: Build with PyInstaller
         run: pyinstaller build/pathfinder.spec --noconfirm --distpath dist --workpath build/work
 
