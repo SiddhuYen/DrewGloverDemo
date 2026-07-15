@@ -413,7 +413,11 @@ class PodcastProvider:
         return hosts, items
 
     def appearances(self, person_name: str, limit: int = 0,
-                    known_orgs: Optional[List[str]] = None) -> List[dict]:
+                    known_orgs: Optional[List[str]] = None,
+                    hint: str = "") -> List[dict]:
+        # `hint` is accepted for a uniform silo interface; Apple's episode search
+        # matches metadata, not a free-text descriptor, so it is not appended to
+        # the query — identity is corroborated via known_orgs instead.
         """Episodes where `person_name` was the GUEST, with the show's hosts.
 
         Person-first, not feed-first. Seeding walks known feeds; enrichment must

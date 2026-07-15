@@ -96,22 +96,24 @@ def connect(
     target: str = Query(..., min_length=2, description="who you want to reach"),
     source: str = Query(default="", description="defaults to the demo seed"),
     depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
+    context: str = Query(default="", description="disambiguating hint, e.g. 'biotech founder'"),
     db: Session = Depends(get_db),
 ) -> dict:
     source = source or config.DEMO_SEED_NAME
     with _write_lock:
-        return connect_people(db, source, target, depth=depth)
+        return connect_people(db, source, target, depth=depth, hint=context)
 
 
 @app.get("/discover")
 def discover_endpoint(
     person: str = Query(default="", description="defaults to the demo seed"),
     limit: int = Query(default=20, ge=1, le=100),
+    context: str = Query(default=""),
     db: Session = Depends(get_db),
 ) -> dict:
     person = person or config.DEMO_SEED_NAME
     with _write_lock:
-        result = discover(db, person, limit=limit)
+        result = discover(db, person, limit=limit, hint=context)
     if not result.get("found"):
         raise HTTPException(status_code=404, detail=result.get("reason"))
     return result
@@ -123,11 +125,12 @@ def tree(
     depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
     max_hops: int = Query(default=3, ge=0, le=8,
                           description="0 = no limit (whole reachable set)"),
+    context: str = Query(default=""),
     db: Session = Depends(get_db),
 ) -> dict:
     """The warmest-path network tree rooted at `person`."""
     with _write_lock:
-        result = build_tree(db, person, depth=depth, max_hops=max_hops)
+        result = build_tree(db, person, depth=depth, max_hops=max_hops, hint=context)
     if not result.get("found"):
         raise HTTPException(status_code=404, detail=result.get("reason"))
     return result

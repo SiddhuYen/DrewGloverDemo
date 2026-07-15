@@ -264,7 +264,7 @@ def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
 
 def connect_people(db: Session, name_a: str, name_b: str,
                    depth: int = None, progress=None,
-                   include_weak: bool = False) -> dict:
+                   include_weak: bool = False, hint: str = "") -> dict:
     """Top-K warmest distinct intro paths from `name_a` to `name_b`.
 
     Enrichment escalates only as far as it must:
@@ -301,10 +301,12 @@ def connect_people(db: Session, name_a: str, name_b: str,
             if person is None or person.enriched < target_enrichment_level():
                 if progress:
                     progress(f"[1] enriching {name}…")
+                h = hint if name == name_b else ""   # hint is for the target only
                 if config.DEEP_SEARCH:
-                    enricher.enrich_neighborhood(db, name, depth=2, progress=progress)
+                    enricher.enrich_neighborhood(db, name, depth=2,
+                                                 progress=progress, hint=h)
                 else:
-                    enricher.enrich_person(db, name, progress=progress)
+                    enricher.enrich_person(db, name, progress=progress, hint=h)
         a, b = _lookup(db, name_a), _lookup(db, name_b)
         if a is None or b is None:
             missing = name_a if a is None else name_b
@@ -338,7 +340,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                          f"(depth {config.CONNECT_TARGET_DEPTH})…")
             enricher.enrich_neighborhood(
                 db, name_b, depth=config.CONNECT_TARGET_DEPTH, progress=progress,
-                opposite_component=drew_reach, deadline=deadline)
+                opposite_component=drew_reach, deadline=deadline, hint=hint)
             routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
     if not routes:
@@ -384,14 +386,15 @@ def connect_people(db: Session, name_a: str, name_b: str,
     }
 
 
-def discover(db: Session, name: str, limit: int = 20, depth: int = None) -> dict:
+def discover(db: Session, name: str, limit: int = 20, depth: int = None,
+             hint: str = "") -> dict:
     """Warmest reachable people around `name`, by cheapest total path cost."""
     depth = depth or config.CONNECT_DEPTH
 
     # Only reach for the network when we have nothing on this person yet.
     root = _lookup(db, name)
     if root is None or root.enriched < target_enrichment_level():
-        get_enricher().enrich_neighborhood(db, name, depth=depth)
+        get_enricher().enrich_neighborhood(db, name, depth=depth, hint=hint)
         root = _lookup(db, name)
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}
