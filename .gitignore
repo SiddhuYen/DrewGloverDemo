@@ -20,3 +20,8 @@ data/*.progress.json
 .x_session
 data/x_mutuals.json
 data/x_mutuals.progress.json
+
+# the bundled pre-built graph snapshot the desktop app ships (CI needs it)
+!resources/graph.db
+/build/
+/dist/

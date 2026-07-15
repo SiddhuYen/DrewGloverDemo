@@ -66,8 +66,19 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Warm Intro Pathfinder</h1>
+  <h1>Warm Intro Pathfinder
+    <button onclick="toggleSettings()" title="Settings" style="float:right;font-size:18px;background:none;border:none;cursor:pointer;color:inherit">⚙</button>
+  </h1>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
+
+  <div id="settings" style="display:none;border:1px solid #3a3a3a;border-radius:8px;padding:12px;margin:10px 0;background:rgba(0,0,0,0.15)">
+    <div style="margin-bottom:6px"><b>Live search</b> — a Serper API key lets you search for people not yet in the graph. The bundled graph works without one.</div>
+    <div class="row">
+      <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
+      <button onclick="saveKey()">Save</button>
+    </div>
+    <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
+  </div>
 
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
@@ -280,6 +291,32 @@ function renderNeighborhood(d){
 }
 
 document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
+
+function toggleSettings(){
+  const s = document.getElementById('settings');
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+}
+async function saveKey(){
+  const key = document.getElementById('serperKey').value.trim();
+  const msg = document.getElementById('settingsMsg');
+  msg.textContent = 'Saving…';
+  try {
+    const r = await (await fetch('/settings', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({serper_key: key})})).json();
+    msg.textContent = r.serper_configured ? 'Live search enabled ✓' : 'Key cleared.';
+  } catch(e){ msg.textContent = 'Could not save the key.'; }
+}
+(async function checkSettings(){
+  try {
+    const s = await (await fetch('/settings')).json();
+    if (!s.serper_configured) {
+      document.getElementById('settings').style.display = 'block';
+      document.getElementById('settingsMsg').textContent =
+        'Optional: add a Serper key to search for people not yet in the graph.';
+    }
+  } catch(e){}
+})();
 </script>
 </body>
 </html>
