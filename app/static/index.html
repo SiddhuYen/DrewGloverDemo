@@ -593,13 +593,27 @@ function renderImport(d){
       + 'no rows became edges.' : 'That CSV had no readable rows — LinkedIn puts a few '
       + 'lines of notes above the header, which is expected and handled, so check you sent '
       + 'Connections.csv rather than another file from the archive.'}</div>`;
-  return head + `
+  const stat = `
     <div class="stat">
       <div><span class="k">edges</span><span class="v good">${d.edges || 0}</span></div>
       <div><span class="k">people added</span><span class="v">${d.created || 0}</span></div>
-      <div><span class="k">already known</span><span class="v">${d.updated || 0}</span></div>
+      <div><span class="k">bridged</span><span class="v good">${d.bridged || 0}</span></div>
       <div><span class="k">rows skipped</span><span class="v">${d.skipped || 0}</span></div>
     </div>`;
+
+  // The bridges are the result worth showing: these are your contacts who were
+  // already in the network, so their whole neighbourhood is now one hop away.
+  if (!d.bridges || !d.bridges.length) return head + stat;
+  const rows = d.bridges.map(b => `
+    <li>
+      <span class="tdot t1" style="background:currentColor"></span>
+      <span class="pair"><b>${esc(b.name)}</b></span>
+      <span class="rel">${b.connections} existing connection${b.connections === 1 ? '' : 's'}</span>
+    </li>`).join('');
+  return head + stat
+    + `<div class="banner"><b>${d.bridged} of your contacts were already in the graph.</b>
+        Their networks are now one warm hop from you.</div>`
+    + `<ul class="edges">` + rows + `</ul>`;
 }
 
 // --- Brave key + deep search ----------------------------------------------

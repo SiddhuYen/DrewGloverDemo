@@ -13,13 +13,13 @@ import csv
 import io
 from typing import Dict, List, Optional
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import config
 from ..edges.names import name_variants, person_norm_key
 from ..graph import builder
-from ..models import LocalProfile
+from ..models import LocalProfile, RelationshipEdge
 
 # header alias -> canonical field (compared with case/space/underscore ignored)
 _HEADER_ALIASES = {
@@ -111,6 +111,7 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
         provider="linkedin_csv")
 
     created = updated = edges = skipped = 0
+    bridges: List[Dict] = []   # your contacts who were already in the graph
     for raw in reader:
         parsed = _profile_from_row(raw)
         if parsed is None:
@@ -135,6 +136,18 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
                                               is_warm=True)
         if person is None or person.id == owner.id:
             continue
+
+        # Degree BEFORE this import's edge. get_or_create_person returns the
+        # existing node when the name already resolves, so a contact of yours who
+        # is already in the public graph fuses with their edges rather than
+        # becoming a duplicate — that fusion is what turns a cold multi-hop route
+        # into a warm one. Counted here because it is the whole point of the
+        # import, and nothing else in the response would reveal it.
+        prior = db.scalar(
+            select(func.count()).select_from(RelationshipEdge).where(
+                or_(RelationshipEdge.person_a_id == person.id,
+                    RelationshipEdge.person_b_id == person.id))) or 0
+
         company = parsed["companies"][0] if parsed["companies"] else ""
         edge = builder.add_edge(
             db, owner, person, "linkedin_1st", source=source,
@@ -142,10 +155,15 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
                       f"{f' ({company})' if company else ''}."))
         if edge is not None:
             edges += 1
+        if prior:
+            bridges.append({"name": person.canonical_name, "connections": prior})
 
     db.commit()
+    # Warmest bridges first: a contact with more existing edges opens more of the
+    # graph than one hanging off a single tie.
+    bridges.sort(key=lambda b: b["connections"], reverse=True)
     return {"created": created, "updated": updated, "edges": edges,
-            "skipped": skipped}
+            "skipped": skipped, "bridged": len(bridges), "bridges": bridges[:25]}
 
 
 def _merge_profile(existing: LocalProfile, parsed: dict) -> None:

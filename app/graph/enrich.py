@@ -43,20 +43,23 @@ def _note(progress: Progress, msg: str) -> None:
 
 
 def _search_provider():
-    """Serper, then Brave, else DuckDuckGo. Used only to locate roster pages.
+    """Every configured engine at once. Used only to locate roster pages.
+
+    Serper, Brave and DuckDuckGo are queried in parallel and their results merged,
+    rather than falling back to one. Engines disagree about which roster pages
+    exist, and the union is strictly better recall for the same wall clock. When
+    no key is set this is DuckDuckGo alone, exactly as before.
 
     Built per call, never cached: a key typed into the UI must take effect on the
-    next search, and a provider that has burned through its quota mid-run must be
-    able to hand over to the next one.
+    next search, and an engine that exhausts its quota mid-run must drop out.
     """
     from ..providers.brave import BraveProvider
     from ..providers.duckduckgo import DuckDuckGoProvider
+    from ..providers.multi import MultiSearchProvider
     from ..providers.serper import SerperProvider
 
-    for provider in (SerperProvider(), BraveProvider()):
-        if provider.available():
-            return provider
-    return DuckDuckGoProvider()
+    return MultiSearchProvider([SerperProvider(), BraveProvider(),
+                                DuckDuckGoProvider()])
 
 
 class Enricher:
