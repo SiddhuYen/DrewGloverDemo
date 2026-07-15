@@ -21,6 +21,25 @@ from .base import fetch_page
 from .htmltext import html_to_text
 
 
+def _readable_text(url: str) -> str:
+    """Plain-fetch a page's text, falling back to a headless render when the GET
+    returns a JavaScript shell (a Forbes/LinkedIn profile is 400 KB of HTML with
+    zero readable text). Degrades to the plain fetch when no browser is present.
+    """
+    page = fetch_page(url)
+    if page.status_code != 200 or not page.content:
+        return ""
+    text = html_to_text(page.content)
+    if text.strip():
+        return text
+    from .browser import available as _browser_available
+    if _browser_available():
+        rendered = fetch_page(url, render=True)
+        if rendered.content:
+            return html_to_text(rendered.content)
+    return ""
+
+
 class CoMentionProvider:
     name = "comention"
 
@@ -44,11 +63,14 @@ class CoMentionProvider:
 
         out: List[Dict[str, str]] = []
         seen = {subject_key}
-        for url in urls[: config.CO_MENTION_MAX_PAGES]:
-            page = fetch_page(url)
-            if page.status_code != 200 or not page.content:
-                continue
-            text = html_to_text(page.content)
+        readable = 0
+        for url in urls:
+            if readable >= config.CO_MENTION_MAX_PAGES:
+                break
+            text = _readable_text(url)
+            if not text:
+                continue                 # JS shell / blocked — don't spend budget
+            readable += 1
             for cand in extract.filter_person_blocks(extract.person_names(text)):
                 cand = strip_role_affixes(cand).strip()
                 if not cand or is_noise_name(cand):
