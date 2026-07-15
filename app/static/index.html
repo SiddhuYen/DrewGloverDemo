@@ -393,7 +393,12 @@ function renderCompare(d){
 }
 
 function renderNeighborhood(d){
-  if (!d.neighborhood.length) return '<div class="msg">Nobody reachable yet — try seeding the graph.</div>';
+  if (!d.neighborhood.length){
+    const deepHint = DEEP_ON
+      ? 'No structured records (Wikidata / EDGAR / research / podcasts) and no web co-mentions turned up anyone connected to them. They may be too low-profile to be findable, or the name/context needs tweaking.'
+      : 'This person isn\'t in the structured databases (Wikidata / EDGAR / research / podcasts), so nothing connected to them was found. For a lesser-known person, turn on <b>Deep Search</b> (⚙) — it web-mines connections. The basic search only pulls structured records + firm rosters.';
+    return `<div class="msg err"><b>Nobody reachable for ${esc(d.person || 'them')}.</b><br>${deepHint}</div>`;
+  }
   return `<ul class="nb">` + d.neighborhood.map(p => `
     <li>
       <span>${esc(p.label)} ${p.is_warm ? '<span class="star">★</span>' : ''}
@@ -420,8 +425,10 @@ async function saveKey(){
     msg.textContent = r.serper_configured ? 'Live search enabled ✓' : 'Key cleared.';
   } catch(e){ msg.textContent = 'Could not save the key.'; }
 }
+let DEEP_ON = false;   // mirrors the Deep Search toggle; drives the empty-state hint
 async function saveDeep(){
   const on = document.getElementById('deepSearch').checked;
+  DEEP_ON = on;
   const msg = document.getElementById('settingsMsg');
   msg.textContent = on ? 'Deep search ON — slower, denser, more quota.' : 'Deep search off.';
   try {
@@ -432,6 +439,7 @@ async function saveDeep(){
 (async function checkSettings(){
   try {
     const s = await (await fetch('/settings')).json();
+    DEEP_ON = !!s.deep_search;
     document.getElementById('deepSearch').checked = !!s.deep_search;
     if (!s.serper_configured) {
       document.getElementById('settings').style.display = 'block';
