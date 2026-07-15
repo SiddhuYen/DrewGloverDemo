@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from .. import config
 from ..edges import taxonomy
 from ..models import Person, RelationshipEdge, Source
-from .resolve import resolve_person
+from .resolve import has_edges, resolve_person
 from .enrich import get_enricher
 
 Hop = Tuple[str, Optional[RelationshipEdge]]
@@ -395,11 +395,18 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None) -> dict
     """Warmest reachable people around `name`, by cheapest total path cost."""
     depth = depth or config.CONNECT_DEPTH
 
-    # Only reach for the network when we have nothing on this person yet, and
+    # Only reach for the network when we have nothing USABLE on this person, and
     # bound it: this holds the write lock, so an unbounded widen freezes the
     # whole UI. Same budget connect() uses, for the same reason.
+    #
+    # "has edges" gates this, not "enriched": a pass that hit its deadline is
+    # deliberately left unmarked so a later call retries the missed silos (see
+    # enrich_person), which means a seed-graph person whose enrichment was ever
+    # truncated stays enriched=0 forever and would otherwise re-trigger a full
+    # ~40s re-enrichment attempt on EVERY discover call despite already having
+    # real edges to build a result from.
     root = _lookup(db, name)
-    if root is None or not root.enriched:
+    if root is None or (not root.enriched and not has_edges(db, root)):
         get_enricher().enrich_neighborhood(
             db, name, depth=depth,
             deadline=time.monotonic() + config.CONNECT_WORK_BUDGET_S)

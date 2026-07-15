@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..edges.names import person_norm_key, person_search_keys
-from ..models import Person
+from ..models import Person, RelationshipEdge
 
 
 def resolve_person(db: Session, name: str) -> Optional[Person]:
@@ -62,3 +62,22 @@ def resolve_person(db: Session, name: str) -> Optional[Person]:
     if best is None:
         return None
     return db.get(Person, best)
+
+
+def has_edges(db: Session, person: Person) -> bool:
+    """True if `person` already carries at least one relationship.
+
+    `enriched` and "has usable data" are NOT the same thing: a pass that hit its
+    deadline mid-run is deliberately left unmarked so a later call retries the
+    silos it missed (see enrich_person). Left unchecked, that means a seed-graph
+    person whose enrichment was ever truncated stays `enriched=0` forever and
+    re-triggers a full ~40s re-enrichment attempt on EVERY future discover/
+    compare call, despite already having real edges to build a result from.
+    "Has data" is the right gate for re-enrichment, not "finished every silo".
+    """
+    return db.execute(
+        select(RelationshipEdge.id)
+        .where(or_(RelationshipEdge.person_a_id == person.id,
+                   RelationshipEdge.person_b_id == person.id))
+        .limit(1)
+    ).first() is not None

@@ -19,13 +19,13 @@ import time
 from collections import Counter, defaultdict
 from typing import Dict, List, Optional, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .. import config
 from ..edges import taxonomy
 from ..models import Organization, Person, RelationshipEdge, Source
-from .resolve import resolve_person
+from .resolve import has_edges, resolve_person
 from .connect import _adjacency
 from .enrich import get_enricher
 
@@ -69,7 +69,7 @@ def _dijkstra(adj, root_id: str, max_hops: int, banned: Optional[set] = None):
 
 
 def _ensure(db: Session, name: str, depth: int, progress=None) -> Optional[Person]:
-    """Resolve a person, enriching only when we hold nothing on them yet.
+    """Resolve a person, enriching only when we hold nothing usable on them.
 
     Bounded: this holds the write lock (tree and compare both call it), so an
     unbounded widen for an unknown name freezes the whole UI. Same budget
@@ -77,7 +77,7 @@ def _ensure(db: Session, name: str, depth: int, progress=None) -> Optional[Perso
     calls hanging past 90s with no response.
     """
     person = _lookup(db, name)
-    if person is None or not person.enriched:
+    if person is None or (not person.enriched and not has_edges(db, person)):
         get_enricher().enrich_neighborhood(
             db, name, depth=depth, progress=progress,
             deadline=time.monotonic() + config.CONNECT_WORK_BUDGET_S)
