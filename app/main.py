@@ -6,9 +6,11 @@ design and this keeps SQLite writers from contending.
 """
 from __future__ import annotations
 
+import json
+import os
 import threading
 
-from fastapi import Depends, FastAPI, HTTPException, Query, UploadFile, File
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -45,6 +47,29 @@ def health(db: Session = Depends(get_db)) -> dict:
     }
     return {"ok": True, "seed": config.DEMO_SEED_NAME, "graph": counts,
             "serper": serper_status(), "providers": STATS.snapshot()}
+
+
+@app.get("/settings")
+def get_settings() -> dict:
+    """Whether live search is configured. Never returns the key itself."""
+    return {"serper_configured": bool(config.SERPER_API_KEY),
+            "serper": serper_status()}
+
+
+@app.post("/settings")
+def set_settings(serper_key: str = Body(..., embed=True)) -> dict:
+    """Store the user's own Serper API key (desktop app) and apply it live, so
+    a new target can be searched without shipping anyone's key."""
+    key = (serper_key or "").strip()
+    config.SERPER_API_KEY = key                 # SerperProvider reads this live
+    os.environ["SERPER_API_KEY"] = key
+    path = os.environ.get("VCWI_SETTINGS_FILE")
+    if path:
+        try:
+            json.dump({"serper_key": key}, open(path, "w"))
+        except Exception as exc:
+            raise HTTPException(500, f"could not persist settings: {exc}")
+    return {"ok": True, "serper_configured": bool(key)}
 
 
 @app.post("/seed")
