@@ -8,17 +8,18 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import threading
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import config
-from .db import get_db, init_db
+from .db import SessionLocal, get_db, init_db
 from .graph.connect import connect_people, discover
 from .graph.tree import build_tree, compare_trees
 from .ingest.linkedin_csv import ingest_csv
@@ -153,6 +154,76 @@ def compare(
     if not result.get("found"):
         raise HTTPException(status_code=404, detail=result.get("reason"))
     return result
+
+
+def _sse(work):
+    """Run `work(db, progress)` on a worker thread and stream its progress lines
+    as Server-Sent Events, then a final `result` event with the returned dict.
+
+    Long cold queries (deep search can take ~150s) otherwise look frozen — this
+    lets the UI show a live progress bar of what each enrichment step is doing.
+    """
+    q: queue.Queue = queue.Queue()
+    box: dict = {}
+
+    def run() -> None:
+        db = SessionLocal()
+        try:
+            with _write_lock:
+                box["result"] = work(db, lambda m: q.put(("progress", str(m))))
+        except Exception as exc:  # surface as an honest failure, don't hang the stream
+            box["result"] = {"found": False, "connected": False,
+                             "reason": f"error: {exc}"}
+        finally:
+            db.close()
+            q.put(("done", None))
+
+    threading.Thread(target=run, daemon=True).start()
+
+    def gen():
+        while True:
+            kind, msg = q.get()
+            if kind == "done":
+                yield f"event: result\ndata: {json.dumps(box.get('result', {}))}\n\n"
+                return
+            yield f"event: progress\ndata: {json.dumps(msg)}\n\n"
+
+    return StreamingResponse(gen(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache",
+                                      "X-Accel-Buffering": "no"})
+
+
+@app.get("/connect/stream")
+def connect_stream(
+    target: str = Query(..., min_length=2),
+    source: str = Query(default=""),
+    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
+    context: str = Query(default=""),
+):
+    src = source or config.DEMO_SEED_NAME
+    return _sse(lambda db, p: connect_people(db, src, target, depth=depth,
+                                             hint=context, progress=p))
+
+
+@app.get("/discover/stream")
+def discover_stream(
+    person: str = Query(default=""),
+    limit: int = Query(default=20, ge=1, le=100),
+    context: str = Query(default=""),
+):
+    who = person or config.DEMO_SEED_NAME
+    return _sse(lambda db, p: discover(db, who, limit=limit, hint=context, progress=p))
+
+
+@app.get("/tree/stream")
+def tree_stream(
+    person: str = Query(..., min_length=2),
+    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
+    max_hops: int = Query(default=3, ge=0, le=8),
+    context: str = Query(default=""),
+):
+    return _sse(lambda db, p: build_tree(db, person, depth=depth,
+                                         max_hops=max_hops, hint=context, progress=p))
 
 
 @app.post("/network/csv")
