@@ -138,5 +138,11 @@ def root() -> FileResponse:
     return FileResponse(_STATIC / "index.html")
 
 
+@app.get("/download")
+@app.get("/download/")
+def download() -> FileResponse:
+    return FileResponse(_STATIC / "download.html")
+
+
 if _STATIC.is_dir():
     app.mount("/static", StaticFiles(directory=_STATIC), name="static")
