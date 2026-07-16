@@ -10,6 +10,7 @@ DuckDuckGo. Monthly quota persisted in the cache DB so it survives restarts.
 from __future__ import annotations
 
 import json
+import hashlib
 import threading
 import time
 from datetime import datetime, timezone
@@ -26,8 +27,41 @@ def _current_month() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m")
 
 
+def _key_id() -> str:
+    """Non-secret stable identifier so quota follows the actual API key."""
+    if not config.SERPER_API_KEY:
+        return "none"
+    return hashlib.sha256(config.SERPER_API_KEY.encode()).hexdigest()[:12]
+
+
 def _state_key() -> str:
-    return cache.make_key("serperstate", _current_month(), "s")
+    return cache.make_key("serperstate", _current_month(), _key_id())
+
+
+def _quota_key() -> str:
+    return cache.make_key("serperquota", _current_month(), _key_id())
+
+
+def _ensure_key_state() -> None:
+    """Migrate the old month-wide counter once, then isolate replacement keys.
+
+    Without this, replacing an exhausted Serper key cannot resume work because
+    the old counter remains at the monthly cap. The fingerprint is irreversible
+    and never returned or logged.
+    """
+    if not config.SERPER_API_KEY:
+        return
+    marker_key = cache.make_key("serperkey", _current_month(), "active")
+    marker = cache.get(marker_key, track=False) or {}
+    current = _key_id()
+    previous = marker.get("key_id")
+    if previous is None:
+        legacy = cache.get_counter(
+            cache.make_key("serperquota", _current_month(), "count"))
+        if legacy and not cache.get_counter(_quota_key()):
+            cache.incr_counter(_quota_key(), by=legacy)
+    if previous != current:
+        cache.set(marker_key, "serperkey", {"key_id": current}, 40 * 86400)
 
 
 def _mark_state(state: str) -> None:
@@ -40,7 +74,8 @@ def _mark_state(state: str) -> None:
 def serper_status() -> dict:
     """Availability for /health: monthly usage plus any outage state.
     state is one of: ok | exhausted | invalid_key | not_configured."""
-    used = cache.get_counter(cache.make_key("serperquota", _current_month(), "count"))
+    _ensure_key_state()
+    used = cache.get_counter(_quota_key())
     quota = config.SERPER_MONTHLY_QUOTA
     persisted = (cache.get(_state_key(), track=False) or {}).get("state")
     if not config.SERPER_API_KEY:
@@ -60,10 +95,11 @@ class SerperProvider(SearchProvider):
     cache_ttl = config.CACHE_TTL_SEARCH
 
     def __init__(self) -> None:
+        _ensure_key_state()
         interval = 1.0 / config.SERPER_QPS if config.SERPER_QPS > 0 else 0.0
         self._limiter = IntervalLimiter(interval)
         self._lock = threading.Lock()
-        self._quota_key = cache.make_key("serperquota", _current_month(), "count")
+        self._quota_key = _quota_key()
         self._used = cache.get_counter(self._quota_key)
         self._exhausted = False
 
