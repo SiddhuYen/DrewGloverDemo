@@ -123,14 +123,14 @@
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
   <div id="settings" class="settings-panel">
-    <div style="margin-bottom:6px"><b>Live search</b> — a Serper API key lets you search for people not yet in the graph. The bundled graph works without one.</div>
+    <div style="margin-bottom:6px"><b>Live search</b> — the bundled graph works with no setup. Add a Serper API key below to also reach people not yet in the graph.</div>
     <div class="row">
       <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
       <button onclick="saveKey()">Save</button>
     </div>
     <label style="display:block;margin-top:10px;cursor:pointer">
       <input type="checkbox" id="deepSearch" onchange="saveDeep()">
-      <b>Deep search</b> — aggressively web-mine a dense neighborhood around new targets. Finds far more, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
+      <b>Deep search</b> — makes live search aggressive: mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
     </label>
     <div id="quotaWrap" style="margin-top:12px;display:none">
       <div class="prophd" id="quotaHd">SERPER QUOTA</div>
@@ -431,7 +431,13 @@ document.getElementById('q').addEventListener('keydown', e => { if (e.key === 'E
 
 function toggleSettings(){
   const s = document.getElementById('settings');
-  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+  // Read the actual rendered state, not just the inline style — the panel
+  // starts hidden via a CSS class (display:none in the stylesheet), so
+  // s.style.display is '' on the very first call. Comparing against that
+  // empty string made the first click a no-op: it silently set an inline
+  // display:none (no visible change) and only the second click opened it.
+  const isHidden = getComputedStyle(s).display === 'none';
+  s.style.display = isHidden ? 'block' : 'none';
 }
 async function saveKey(){
   const key = document.getElementById('serperKey').value.trim();
@@ -484,8 +490,6 @@ async function refreshQuota(){
     refreshQuota();
     if (!s.serper_configured) {
       document.getElementById('settings').style.display = 'block';
-      document.getElementById('settingsMsg').textContent =
-        'Optional: add a Serper key to search for people not yet in the graph.';
     }
   } catch(e){}
 })();
