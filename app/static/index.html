@@ -76,6 +76,7 @@
     text-transform:uppercase}
   .t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}
   .t4{color:var(--t4)}.t5{color:var(--t5)}
+  .t6{color:var(--red);opacity:.6;border-style:dashed!important}
   .ev{color:var(--white);opacity:.72;font-size:12px;margin-top:6px}
   .src{font-size:12px;margin-top:4px}
   .src a{color:var(--red);text-decoration:underline;word-break:break-all}
@@ -153,14 +154,16 @@
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
     <button id="go" onclick="run()">Find path</button>
   </div>
-  <div class="row">
+  <div class="row" id="ctx-row">
     <input id="ctx" placeholder="Which one? (optional) — e.g. biotech founder, or their company / firm" autocomplete="off" style="width:100%">
   </div>
 
   <div class="banner">
     <b>What this shows.</b> Every hop comes from a source that <i>structurally asserts</i> the
     relationship — a team roster, a podcast episode, an SEC filing, a Wikidata claim.
-    Two names appearing on the same page is <b>not</b> a relationship, and never creates a hop.
+    Two names appearing on the same page is <b>not</b> a relationship, and never creates a hop
+    by default — <b>Deep search</b> (⚙) is the one explicit exception, adding weaker "co-mention"
+    links that always say so.
     Paths are real but <b>unverified</b>: confirm before asking for the intro.
     Coverage is the <b>VC/startup world</b>, not the general public.
   </div>
@@ -172,7 +175,8 @@
     <span class="t2">2</span> same small firm / shared board ·
     <span class="t3">3</span> investor–founder ·
     <span class="t4">4</span> shared portfolio or employer ·
-    <span class="t5">5</span> weak affiliation.
+    <span class="t5">5</span> weak affiliation ·
+    <span class="t6">6</span> co-mentioned only, not a confirmed relationship (Deep search).
     <span class="star">★</span> marks Drew's real first degree.
   </footer>
 </div>
@@ -187,6 +191,10 @@ const MODES = {
   compare:  {placeholder: "Compare whose network to Drew's? e.g. Sam Altman", button: 'Compare'},
 };
 
+// Compare never reads the disambiguation box — /compare has no context
+// param — so hide it there instead of showing an input that does nothing.
+const CTX_SUPPORTED = new Set(['connect', 'discover', 'tree']);
+
 function mode(m){
   MODE = m;
   for (const key of Object.keys(MODES)) {
@@ -194,6 +202,7 @@ function mode(m){
   }
   document.getElementById('q').placeholder = MODES[m].placeholder;
   document.getElementById('go').textContent = MODES[m].button;
+  document.getElementById('ctx-row').style.display = CTX_SUPPORTED.has(m) ? 'flex' : 'none';
   document.getElementById('out').innerHTML = '';
 }
 
@@ -406,7 +415,7 @@ function renderNeighborhood(d){
   if (!d.neighborhood.length){
     const deepHint = DEEP_ON
       ? 'No structured records (Wikidata / EDGAR / research / podcasts) and no web co-mentions turned up anyone connected to them. They may be too low-profile to be findable, or the name/context needs tweaking.'
-      : 'This person isn\'t in the structured databases (Wikidata / EDGAR / research / podcasts), so nothing connected to them was found. For a lesser-known person, turn on <b>Deep Search</b> (⚙) — it web-mines connections. The basic search only pulls structured records + firm rosters.';
+      : 'This person isn\'t in the structured databases (Wikidata / EDGAR / research / podcasts), so nothing connected to them was found. For a lesser-known person, turn on <b>Deep search</b> (⚙) — it web-mines connections. The basic search only pulls structured records + firm rosters.';
     return `<div class="msg err"><b>Nobody reachable for ${esc(d.person || 'them')}.</b><br>${deepHint}</div>`;
   }
   return `<ul class="nb">` + d.neighborhood.map(p => `
