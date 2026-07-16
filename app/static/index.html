@@ -131,6 +131,14 @@
       <input type="checkbox" id="deepSearch" onchange="saveDeep()">
       <b>Deep search (2 hops)</b> — aggressively web-mine a dense neighborhood around new targets. Finds far more, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
     </label>
+    <div id="quotaWrap" style="margin-top:12px;display:none">
+      <div class="prophd" id="quotaHd">SERPER QUOTA</div>
+      <div style="display:flex;align-items:center">
+        <div class="progbar"><div class="progfill" id="quotaFill" style="width:0%"></div></div>
+        <span class="progpct" id="quotaPct">0%</span>
+      </div>
+      <div class="progmsg" id="quotaMsg" style="white-space:normal"></div>
+    </div>
     <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
   </div>
 
@@ -251,6 +259,7 @@ function runStream(q, out, btn){
       else
         out.innerHTML = RENDER[MODE](data);
       btn.disabled = false;
+      refreshQuota();               // a live search likely spent Serper credits
     }, 200);
   });
   es.onerror = () => {
@@ -281,6 +290,7 @@ async function run(){
     out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
   } finally {
     btn.disabled = false;
+    refreshQuota();
   }
 }
 
@@ -423,6 +433,7 @@ async function saveKey(){
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({serper_key: key})})).json();
     msg.textContent = r.serper_configured ? 'Live search enabled ✓' : 'Key cleared.';
+    refreshQuota();               // a fresh key resets the visible usage
   } catch(e){ msg.textContent = 'Could not save the key.'; }
 }
 let DEEP_ON = false;   // mirrors the Deep Search toggle; drives the empty-state hint
@@ -436,11 +447,32 @@ async function saveDeep(){
       body: JSON.stringify({deep_search: on})});
   } catch(e){ msg.textContent = 'Could not save.'; }
 }
+async function refreshQuota(){
+  try {
+    const s = await (await fetch('/settings')).json();
+    const q = s.serper || {};
+    const wrap = document.getElementById('quotaWrap');
+    if (!s.serper_configured || q.quota == null){ wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    const pct = q.quota ? Math.min(100, Math.round(100 * q.used / q.quota)) : 0;
+    document.getElementById('quotaFill').style.width = pct + '%';
+    document.getElementById('quotaPct').textContent = pct + '%';
+    let msg = `${q.used.toLocaleString()} / ${q.quota.toLocaleString()} searches used this month · ${q.remaining.toLocaleString()} left`;
+    if (q.state === 'exhausted')
+      msg = '⚠ Quota used up — searches fall back to DuckDuckGo (weaker). Paste a new key above or wait for the monthly reset.';
+    else if (q.state === 'invalid_key')
+      msg = '⚠ Key rejected (invalid or expired). Paste a new Serper key above.';
+    document.getElementById('quotaMsg').textContent = msg;
+    document.getElementById('quotaHd').textContent =
+      q.state === 'ok' ? 'SERPER QUOTA' : 'SERPER QUOTA — ' + q.state.toUpperCase();
+  } catch(e){}
+}
 (async function checkSettings(){
   try {
     const s = await (await fetch('/settings')).json();
     DEEP_ON = !!s.deep_search;
     document.getElementById('deepSearch').checked = !!s.deep_search;
+    refreshQuota();
     if (!s.serper_configured) {
       document.getElementById('settings').style.display = 'block';
       document.getElementById('settingsMsg').textContent =
