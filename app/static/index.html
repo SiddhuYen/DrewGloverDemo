@@ -269,7 +269,7 @@ function renderCompare(d){
 }
 
 function renderNeighborhood(d){
-  if (!d.neighborhood.length) return '<div class="msg">Nobody reachable yet — try seeding the graph.</div>';
+  if (!d.neighborhood.length) return '<div class="msg">No structurally-asserted connections found for this person.</div>';
   return `<ul class="nb">` + d.neighborhood.map(p => `
     <li>
       <span>${esc(p.label)} ${p.is_warm ? '<span class="star">★</span>' : ''}
