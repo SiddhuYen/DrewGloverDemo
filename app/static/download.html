@@ -66,8 +66,9 @@
     <div class="num">01</div>
     <div>
       <h2>Download Artemis</h2>
-      <p>Pick your operating system below. Artemis installers are on the way and will appear
-        here as soon as they are available.</p>
+      <p>Pick your operating system below. The apps are unsigned: on macOS, right-click the
+        app and choose Open once to bypass Gatekeeper. On Windows, click More info, then
+        Run anyway past SmartScreen.</p>
       <div class="choices" id="artemis-choices">
         <div class="choice" data-os="mac">
           <div class="os-row"><span class="os">macOS</span></div>
@@ -132,14 +133,12 @@
 </div>
 
 <script>
-  // TODO(teammate): fill these in once the Artemis installers are built and
-  // hosted somewhere, e.g.
-  //   mac: "https://cdn.example.com/artemis/Artemis-1.0.0.dmg",
-  //   windows: "https://cdn.example.com/artemis/Artemis-1.0.0-setup.exe",
-  // Leaving a value as null keeps that button in its "Coming soon" state.
+  // Points at whatever GitHub Release is currently marked "Latest" — never
+  // needs editing again as new versions ship (built + published by
+  // .github/workflows/build-desktop.yml on every v* tag).
   const ARTEMIS_DOWNLOADS = {
-    mac: null,
-    windows: null,
+    mac: "https://github.com/SiddhuYen/DrewGloverDemo/releases/latest/download/WarmIntroPathfinder.dmg",
+    windows: "https://github.com/SiddhuYen/DrewGloverDemo/releases/latest/download/WarmIntroPathfinder-windows.zip",
   };
 
   function renderArtemisButton(id, url, label) {
