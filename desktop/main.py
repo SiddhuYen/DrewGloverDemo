@@ -11,10 +11,12 @@ State lives in a per-user, WRITABLE data directory (the app bundle is read-only)
   - settings.json  the user's own Serper API key (entered in the UI), so live
                 search works without shipping anyone's key.
 
-The bundle ALSO ships a read-only resources/claude_key.json, baked in at CI
-build time from a repo secret (see deploy/README.md) — a low-stakes LiteLLM
-proxy key, never the real Anthropic key. Unlike settings.json this one is
-never written by the app; it's just read once at startup.
+The bundle ALSO ships a read-only resources/litellm_key.json, baked in at CI
+build time from a repo secret (see deploy/README.md) — a LiteLLM-issued
+virtual key, worthless without the proxy in front of it, never the real
+Anthropic key. Unlike settings.json this one is never written by the app;
+it's just read once at startup, into LITELLM_VIRTUAL_KEY (never
+CLAUDE_API_KEY — that name is reserved for a real key in local dev).
 
 Env is set BEFORE `app` is imported, because app/config.py reads these at import.
 """
@@ -75,12 +77,12 @@ def _configure_env() -> Path:
 
     # baked-in LiteLLM proxy key (see module docstring). A dev env var, if
     # already set, wins — this only fills the gap in a built app.
-    baked = _resource_dir() / "resources" / "claude_key.json"
+    baked = _resource_dir() / "resources" / "litellm_key.json"
     if baked.exists():
         try:
             b = json.loads(baked.read_text())
-            if b.get("key") and "CLAUDE_API_KEY" not in os.environ:
-                os.environ["CLAUDE_API_KEY"] = b["key"]
+            if b.get("virtual_key") and "LITELLM_VIRTUAL_KEY" not in os.environ:
+                os.environ["LITELLM_VIRTUAL_KEY"] = b["virtual_key"]
             if b.get("base") and "CLAUDE_API_BASE" not in os.environ:
                 os.environ["CLAUDE_API_BASE"] = b["base"]
         except Exception:

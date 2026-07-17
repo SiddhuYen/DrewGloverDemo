@@ -41,28 +41,30 @@ jobs:
         run: pip install pythonnet
 
       # Bakes the LiteLLM proxy's virtual key into the build (see deploy/README.md).
-      # Never committed — generated fresh here from repo secrets, read once by
-      # desktop/main.py at app startup, then bundled inside the .app/.exe like
-      # any other resource. Skipped (writes nothing) if the secret isn't set,
-      # so a fork or a build without the secret still produces a working app —
-      # the classifier just no-ops, same as any other missing API key.
-      - name: Bake in the Claude proxy key
+      # LITELLM_VIRTUAL_KEY is NOT the real Anthropic key — it's a proxy-issued
+      # credential, worthless without the proxy in front of it. Never committed
+      # — generated fresh here from repo secrets, read once by desktop/main.py
+      # at app startup, then bundled inside the .app/.exe like any other
+      # resource. Skipped (writes nothing) if the secret isn't set, so a fork
+      # or a build without the secret still produces a working app — the
+      # classifier just no-ops, same as any other missing API key.
+      - name: Bake in the LiteLLM proxy key
         shell: bash
         env:
-          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+          LITELLM_VIRTUAL_KEY: ${{ secrets.LITELLM_VIRTUAL_KEY }}
           CLAUDE_API_BASE: ${{ secrets.CLAUDE_API_BASE }}
         run: |
-          if [ -n "$CLAUDE_API_KEY" ]; then
+          if [ -n "$LITELLM_VIRTUAL_KEY" ]; then
             python -c "
           import json, os
           json.dump(
-              {'key': os.environ.get('CLAUDE_API_KEY', ''),
+              {'virtual_key': os.environ.get('LITELLM_VIRTUAL_KEY', ''),
                'base': os.environ.get('CLAUDE_API_BASE', '')},
-              open('resources/claude_key.json', 'w'),
+              open('resources/litellm_key.json', 'w'),
           )
           "
           else
-            echo "CLAUDE_API_KEY secret not set — building without a baked key"
+            echo "LITELLM_VIRTUAL_KEY secret not set — building without a baked key"
           fi
 
       - name: Build with PyInstaller

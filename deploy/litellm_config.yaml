@@ -19,7 +19,8 @@
 #     -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
 #     -H "Content-Type: application/json" \
 #     -d '{"models": ["claude-haiku-4-5"], "max_budget": 5, "key_alias": "drew-artemis-desktop"}'
-#   # -> {"key": "sk-...", ...}  This is what goes in Drew's build as CLAUDE_API_KEY.
+#   # -> {"key": "sk-...", ...}  This is what goes in Drew's build as LITELLM_VIRTUAL_KEY
+#   # (a different variable from CLAUDE_API_KEY — see app/config.py).
 #
 # That virtual key is scoped to $5 total spend and only the one model — if it
 # ever leaks, revoke it (POST /key/delete) without affecting anything else,

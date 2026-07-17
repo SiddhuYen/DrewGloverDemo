@@ -20,9 +20,9 @@ hiddenimports += ["app.main"]
 # .github/workflows/build-desktop.yml + deploy/README.md). Absent on a local
 # dev build — that's fine, desktop/main.py just finds no file and the
 # classifier no-ops, same as any other unset API key.
-claude_key_file = os.path.join(ROOT, "resources", "claude_key.json")
-if os.path.exists(claude_key_file):
-    datas += [(claude_key_file, "resources")]
+litellm_key_file = os.path.join(ROOT, "resources", "litellm_key.json")
+if os.path.exists(litellm_key_file):
+    datas += [(litellm_key_file, "resources")]
 
 # spaCy + the English model (+ its native-lib dependency chain)
 for pkg in ("spacy", "en_core_web_sm", "thinc", "srsly", "catalogue", "cymem",

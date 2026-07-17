@@ -12,11 +12,13 @@ This NEVER promotes an edge: relationship_type stays "co_mention" and Rule 0
 nudge (see builder.add_edge). A confidently-labeled "cofounder-sounding"
 co-mention is still capped well below the weakest real structural tie.
 
-Routed through config.CLAUDE_API_BASE/CLAUDE_API_KEY (see deploy/README.md)
-so a shipped build talks to your own proxy, never a raw Anthropic key — see
-that doc for why. Auto no-op (all "unknown"/0.0) when no key is configured
-or a request fails, so the pipeline degrades the same way it did without
-Ollama: metadata just doesn't get added, nothing else changes.
+Which credential is used depends on config.CLAUDE_API_BASE (see
+deploy/README.md): unset -> config.CLAUDE_API_KEY, a real Anthropic key,
+local dev only. Set -> config.LITELLM_VIRTUAL_KEY, the only key that ever
+ships in the desktop build, worthless without your proxy in front of it.
+Auto no-op (all "unknown"/0.0) when no key is configured or a request
+fails, so the pipeline degrades the same way it did without Ollama:
+metadata just doesn't get added, nothing else changes.
 """
 from __future__ import annotations
 
@@ -66,10 +68,19 @@ class _LabelResult(BaseModel):
 _client: Optional[anthropic.Anthropic] = None
 
 
+def _active_api_key() -> str:
+    """Which credential to present. Routed through the proxy (CLAUDE_API_BASE
+    set) -> the LiteLLM virtual key; otherwise -> a real Anthropic key for
+    local dev. Never falls back from one to the other — a real key sitting
+    unused in the environment must never get sent to something that isn't
+    actually Anthropic, and a virtual key is meaningless without the proxy."""
+    return config.LITELLM_VIRTUAL_KEY if config.CLAUDE_API_BASE else config.CLAUDE_API_KEY
+
+
 def _get_client() -> anthropic.Anthropic:
     global _client
     if _client is None:
-        kwargs = {"api_key": config.CLAUDE_API_KEY}
+        kwargs = {"api_key": _active_api_key()}
         if config.CLAUDE_API_BASE:
             kwargs["base_url"] = config.CLAUDE_API_BASE
         _client = anthropic.Anthropic(**kwargs)
@@ -77,7 +88,7 @@ def _get_client() -> anthropic.Anthropic:
 
 
 def llm_available() -> bool:
-    return bool(config.CLAUDE_API_KEY)
+    return bool(_active_api_key())
 
 
 def is_active() -> bool:
