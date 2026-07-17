@@ -11,7 +11,7 @@ labelled "not a confirmed relationship".
 For a subject, it web-searches them, reads the top pages, and returns every
 OTHER person spaCy NER names on those pages, each with its source URL and a
 short text window around the mention (`evidence`) — the grounding
-graph.enrich hands to ollama_classify to label how strongly the article text
+graph.enrich hands to llm_classify to label how strongly the article text
 implies a tie. That label is metadata on the edge, never a Rule-0 promotion.
 """
 from __future__ import annotations
@@ -27,7 +27,7 @@ from .htmltext import html_to_text
 
 def _evidence_window(text: str, needle: str, radius: int = 160) -> str:
     """A short text window around `needle`'s first occurrence in `text` — the
-    grounding an Ollama relationship-strength classifier reasons over. Empty
+    grounding an LLM relationship-strength classifier reasons over. Empty
     when `needle` isn't a literal substring (e.g. name-shape normalization
     changed it), which the classifier treats as "nothing to judge"."""
     idx = text.find(needle)

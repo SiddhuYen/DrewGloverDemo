@@ -216,7 +216,7 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
     The pair is stored sorted, so (a,b) and (b,a) are the same row. On a
     duplicate (pair, type, source) we keep the WARMEST tier seen.
 
-    `meta` is informational only (e.g. an Ollama-derived implied_type/
+    `meta` is informational only (e.g. an LLM-derived implied_type/
     confidence hint on a co_mention edge) — it never influences Rule 0.
     `cost_adjust` nudges cost WITHIN the type's own tier band only; it is
     clamped so a weak edge can never out-rank the next tier up (see the
@@ -275,7 +275,7 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
 
 def has_structural_edge(db: Session, person_a_id: str, person_b_id: str) -> bool:
     """True if a REAL (Rule-0 structural, not co_mention) edge already exists
-    for this pair. Used to skip an Ollama-triggered verification search when a
+    for this pair. Used to skip an LLM-triggered verification search when a
     structured provider already settled the question — free, since Wikidata /
     EDGAR / OpenCorporates / firm rosters all run before co_mention within a
     single enrich_person pass."""

@@ -1,4 +1,4 @@
-"""Ollama-triggered structural verification: the gate (_should_verify) and the
+"""LLM-triggered structural verification: the gate (_should_verify) and the
 targeted roster lookup (_verify_and_promote), plus their wiring into
 _from_comention. No network — firms.roster_for_firm and extract.org_names are
 monkeypatched throughout."""
@@ -32,7 +32,7 @@ def test_should_verify_rejects_low_confidence():
 
 
 def test_should_verify_rejects_a_tier_below_the_threshold(monkeypatch):
-    monkeypatch.setattr(config, "OLLAMA_VERIFY_MIN_TIER", 1)
+    monkeypatch.setattr(config, "LLM_VERIFY_MIN_TIER", 1)
     e = Enricher()
     # "colleague" is tier 3, above a tier-1-only gate
     assert e._should_verify({"label": "colleague", "confidence": 0.9}) is False
@@ -126,7 +126,7 @@ def test_from_comention_promotes_confident_hits_and_falls_back_for_the_rest(db, 
         {"name": "Carol Example", "source_url": "https://news.example/b",
          "evidence": "Alice and Carol posed for a photo at a gala."},
     ])
-    monkeypatch.setattr(enrich_mod.ollama_classify, "classify", lambda items: [
+    monkeypatch.setattr(enrich_mod.llm_classify, "classify", lambda items: [
         {"label": "cofounder", "confidence": 0.9},
         {"label": "unknown", "confidence": 0.0},
     ])
@@ -164,7 +164,7 @@ def test_from_comention_skips_verification_when_a_structural_edge_already_exists
         {"name": "Bob Example", "source_url": "https://news.example/a",
          "evidence": "Alice and Bob co-founded Acme Ventures together."},
     ])
-    monkeypatch.setattr(enrich_mod.ollama_classify, "classify", lambda items: [
+    monkeypatch.setattr(enrich_mod.llm_classify, "classify", lambda items: [
         {"label": "cofounder", "confidence": 0.9},
     ])
 

@@ -97,7 +97,7 @@ class RelationshipEdge(Base):
     source_id = Column(String, ForeignKey("sources.id"), nullable=True)
     # Rule 0: MUST be True to persist. Guarded in builder.add_edge.
     structural = Column(Boolean, default=False, nullable=False)
-    # Informational only (e.g. an Ollama-derived implied_type/confidence hint
+    # Informational only (e.g. an LLM-derived implied_type/confidence hint
     # on a co_mention edge). Never read by Rule 0 or pathfinding's type checks.
     meta = Column("metadata", JSON, default=dict)
     created_at = Column(String, default=lambda: _now().isoformat())
