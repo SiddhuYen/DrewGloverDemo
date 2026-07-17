@@ -335,3 +335,57 @@ def test_name_match_adopts_a_qid(db):
     a = builder.get_or_create_person(db, "Marc Benioff")
     b = builder.get_or_create_person(db, "Marc Benioff", qid="Q317162")
     assert a.id == b.id and b.wikidata_qid == "Q317162"
+
+
+# --- has_structural_edge (used to gate the Ollama verification trigger) ----
+def test_has_structural_edge_true_for_a_real_tie(db):
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    builder.add_edge(db, a, b, "cofounder")
+    assert builder.has_structural_edge(db, a.id, b.id) is True
+
+
+def test_has_structural_edge_false_for_a_weak_only_tie(db):
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    builder.add_edge(db, a, b, "co_mention", evidence="co-mentioned")
+    assert builder.has_structural_edge(db, a.id, b.id) is False
+
+
+def test_has_structural_edge_false_when_no_edge_exists(db):
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    assert builder.has_structural_edge(db, a.id, b.id) is False
+
+
+def test_has_structural_edge_is_order_independent(db):
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    builder.add_edge(db, a, b, "cofounder")
+    assert builder.has_structural_edge(db, b.id, a.id) is True
+
+
+# --- add_edge meta / cost_adjust (Ollama co_mention labeling) --------------
+def test_add_edge_meta_is_stored_and_merged_on_duplicate(db):
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    first = builder.add_edge(db, a, b, "co_mention", evidence="x", meta={"k1": "v1"})
+    second = builder.add_edge(db, a, b, "co_mention", evidence="x", meta={"k2": "v2"})
+    assert first.id == second.id
+    assert second.meta == {"k1": "v1", "k2": "v2"}
+
+
+def test_cost_adjust_never_reaches_the_next_tier_up(db):
+    """The load-bearing invariant: even maximal Ollama confidence on a
+    co_mention edge must stay strictly worse than the cheapest REAL
+    (tier 5) structural tie — confidence can rank co-mentions against each
+    other, never against a verified relationship."""
+    a, b = _person(db, "Drew Glover"), _person(db, "Alex Harris")
+    edge = builder.add_edge(db, a, b, "co_mention", evidence="co-mentioned",
+                            cost_adjust=2.0)  # confidence 1.0 * 2.0, the max
+    assert edge.cost > config.WARMTH_TIER_COST[5]
+    assert edge.relationship_type == "co_mention"  # never promoted by cost_adjust alone
+
+
+def test_cost_adjust_scales_with_confidence(db):
+    low_conf = _person(db, "Person A"), _person(db, "Person B")
+    high_conf = _person(db, "Person C"), _person(db, "Person D")
+    low = builder.add_edge(db, *low_conf, "co_mention", evidence="x", cost_adjust=0.2)
+    high = builder.add_edge(db, *high_conf, "co_mention", evidence="y", cost_adjust=1.8)
+    assert high.cost < low.cost
+    assert low.cost == config.WARMTH_TIER_COST[6] - 0.2
