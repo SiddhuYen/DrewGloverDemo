@@ -55,6 +55,24 @@ def _edge_cost(edge: RelationshipEdge) -> float:
     return taxonomy.edge_cost(edge.relationship_type) + config.HOP_SURCHARGE
 
 
+def fame_penalty(person: Person) -> float:
+    """Routing surcharge for someone famous we do not actually know.
+
+    Reads the STORED qid only — never bridge.is_notable(), which falls back to a
+    live Wikipedia lookup. This runs once per person in the graph on every query,
+    so a network call here would be thousands of them.
+
+    Someone Drew genuinely knows is reachable regardless of fame, which is why
+    is_warm is checked first: Harry Stebbings carries a QID and is also Drew's
+    first-degree contact.
+    """
+    if person.is_warm:
+        return 0.0
+    if person.wikidata_qid:
+        return config.UNREACHABLE_FAME_PENALTY
+    return 0.0
+
+
 def _adjacency(db: Session, include_weak: bool = False):
     """Undirected person-person adjacency, keeping the WARMEST edge per pair.
 
@@ -108,11 +126,23 @@ def _adjacency(db: Session, include_weak: bool = False):
     # recognisable connector below the threshold pays nothing; only a true funnel
     # (Harry Stebbings, degree 119) pays a mild surcharge to keep every path from
     # collapsing onto the same handful of hubs.
+    #
+    # Degree alone does not answer "will this person take the call". Samuel L.
+    # Jackson sits at degree 3 and pays nothing here, yet he is the single worst
+    # node to route through; Bree Hanson at degree 36 is a real connector. So a
+    # second, orthogonal surcharge is added for people who are famous but not
+    # actually known to us (see config.UNREACHABLE_FAME_PENALTY).
     thr = config.MEGA_HUB_DEGREE
-    node_penalty = {
-        pid: config.DEGREE_PENALTY_COEF * math.log(deg / thr)
-        for pid, deg in degree.items() if deg > thr
-    }
+    node_penalty: Dict[str, float] = {}
+    for pid, deg in degree.items():
+        penalty = 0.0
+        if deg > thr:
+            penalty += config.DEGREE_PENALTY_COEF * math.log(deg / thr)
+        person = person_by_id.get(pid)
+        if person is not None:
+            penalty += fame_penalty(person)
+        if penalty:
+            node_penalty[pid] = penalty
     return adj, person_by_id, src_by_id, node_penalty
 
 
@@ -239,12 +269,21 @@ def _diverse_paths(adj, start: str, target: str, max_hops: int,
 
 
 def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
-    nodes, costs, bridges = [], [], []
+    nodes, costs, bridges, unreachable = [], [], [], []
     for i, (pid, edge) in enumerate(path):
         person = person_by_id.get(pid)
+        # A famous stranger standing MID-path is the thing that makes a route
+        # unusable: the hop is real, but expecting Samuel L. Jackson to pass an
+        # intro along to Elon Musk is not a plan. Marked rather than dropped —
+        # sometimes it is the only route there is, and the honest answer is to
+        # show it and say why it will not work. As the ENDPOINT it is fine: you
+        # asked to reach them, and nobody has to relay anything.
+        is_bridge = 0 < i < len(path) - 1
+        blocked = bool(person is not None and is_bridge and fame_penalty(person))
         node = {
             "label": person.canonical_name if person else pid,
             "is_warm": bool(person.is_warm) if person else False,
+            "unreachable": blocked,
         }
         if edge is not None:
             costs.append(_edge_cost(edge))
@@ -256,8 +295,10 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
                 "evidence_snippet": edge.evidence_snippet or "",
                 "source_url": source.url if source else "",
             })
-        if 0 < i < len(path) - 1:
+        if is_bridge:
             bridges.append(node["label"])
+            if blocked:
+                unreachable.append(node["label"])
         nodes.append(node)
 
     hops = len(path) - 1
@@ -267,6 +308,11 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
         "total_cost": round(total, 2),
         "warmth_score": taxonomy.warmth_score(total, hops),
         "bridges": bridges,
+        # Names, not just a flag: "this route needs Samuel L. Jackson to make an
+        # introduction" is the sentence that tells you to stop, and it needs the
+        # name to land. Empty for the ordinary case.
+        "unreachable_bridges": unreachable,
+        "usable": not unreachable,
         "path": nodes,
     }
 
@@ -388,7 +434,10 @@ def connect_people(db: Session, name_a: str, name_b: str,
         }
 
     paths = [_serialize(r, person_by_id, src_by_id) for r in routes]
-    paths.sort(key=lambda p: (-p["warmth_score"], p["hops"]))
+    # Usable first, THEN warmth. A route that needs a celebrity to relay is not
+    # a better answer than a colder one you can actually walk, however warm its
+    # hops score — and `best` below is what the UI leads with.
+    paths.sort(key=lambda p: (not p["usable"], -p["warmth_score"], p["hops"]))
     best = paths[0]
     return {
         "connected": True,
@@ -421,10 +470,28 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}
 
-    adj, person_by_id, src_by_id, _pen = _adjacency(db)
+    adj, person_by_id, src_by_id, node_penalty = _adjacency(db)
 
     # Dijkstra from the root; keep the cheapest total cost to each person.
-    limit = config.hop_limit()
+    #
+    # Costs must match connect(): this used the frozen `edge.cost` column and
+    # threw the node penalty away, so it was the one surface that re-tiering,
+    # the hop surcharge, and hub avoidance never reached. That is why it filled
+    # with celebrities — a podcast edge to Samuel L. Jackson is cheap, and
+    # nothing here ever charged for the fact that he will not take the call.
+    #
+    # Unlike connect(), the penalty is NOT exempted for any node: in a discover
+    # listing every person is a suggestion, so being unreachable disqualifies
+    # them as a destination exactly as it does as a stepping stone. connect()
+    # exempts only its explicit target — asking to reach a celebrity by name is
+    # a different request from being handed one unprompted.
+    # `hop_cap`, NOT `limit`. These are different quantities and this line used
+    # to assign the hop cap over the caller's result count. hop_limit() returns
+    # inf by default, so `len(people) >= limit` below was `>= inf` — never true.
+    # The cap silently vanished and every caller got the entire reachable set:
+    # /discover?limit=20 answered with ~2.4k people, which is why the listing
+    # was full of celebrities. They were never ranked in; nothing was ranked out.
+    hop_cap = config.hop_limit()
     counter = itertools.count()
     dist: Dict[str, float] = {root.id: 0.0}
     hops_to: Dict[str, int] = {root.id: 0}
@@ -432,10 +499,10 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
     heap = [(0.0, 0, next(counter), root.id)]
     while heap:
         cost, hops, _t, node = heapq.heappop(heap)
-        if cost > dist.get(node, float("inf")) or hops >= limit:
+        if cost > dist.get(node, float("inf")) or hops >= hop_cap:
             continue
         for neighbor, edge in adj.get(node, []):
-            new_cost = cost + edge.cost
+            new_cost = cost + _edge_cost(edge) + node_penalty.get(neighbor, 0.0)
             if new_cost < dist.get(neighbor, float("inf")):
                 dist[neighbor] = new_cost
                 hops_to[neighbor] = hops + 1

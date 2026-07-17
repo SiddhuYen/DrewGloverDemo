@@ -187,6 +187,18 @@
   .star svg{width:13px;height:13px;fill:currentColor}
   .link{margin-left:5px;padding:2px 0 12px 16px;border-left:2px solid var(--hair)}
 
+  /* An unusable route is muted, not hidden — you asked to still see it. Muted
+     rather than red: this is "don't bother", not "something went wrong". */
+  .route-nogo{opacity:.72}
+  .nogo-banner{margin:0 0 10px;padding:10px 12px;border-radius:10px;
+    background:var(--color-muted);border:1px dashed var(--hair);
+    color:var(--muted);font-size:12.5px;line-height:1.5}
+  .nogo-banner b{color:var(--ink)}
+  .person.unreachable{opacity:.65}
+  .person.unreachable .dot{background:var(--faint)}
+  .nogo{margin-left:8px;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.06em;font-weight:700;color:var(--faint)}
+
   /* Separates the Claude credential from the Serper one above it: they look
      alike but behave differently — Serper persists process-wide, this is held
      per session and never lands on disk. */
@@ -275,7 +287,12 @@
   .web-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
   .web-hd .n{font-weight:600}
-  .web svg{display:block;width:100%;height:auto}
+  /* The graph itself, by class — NOT `.web svg`. The routes list is also inside
+     .web, so a descendant rule caught every icon nested in it: `.web svg` and
+     `.star svg` have identical specificity, so the later one won and blew the
+     13px first-degree star up to 311px. Targeting the graph directly means
+     adding an icon anywhere under .web can't inherit a full-width stretch. */
+  .web svg.webgraph{display:block;width:100%;height:auto}
   .strand{fill:none;stroke:color-mix(in srgb,var(--accent) 18%,transparent);stroke-width:1}
   .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
     transition:stroke-width .15s,opacity .15s}
@@ -420,8 +437,6 @@
   <div class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
-    <button class="tab" id="tab-tree"     role="tab" aria-selected="false" onclick="mode('tree')">Tree</button>
-    <button class="tab" id="tab-compare"  role="tab" aria-selected="false" onclick="mode('compare')">Compare</button>
     <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import LinkedIn</button>
   </div>
 
@@ -494,17 +509,14 @@ let MODE = 'connect';
 const MODES = {
   connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
   discover: {placeholder: 'Whose neighborhood? (blank = Drew Glover)',        button: 'Discover'},
-  tree:     {placeholder: "Whose network? e.g. Sam Altman",                   button: 'Build tree'},
-  compare:  {placeholder: "Compare whose network to Drew's? e.g. Sam Altman", button: 'Compare'},
 };
 
-// Compare never reads the disambiguation box — /compare has no context
 // param — so hide it there instead of showing an input that does nothing.
-const CTX_SUPPORTED = new Set(['connect', 'discover', 'tree']);
+const CTX_SUPPORTED = new Set(['connect', 'discover']);
 
 function mode(m){
   MODE = m;
-  for (const key of ['connect', 'discover', 'tree', 'compare', 'import']) {
+  for (const key of ['connect', 'discover', 'import']) {
     const el = document.getElementById('tab-' + key);
     if (el) el.ariaSelected = (m === key);
   }
@@ -526,7 +538,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 // Inline SVG star — the design system forbids emoji/glyphs as icons.
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 7.1-1.01z"/></svg>';
 
-const NEEDS_NAME = new Set(['connect', 'tree', 'compare']);
+const NEEDS_NAME = new Set(['connect']);
 
 const CTX = () => {
   const c = (document.getElementById('ctx').value || '').trim();
@@ -535,13 +547,10 @@ const CTX = () => {
 const ENDPOINT = {
   connect:  q => `/connect?target=${encodeURIComponent(q)}${CTX()}`,
   discover: q => `/discover?person=${encodeURIComponent(q)}${CTX()}`,
-  tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
-  compare:  q => `/compare?person=${encodeURIComponent(q)}&radius=3&limit=6`,
 };
 
 const RENDER = {
   connect: renderConnect, discover: renderNeighborhood,
-  tree: renderTree, compare: renderCompare,
 };
 
 // Streaming variants (Server-Sent Events) for the modes that enrich the graph
@@ -550,7 +559,6 @@ const RENDER = {
 const STREAM = {
   connect:  q => `/connect/stream?target=${encodeURIComponent(q)}${CTX()}`,
   discover: q => `/discover/stream?person=${encodeURIComponent(q)}${CTX()}`,
-  tree:     q => `/tree/stream?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
 };
 
 function runStream(q, out, btn){
@@ -580,7 +588,7 @@ function runStream(q, out, btn){
     pf.style.transform = 'scaleX(1)'; pp.textContent = '100%'; pm.textContent = 'done';
     const data = JSON.parse(e.data);
     setTimeout(() => {
-      if ((MODE === 'discover' || MODE === 'tree') && !data.found)
+      if (MODE === 'discover' && !data.found)
         out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
       else
         out.innerHTML = RENDER[MODE](data);
@@ -740,7 +748,7 @@ function buildWeb(d){
     });
   });
 
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Connection web to ${esc(d.paths[0].path.slice(-1)[0].label)}">`
+  return `<svg class="webgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Connection web to ${esc(d.paths[0].path.slice(-1)[0].label)}">`
     + deco + edges + nodes + `</svg>`;
 }
 
@@ -758,16 +766,30 @@ function renderPaths(d){
           ${n.source_url ? `<div class="src"><a href="${esc(n.source_url)}" target="_blank" rel="noopener">${esc(n.source_url)}</a></div>` : ''}
         </div>` : '';
       return `${link}
-        <div class="person${n.is_warm ? ' warm' : ''}">
+        <div class="person${n.is_warm ? ' warm' : ''}${n.unreachable ? ' unreachable' : ''}">
           <span class="dot"></span>${esc(n.label)}
           ${n.is_warm ? `<span class="star">${STAR} first degree</span>` : ''}
+          ${n.unreachable ? '<span class="nogo">won\'t relay an intro</span>' : ''}
         </div>`;
     }).join('');
-    return `<div class="route">
+    // Named, not just flagged: the reason to abandon this route is "it needs
+    // Samuel L. Jackson to make an introduction", and that only lands with the
+    // name in it. The hops below are still real and still cited — the route is
+    // unusable, not untrue.
+    const blockers = (p.unreachable_bridges || []).map(esc);
+    const asker = esc((p.path && p.path[0] && p.path[0].label) || 'you');
+    const warn = blockers.length ? `<div class="nogo-banner">
+        <b>Not a usable intro.</b> This route needs ${blockers.join(' and ')}
+        to pass the introduction along — famous, and not someone ${asker}
+        knows, so there is nobody here to ask. The hops below are real and
+        sourced; it is the introduction that isn't available.
+      </div>` : '';
+    return `<div class="route${blockers.length ? ' route-nogo' : ''}">
       <div class="route-hd">
         <span class="n">Route ${i + 1} — ${p.hops} hop${p.hops === 1 ? '' : 's'}</span>
         <span class="score">warmth ${p.warmth_score}</span>
       </div>
+      ${warn}
       <div class="chain">${hops}</div>
     </div>`;
   }).join('');
@@ -793,64 +815,7 @@ function chainBlock(root, chain){
     </div>`;
 }
 
-function renderTree(d){
-  const walk = (n, depth) => {
-    const kids = n.children || [];
-    const head = depth === 0
-      ? `<div class="person${n.is_warm ? ' warm' : ''}"><span class="dot"></span>${esc(n.label)}</div>`
-      : hopBlock({warmth_tier: n.warmth_tier, why: n.why,
-                  evidence_snippet: n.evidence_snippet, source_url: n.source_url,
-                  label: n.label});
-    const body = kids.map(k => `<div style="margin-left:14px">${walk(k, depth + 1)}</div>`).join('');
-    return head + body;
-  };
-  const bound = d.max_hops ? `within ${d.max_hops} hops` : 'reachable (no hop limit)';
-  const hubs = (d.hubs || []).slice(0, 4).map(h =>
-    `<li><span>${esc(h.label)} <div class="via">${h.hops} hop${h.hops === 1 ? '' : 's'} away</div></span>
-         <span class="score">introduces ${h.introduces}</span></li>`).join('');
-  return `<div class="route">
-      <div class="route-hd">
-        <span class="n">${esc(d.person)} — ${d.reachable} people ${bound}</span>
-        <span class="score">tiers ${esc(JSON.stringify(d.by_tier))}</span>
-      </div>
-      <div class="chain">${walk(d.tree, 0)}</div>
-    </div>
-    ${hubs ? `<div class="banner"><b>Who introduces the most people</b></div><ul class="nb">${hubs}</ul>` : ''}`;
-}
 
-function renderCompare(d){
-  const a = esc(d.person_a), b = esc(d.person_b);
-  const link = d.directly_connected
-    ? `They are connected: <b>${d.hops_between} hops</b> apart.`
-    : 'No structural chain connects them.';
-  const head = `<div class="route">
-      <div class="route-hd"><span class="n">${a} vs ${b}</span>
-        <span class="score">radius ${d.radius}</span></div>
-      <div class="chain">
-        <div class="why"><span>${a} reaches <b>${d.reach_a}</b> · ${b} reaches <b>${d.reach_b}</b></span></div>
-        <div class="why"><span>shared <b>${d.shared}</b> (${d.overlap_pct}% of their combined networks)</span></div>
-        <div class="ev">${link}</div>
-      </div>
-    </div>`;
-
-  if (!d.mutual_contacts.length){
-    return head + '<div class="msg">No mutual contacts within this radius.</div>';
-  }
-  const contacts = d.mutual_contacts.map(m => `
-    <div class="route">
-      <div class="route-hd">
-        <span class="n">${esc(m.label)}${m.is_warm ? ` <span class="star">${STAR}</span>` : ''}</span>
-        <span class="score">score ${m.introduction_score} · ${m.hops_from_a}h / ${m.hops_from_b}h</span>
-      </div>
-      <div class="chain">
-        <div class="why"><span>via ${a}</span></div>
-        ${chainBlock(d.person_a, m.chain_from_a)}
-        <div class="why"><span>via ${b}</span></div>
-        ${chainBlock(d.person_b, m.chain_from_b)}
-      </div>
-    </div>`).join('');
-  return head + `<div class="banner"><b>Mutual contacts</b> — cheapest introduction from both sides.</div>` + contacts;
-}
 
 function renderNeighborhood(d){
   if (!d.neighborhood.length){
@@ -1005,7 +970,7 @@ function streamEnrich(job, names, out, btn){
     }
     out.innerHTML = `<div class="msg">Enriched <b>${d.enriched}</b> of ${d.total}`
       + (d.failed ? ` · ${d.failed} had no findable sources` : '')
-      + `. Their links are in the graph now — try <b>Connect</b> or <b>Tree</b>.</div>`;
+      + `. Their links are in the graph now — try <b>Connect</b>.</div>`;
     const done = new Set(names);
     IMPORTED.forEach(p => { if (done.has(p.name)) p.enriched = true; });
     renderPicker();          // clears the selection and re-tags who is done

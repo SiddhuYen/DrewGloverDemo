@@ -67,6 +67,27 @@ MAX_ORG_MEMBERS_FOR_EDGES = int(os.environ.get("VCWI_MAX_ORG_MEMBERS", "40"))
 # on-the-record relationship; tier 5 is a weak structural affiliation.
 WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 
+# Surcharge for routing through — or suggesting — someone famous we do not
+# actually know. An edge to Samuel L. Jackson can be perfectly real (Rule 0 is
+# about whether a source asserts the tie, not about whether the tie is useful)
+# and still be worthless as an intro: he will not take the call. Warmth tiers
+# measure how well two people know each other, which is not the same question.
+#
+# The signal is a stored Wikidata QID, which is what graph/bridge.py already
+# calls "the signal that actually matters for reachability" when it walks DOWN
+# the fame gradient during expansion. This applies the same idea to ROUTING,
+# which is where it was missing. It separates the two populations cleanly in the
+# bundled graph: Samuel L. Jackson, Joe Rogan and Elon Musk carry a QID; Charles
+# Hudson and Sheel Mohnot — the people you actually want introduced to — do not.
+#
+# `is_warm` is exempt, and that exemption is load-bearing: Harry Stebbings has a
+# QID and is also Drew's real first-degree contact. Someone Drew genuinely knows
+# is reachable no matter how famous they are.
+#
+# Finite, never infinite: a path through a celebrity still beats no path, so
+# this re-ranks rather than censors. 0.0 disables it.
+UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
+
 # Flat cost added to every hop, on top of that hop's tier cost. Encodes the
 # thing tier costs alone cannot: each hop is another person who has to agree to
 # pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one
@@ -181,10 +202,6 @@ def hop_limit(explicit: int = 0) -> float:
     limit = explicit or MAX_HOPS
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
-# A person's NETWORK radius for comparison. Full 5-hop reachability is useless:
-# inside one connected component everybody reaches everybody, so overlap is
-# always 100%. Two hops is who you could plausibly be introduced to.
-COMPARE_RADIUS = int(os.environ.get("VCWI_COMPARE_RADIUS", "2"))
 
 # --- providers -------------------------------------------------------------
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "").strip()

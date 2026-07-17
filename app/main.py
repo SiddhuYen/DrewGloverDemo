@@ -24,7 +24,6 @@ from . import config
 from .db import SessionLocal, get_db, init_db
 from .graph.connect import connect_people, discover
 from .graph.enrich import enrich_selected
-from .graph.tree import build_tree, compare_trees
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
 from . import session
@@ -167,41 +166,6 @@ def discover_endpoint(
     return result
 
 
-@app.get("/tree")
-def tree(
-    person: str = Query(..., min_length=2),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    max_hops: int = Query(default=3, ge=0, le=8,
-                          description="0 = no limit (whole reachable set)"),
-    context: str = Query(default=""),
-    db: Session = Depends(get_db),
-) -> dict:
-    """The warmest-path network tree rooted at `person`."""
-    with _write_lock:
-        result = build_tree(db, person, depth=depth, max_hops=max_hops, hint=context)
-    if not result.get("found"):
-        raise HTTPException(status_code=404, detail=result.get("reason"))
-    return result
-
-
-@app.get("/compare")
-def compare(
-    person: str = Query(..., min_length=2, description="whose network to compare"),
-    against: str = Query(default="", description="defaults to the demo seed"),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    radius: int = Query(default=config.COMPARE_RADIUS, ge=1, le=4),
-    limit: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db),
-) -> dict:
-    """Compare `person`'s network against `against` (Drew by default)."""
-    against = against or config.DEMO_SEED_NAME
-    with _write_lock:
-        result = compare_trees(db, against, person, depth=depth, radius=radius,
-                               limit=limit)
-    if not result.get("found"):
-        raise HTTPException(status_code=404, detail=result.get("reason"))
-    return result
-
 
 def _sse(work):
     """Run `work(db, progress)` on a worker thread and stream its progress lines
@@ -260,17 +224,6 @@ def discover_stream(
 ):
     who = person or config.DEMO_SEED_NAME
     return _sse(lambda db, p: discover(db, who, limit=limit, hint=context, progress=p))
-
-
-@app.get("/tree/stream")
-def tree_stream(
-    person: str = Query(..., min_length=2),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    max_hops: int = Query(default=3, ge=0, le=8),
-    context: str = Query(default=""),
-):
-    return _sse(lambda db, p: build_tree(db, person, depth=depth,
-                                         max_hops=max_hops, hint=context, progress=p))
 
 
 @app.post("/network/csv")
