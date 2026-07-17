@@ -273,6 +273,24 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
     return edge
 
 
+def has_structural_edge(db: Session, person_a_id: str, person_b_id: str) -> bool:
+    """True if a REAL (Rule-0 structural, not co_mention) edge already exists
+    for this pair. Used to skip an Ollama-triggered verification search when a
+    structured provider already settled the question — free, since Wikidata /
+    EDGAR / OpenCorporates / firm rosters all run before co_mention within a
+    single enrich_person pass."""
+    a_id, b_id = sorted((person_a_id, person_b_id))
+    for edge in db.execute(
+        select(RelationshipEdge).where(
+            RelationshipEdge.person_a_id == a_id,
+            RelationshipEdge.person_b_id == b_id,
+        )
+    ).scalars():
+        if taxonomy.is_structural(edge.relationship_type):
+            return True
+    return False
+
+
 def add_membership(db: Session, person: Person, org: Organization, *,
                    source: Optional[Source] = None, evidence: str = "",
                    role: str = "") -> Optional[RelationshipEdge]:

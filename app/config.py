@@ -98,6 +98,27 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
 OLLAMA_CLASSIFY_RELATIONS = _flag("VCWI_OLLAMA_CLASSIFY", "1")
 OLLAMA_CLASSIFY_BATCH = int(os.environ.get("VCWI_OLLAMA_CLASSIFY_BATCH", "20"))
 
+# --- Ollama-triggered structural verification (co_mention -> a REAL tie) ---
+# When a co-mention's Ollama label is confident AND high-tier enough, spend
+# ONE extra targeted lookup: pull a candidate org out of the evidence text
+# and check whether that org's OWN team roster (a structural source, same
+# path as _from_firm_rosters) lists both people. The LLM only points at
+# WHERE to look; the roster page — not the LLM — is what asserts the tie, so
+# Rule 0 stays intact. The resulting edge's type comes from what the roster
+# actually supports (same_firm_partner), not from the LLM's guessed label.
+# Skipped entirely when a structural edge for the pair already exists —
+# Wikidata/EDGAR/OpenCorporates/rosters all run before co_mention in
+# enrich_person, so that check is a free DB lookup, not a second search.
+OLLAMA_VERIFY_MIN_TIER = int(os.environ.get("VCWI_OLLAMA_VERIFY_MIN_TIER", "2"))
+OLLAMA_VERIFY_MIN_CONFIDENCE = float(os.environ.get("VCWI_OLLAMA_VERIFY_MIN_CONF", "0.75"))
+# Only labels checkable via "does this org's roster list both people" trigger
+# a verification search. family_member/bandmate/teammate/coauthor already
+# have their own dedicated providers (wikidata, openalex) earlier in the same
+# enrichment pass, so a miss there is a real miss, not an under-search.
+OLLAMA_VERIFY_GROUNDABLE_LABELS = frozenset({
+    "cofounder", "same_firm_partner", "fiat_colleague", "colleague", "board_member",
+})
+
 # Per-node routing surcharge = coefficient x ln(degree), added when a path
 # TRANSITS a person. Discourages funnelling every route through the same few
 # mega-hubs (a podcast host with hundreds of guests) when a lower-degree

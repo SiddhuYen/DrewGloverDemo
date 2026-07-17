@@ -20,7 +20,9 @@ from typing import Callable, List, Optional
 
 from sqlalchemy.orm import Session
 
-from .. import config
+from .. import config, extract
+from ..edges import taxonomy
+from ..edges.names import is_noise_name, person_norm_key
 from ..models import Person
 from ..providers import ollama_classify
 from ..providers.comention import CoMentionProvider
@@ -283,6 +285,41 @@ class Enricher:
             created += n
         return created
 
+    def _should_verify(self, label: dict) -> bool:
+        """Gate for the extra targeted search: only a confident, high-tier,
+        org-groundable label is worth spending a real lookup on."""
+        rtype = label["label"]
+        if rtype == "unknown" or rtype not in config.OLLAMA_VERIFY_GROUNDABLE_LABELS:
+            return False
+        if label["confidence"] < config.OLLAMA_VERIFY_MIN_CONFIDENCE:
+            return False
+        return taxonomy.warmth_tier(rtype) <= config.OLLAMA_VERIFY_MIN_TIER
+
+    def _verify_and_promote(self, db: Session, subject: Person, other: Person,
+                            evidence: str, progress: Progress) -> bool:
+        """The LLM only points at where to look. Pull a candidate org out of
+        the evidence text and check whether that org's OWN team roster (a
+        structural source, same path as _from_firm_rosters) lists both
+        people. If it does, absorb the roster the normal way — the resulting
+        edge's type and source come from the roster page, never from the
+        LLM's guess. Returns True if a structural tie was found."""
+        if not evidence:
+            return False
+        other_key = person_norm_key(other.canonical_name)
+        for org_name in extract.org_names(evidence):
+            if is_noise_name(org_name, org_ok=True):
+                continue
+            roster = self.firms.roster_for_firm(org_name)
+            members = roster.get("members") or []
+            if not any(person_norm_key(m) == other_key for m in members):
+                continue
+            self._absorb_roster(db, subject, roster, progress)
+            if builder.has_structural_edge(db, subject.id, other.id):
+                _note(progress, f"    verified via {roster.get('firm') or org_name} "
+                                f"roster: {subject.canonical_name} <-> {other.canonical_name}")
+                return True
+        return False
+
     def _from_comention(self, db: Session, subject: Person,
                         progress: Progress) -> int:
         """OPT-IN weak tier. Off unless config.CO_MENTION_ENABLED — then every
@@ -302,12 +339,19 @@ class Enricher:
             for hit in hits
         ])
         created = 0
+        verified = 0
         for hit, label in zip(hits, labels):
             source = builder.get_or_create_source(
                 db, hit["source_url"], title=f"co-mention: {subject.canonical_name}",
                 provider="comention")
             other = builder.get_or_create_person(db, hit["name"])
             if other is None or other.id == subject.id:
+                continue
+            if (self._should_verify(label)
+                    and not builder.has_structural_edge(db, subject.id, other.id)
+                    and self._verify_and_promote(
+                        db, subject, other, hit.get("evidence", ""), progress)):
+                verified += 1  # a real structural edge now exists; no co_mention needed
                 continue
             meta = None
             cost_adjust = 0.0
@@ -329,10 +373,12 @@ class Enricher:
                 meta=meta, cost_adjust=cost_adjust)
             if edge is not None:
                 created += 1
+        if verified:
+            _note(progress, f"    co_mention -> verified structural: {verified} edges")
         if created:
             tag = " (ollama-labeled)" if ollama_classify.is_active() else ""
             _note(progress, f"    co_mention (weak){tag}: {created} edges")
-        return created
+        return created + verified
 
     def _from_edgar(self, db: Session, subject: Person, progress: Progress) -> int:
         rows = self.edgar.board_colleagues(subject.canonical_name)
