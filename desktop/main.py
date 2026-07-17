@@ -11,6 +11,11 @@ State lives in a per-user, WRITABLE data directory (the app bundle is read-only)
   - settings.json  the user's own Serper API key (entered in the UI), so live
                 search works without shipping anyone's key.
 
+The bundle ALSO ships a read-only resources/claude_key.json, baked in at CI
+build time from a repo secret (see deploy/README.md) — a low-stakes LiteLLM
+proxy key, never the real Anthropic key. Unlike settings.json this one is
+never written by the app; it's just read once at startup.
+
 Env is set BEFORE `app` is imported, because app/config.py reads these at import.
 """
 from __future__ import annotations
@@ -67,6 +72,19 @@ def _configure_env() -> Path:
             pass
     # tell the app where to persist a key the user types into the settings UI
     os.environ["VCWI_SETTINGS_FILE"] = str(settings)
+
+    # baked-in LiteLLM proxy key (see module docstring). A dev env var, if
+    # already set, wins — this only fills the gap in a built app.
+    baked = _resource_dir() / "resources" / "claude_key.json"
+    if baked.exists():
+        try:
+            b = json.loads(baked.read_text())
+            if b.get("key") and "CLAUDE_API_KEY" not in os.environ:
+                os.environ["CLAUDE_API_KEY"] = b["key"]
+            if b.get("base") and "CLAUDE_API_BASE" not in os.environ:
+                os.environ["CLAUDE_API_BASE"] = b["base"]
+        except Exception:
+            pass
     return data
 
 

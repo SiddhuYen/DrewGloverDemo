@@ -24,16 +24,25 @@ is affected.
 
 ## What the app itself needs
 
-Two environment variables, read in `app/config.py`:
+The desktop build bakes the virtual key in at CI build time — Drew never
+sees or enters anything. Set two **repository secrets** (Settings → Secrets
+and variables → Actions) in this GitHub repo:
 
-| Var | Value |
+| Secret | Value |
 |---|---|
 | `CLAUDE_API_BASE` | Your proxy's URL (e.g. `https://artemis-claude-proxy.fly.dev`) |
 | `CLAUDE_API_KEY` | The virtual key from step 3 above — **not** the real Anthropic key |
 
-Leave `CLAUDE_API_BASE` unset for local development (the SDK falls back to
-talking to Anthropic directly with whatever key you have locally) — only the
-shipped build needs it pointed at the proxy.
+`.github/workflows/build-desktop.yml` writes those into
+`resources/claude_key.json` during the build (never committed — see
+`.gitignore`), PyInstaller bundles it into the `.app`/`.exe` like any other
+resource, and `desktop/main.py` reads it once at startup. If the secret
+isn't set, the build still succeeds; the app just runs with the classifier
+in its normal no-op state, same as any other missing API key.
+
+For local development, just export `CLAUDE_API_KEY` (and `CLAUDE_API_BASE`
+if you're testing against the proxy) in your own shell — a real env var
+always wins over the baked-in file, so this never fights with CI.
 
 ## If this ever grows past one user
 

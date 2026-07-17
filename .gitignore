@@ -31,3 +31,7 @@ data/*_unenriched_queue.json
 /build/work/
 /build/*.toc
 /dist/
+
+# generated at CI build time from repo secrets — never committed, never
+# present locally unless you've built the desktop app yourself
+resources/claude_key.json
