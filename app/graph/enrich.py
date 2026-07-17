@@ -24,7 +24,7 @@ from .. import config, extract
 from ..edges import taxonomy
 from ..edges.names import is_noise_name, person_norm_key
 from ..models import Person
-from ..providers import ollama_classify
+from ..providers import llm_classify
 from ..providers.comention import CoMentionProvider
 from ..providers.edgar import EdgarProvider
 from ..providers.firms import FirmsProvider
@@ -289,11 +289,11 @@ class Enricher:
         """Gate for the extra targeted search: only a confident, high-tier,
         org-groundable label is worth spending a real lookup on."""
         rtype = label["label"]
-        if rtype == "unknown" or rtype not in config.OLLAMA_VERIFY_GROUNDABLE_LABELS:
+        if rtype == "unknown" or rtype not in config.LLM_VERIFY_GROUNDABLE_LABELS:
             return False
-        if label["confidence"] < config.OLLAMA_VERIFY_MIN_CONFIDENCE:
+        if label["confidence"] < config.LLM_VERIFY_MIN_CONFIDENCE:
             return False
-        return taxonomy.warmth_tier(rtype) <= config.OLLAMA_VERIFY_MIN_TIER
+        return taxonomy.warmth_tier(rtype) <= config.LLM_VERIFY_MIN_TIER
 
     def _verify_and_promote(self, db: Session, subject: Person, other: Person,
                             evidence: str, progress: Progress) -> bool:
@@ -333,8 +333,8 @@ class Enricher:
         # Batch-classify what the article text around each mention IMPLIES
         # (cofounder-sounding vs. gala-photo-sounding) before writing edges —
         # metadata only, never a Rule-0 promotion. No-op (all "unknown") when
-        # Ollama is unavailable or disabled.
-        labels = ollama_classify.classify([
+        # no Claude API key is configured or the feature is disabled.
+        labels = llm_classify.classify([
             {"a": subject.canonical_name, "b": hit["name"], "evidence": hit.get("evidence", "")}
             for hit in hits
         ])
@@ -357,9 +357,9 @@ class Enricher:
             cost_adjust = 0.0
             if label["label"] != "unknown" and label["confidence"] > 0:
                 meta = {
-                    "ollama_implied_type": label["label"],
-                    "ollama_confidence": label["confidence"],
-                    "ollama_model": config.OLLAMA_MODEL,
+                    "llm_implied_type": label["label"],
+                    "llm_confidence": label["confidence"],
+                    "llm_model": config.CLAUDE_MODEL,
                 }
                 # A confidently-labeled co-mention ranks better among OTHER
                 # co-mentions, but the floor in builder.add_edge keeps it
@@ -376,7 +376,7 @@ class Enricher:
         if verified:
             _note(progress, f"    co_mention -> verified structural: {verified} edges")
         if created:
-            tag = " (ollama-labeled)" if ollama_classify.is_active() else ""
+            tag = " (llm-labeled)" if llm_classify.is_active() else ""
             _note(progress, f"    co_mention (weak){tag}: {created} edges")
         return created + verified
 

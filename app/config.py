@@ -86,20 +86,27 @@ DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
 DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
 DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 
-# --- Ollama relationship-strength classification (co_mention tier ONLY) ----
-# A local Ollama daemon labels what kind of tie a co-mention's article text
-# implies (cofounder-sounding vs. gala-photo-sounding) plus a confidence
-# score. This is metadata on top of an already-weak edge, never a promotion:
-# it NEVER changes relationship_type away from "co_mention" or touches Rule 0
-# (see edges/taxonomy.py). Auto-enabled but a transparent no-op when the
-# daemon isn't reachable, so the pipeline is unaffected without it running.
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
-OLLAMA_CLASSIFY_RELATIONS = _flag("VCWI_OLLAMA_CLASSIFY", "1")
-OLLAMA_CLASSIFY_BATCH = int(os.environ.get("VCWI_OLLAMA_CLASSIFY_BATCH", "20"))
+# --- Claude API access ------------------------------------------------------
+# A single real Anthropic key, spend-capped in the Anthropic Console (set a
+# dollar limit on this specific key) so a worst-case extraction from the
+# shipped desktop build is bounded, not open-ended. No proxy in front of it
+# — traded a little security margin for zero hosting infrastructure, since
+# this ships to one trusted person. See DESKTOP.md.
+CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
 
-# --- Ollama-triggered structural verification (co_mention -> a REAL tie) ---
-# When a co-mention's Ollama label is confident AND high-tier enough, spend
+# --- Claude relationship-strength classification (co_mention tier ONLY) ----
+# Claude labels what kind of tie a co-mention's article text implies
+# (cofounder-sounding vs. gala-photo-sounding) plus a confidence score. This
+# is metadata on top of an already-weak edge, never a promotion: it NEVER
+# changes relationship_type away from "co_mention" or touches Rule 0 (see
+# edges/taxonomy.py). Auto-enabled but a transparent no-op when no API key
+# is configured, so the pipeline is unaffected without it running.
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5")
+LLM_CLASSIFY_ENABLED = _flag("VCWI_LLM_CLASSIFY", "1")
+LLM_CLASSIFY_BATCH = int(os.environ.get("VCWI_LLM_CLASSIFY_BATCH", "20"))
+
+# --- LLM-triggered structural verification (co_mention -> a REAL tie) ------
+# When a co-mention's LLM label is confident AND high-tier enough, spend
 # ONE extra targeted lookup: pull a candidate org out of the evidence text
 # and check whether that org's OWN team roster (a structural source, same
 # path as _from_firm_rosters) lists both people. The LLM only points at
@@ -109,13 +116,13 @@ OLLAMA_CLASSIFY_BATCH = int(os.environ.get("VCWI_OLLAMA_CLASSIFY_BATCH", "20"))
 # Skipped entirely when a structural edge for the pair already exists —
 # Wikidata/EDGAR/OpenCorporates/rosters all run before co_mention in
 # enrich_person, so that check is a free DB lookup, not a second search.
-OLLAMA_VERIFY_MIN_TIER = int(os.environ.get("VCWI_OLLAMA_VERIFY_MIN_TIER", "2"))
-OLLAMA_VERIFY_MIN_CONFIDENCE = float(os.environ.get("VCWI_OLLAMA_VERIFY_MIN_CONF", "0.75"))
+LLM_VERIFY_MIN_TIER = int(os.environ.get("VCWI_LLM_VERIFY_MIN_TIER", "2"))
+LLM_VERIFY_MIN_CONFIDENCE = float(os.environ.get("VCWI_LLM_VERIFY_MIN_CONF", "0.75"))
 # Only labels checkable via "does this org's roster list both people" trigger
 # a verification search. family_member/bandmate/teammate/coauthor already
 # have their own dedicated providers (wikidata, openalex) earlier in the same
 # enrichment pass, so a miss there is a real miss, not an under-search.
-OLLAMA_VERIFY_GROUNDABLE_LABELS = frozenset({
+LLM_VERIFY_GROUNDABLE_LABELS = frozenset({
     "cofounder", "same_firm_partner", "fiat_colleague", "colleague", "board_member",
 })
 

@@ -40,6 +40,23 @@ jobs:
         if: runner.os == 'Windows'
         run: pip install pythonnet
 
+      # Bakes the (spend-capped) Claude key into the build (see DESKTOP.md).
+      # Never committed — generated fresh here from a repo secret, read once
+      # by desktop/main.py at app startup, then bundled inside the .app/.exe
+      # like any other resource. Skipped (writes nothing) if the secret isn't
+      # set, so a fork or a build without the secret still produces a working
+      # app — the classifier just no-ops, same as any other missing API key.
+      - name: Bake in the Claude API key
+        shell: bash
+        env:
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        run: |
+          if [ -n "$CLAUDE_API_KEY" ]; then
+            printf '%s' "$CLAUDE_API_KEY" > resources/claude_key.txt
+          else
+            echo "CLAUDE_API_KEY secret not set — building without a baked key"
+          fi
+
       - name: Build with PyInstaller
         run: pyinstaller build/pathfinder.spec --noconfirm --distpath dist --workpath build/work
 

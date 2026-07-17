@@ -16,6 +16,14 @@ datas += [(os.path.join(ROOT, "app/static"), "app/static"),
 hiddenimports += collect_submodules("app")
 hiddenimports += ["app.main"]
 
+# the spend-capped Claude key, baked in by the CI workflow from a repo
+# secret (see .github/workflows/build-desktop.yml + DESKTOP.md). Absent on
+# a local dev build — that's fine, desktop/main.py just finds no file and
+# the classifier no-ops, same as any other unset API key.
+claude_key_file = os.path.join(ROOT, "resources", "claude_key.txt")
+if os.path.exists(claude_key_file):
+    datas += [(claude_key_file, "resources")]
+
 # spaCy + the English model (+ its native-lib dependency chain)
 for pkg in ("spacy", "en_core_web_sm", "thinc", "srsly", "catalogue", "cymem",
             "preshed", "blis", "wasabi", "spacy_legacy", "spacy_loggers",
