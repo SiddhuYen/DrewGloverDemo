@@ -9,7 +9,10 @@ include_weak=True, they are priced at tier 6 (punishing), and every one is
 labelled "not a confirmed relationship".
 
 For a subject, it web-searches them, reads the top pages, and returns every
-OTHER person spaCy NER names on those pages, each with its source URL.
+OTHER person spaCy NER names on those pages, each with its source URL and a
+short text window around the mention (`evidence`) — the grounding
+graph.enrich hands to ollama_classify to label how strongly the article text
+implies a tie. That label is metadata on the edge, never a Rule-0 promotion.
 """
 from __future__ import annotations
 
@@ -20,6 +23,19 @@ from ..edges.names import (
     is_noise_name, looks_like_person_name, person_norm_key, strip_role_affixes)
 from .base import fetch_page
 from .htmltext import html_to_text
+
+
+def _evidence_window(text: str, needle: str, radius: int = 160) -> str:
+    """A short text window around `needle`'s first occurrence in `text` — the
+    grounding an Ollama relationship-strength classifier reasons over. Empty
+    when `needle` isn't a literal substring (e.g. name-shape normalization
+    changed it), which the classifier treats as "nothing to judge"."""
+    idx = text.find(needle)
+    if idx < 0:
+        return ""
+    start = max(0, idx - radius)
+    end = min(len(text), idx + len(needle) + radius)
+    return " ".join(text[start:end].split())
 
 
 def _is_clean_person(cand: str, subject_tokens: set) -> bool:
@@ -100,15 +116,16 @@ class CoMentionProvider:
             if not text:
                 continue                 # JS shell / blocked — don't spend budget
             readable += 1
-            for cand in extract.filter_person_blocks(extract.person_names(text)):
-                cand = strip_role_affixes(cand).strip()
+            for raw_cand in extract.filter_person_blocks(extract.person_names(text)):
+                cand = strip_role_affixes(raw_cand).strip()
                 if not _is_clean_person(cand, subject_tokens):
                     continue
                 key = person_norm_key(cand)
                 if not key or key in seen:
                     continue
                 seen.add(key)
-                out.append({"name": cand, "source_url": url})
+                evidence = _evidence_window(text, raw_cand) or _evidence_window(text, cand)
+                out.append({"name": cand, "source_url": url, "evidence": evidence})
                 if len(out) >= config.CO_MENTION_MAX_PER_PERSON:
                     return out
         return out

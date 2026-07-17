@@ -49,6 +49,7 @@ def _migrate(bind) -> None:
         ("people", "is_warm", "INTEGER DEFAULT 0"),
         ("people", "enriched", "INTEGER DEFAULT 0"),
         ("organizations", "member_count", "INTEGER DEFAULT 0"),
+        ("relationship_edges", "metadata", "JSON"),
     ]
     with bind.begin() as conn:
         for table, col, coltype in add_columns:
