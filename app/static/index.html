@@ -53,6 +53,19 @@
     width:34px;height:34px;font-size:17px!important;box-shadow:3px 3px 0 var(--red)!important}
   .settings-panel{display:none;border:2px solid var(--white);padding:14px;margin:14px 0;
     background:var(--black);box-shadow:4px 4px 0 var(--red)}
+  input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
+  input[type=file]::file-selector-button{margin-right:10px;padding:6px 12px;
+    background:var(--red);border:2px solid var(--red);color:var(--white);cursor:pointer;
+    font:700 11px/1.2 "Courier New",monospace;text-transform:uppercase}
+  .picks{max-height:300px;overflow-y:auto;border:2px solid var(--white);margin-top:10px}
+  .pick{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;
+    border-bottom:1px dashed rgba(255,255,255,.25);font-size:12px}
+  .pick:last-child{border-bottom:0}
+  .pick:hover{background:rgba(224,0,0,.18)}
+  .pick input{flex:none;min-width:0;box-shadow:none}
+  .pick .who{flex:1}
+  .pick .tag{font-size:10px;color:var(--red);text-transform:uppercase;font-weight:700}
+  .pickbar{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
   .banner{margin:18px 0;padding:12px 14px;border:2px solid var(--white);
     border-left:8px solid var(--red);background:var(--black);color:var(--white);
     font-size:12px;box-shadow:4px 4px 0 var(--red)}
@@ -105,8 +118,9 @@
   footer{margin-top:44px;padding-top:14px;border-top:2px dashed var(--white);
     color:var(--white);font-size:11px;line-height:1.8;opacity:.8}
   @media(max-width:640px){
-    .wrap{padding:24px 14px 60px}h1{font-size:20px;padding-right:42px;position:relative}
-    .gear{position:absolute;right:0;top:0}.tabs{grid-template-columns:repeat(2,1fr)}
+    .wrap{padding:24px 14px 60px}h1{font-size:20px;padding-right:84px;position:relative}
+    .gear{position:absolute;right:0;top:0}#importBtn{right:42px}
+    .tabs{grid-template-columns:repeat(2,1fr)}
     .row{flex-direction:column}.row button{width:100%}.route-hd{align-items:flex-start;
       flex-direction:column}.chain{padding:8px 12px 14px}
   }
@@ -119,6 +133,8 @@
 <div class="wrap">
   <h1>Warm Intro Pathfinder
     <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">⚙</button>
+    <button class="gear" id="importBtn" onclick="toggleImport()"
+            title="Import LinkedIn connections" aria-label="Import LinkedIn connections">⇪</button>
   </h1>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
@@ -141,6 +157,33 @@
       <div class="progmsg" id="quotaMsg" style="white-space:normal"></div>
     </div>
     <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
+  </div>
+
+  <div id="import" class="settings-panel">
+    <div style="margin-bottom:8px"><b>LinkedIn connections</b> — upload your
+      <i>Connections.csv</i> export (LinkedIn → Settings → Get a copy of your data).
+      Every row becomes a <span class="t1">tier 1</span> first-degree link from Drew,
+      because the export itself asserts the connection exists.</div>
+    <div class="row">
+      <input id="csvFile" type="file" accept=".csv,text/csv">
+      <button id="csvGo" onclick="uploadCsv()">Upload</button>
+    </div>
+    <div id="importMsg" class="sub" style="margin-top:8px"></div>
+
+    <div id="pickWrap" style="display:none">
+      <div style="margin-top:12px;font-size:12px">Importing alone only links these people
+        to Drew. <b>Enriching</b> pulls their own structured sources — rosters, filings,
+        podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
+        takes a while, so pick only who matters.</div>
+      <div class="picks" id="pickList"></div>
+      <div class="pickbar">
+        <label style="cursor:pointer;font-size:12px">
+          <input type="checkbox" id="pickAll" onchange="selectAllPicks()"> Select all
+        </label>
+        <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
+      </div>
+      <div id="importProg"></div>
+    </div>
   </div>
 
   <div class="tabs" role="tablist">
@@ -439,6 +482,144 @@ function toggleSettings(){
   const isHidden = getComputedStyle(s).display === 'none';
   s.style.display = isHidden ? 'block' : 'none';
 }
+function toggleImport(){
+  const p = document.getElementById('import');
+  p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
+}
+
+let IMPORTED = [];   // rows from the last CSV upload, in file order
+
+async function uploadCsv(){
+  const file = document.getElementById('csvFile').files[0];
+  const msg  = document.getElementById('importMsg');
+  const btn  = document.getElementById('csvGo');
+  if (!file){ msg.textContent = 'Choose a .csv file first.'; return; }
+  btn.disabled = true;
+  msg.textContent = 'Importing…';
+  try {
+    const body = new FormData();
+    body.append('file', file);
+    const res  = await fetch('/network/csv', {method: 'POST', body});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    if (data.error) throw new Error(data.error);
+    IMPORTED = data.people || [];
+    // Count the people, not the rows: an export can list one person twice.
+    const n = IMPORTED.length;
+    msg.innerHTML = `Imported <b>${n}</b> connection${n === 1 ? '' : 's'} · `
+      + `${data.edges} first-degree link${data.edges === 1 ? '' : 's'}`
+      + (data.skipped ? ` · ${data.skipped} row${data.skipped === 1 ? '' : 's'} skipped (no name)` : '');
+    document.getElementById('importProg').innerHTML = '';
+    renderPicker();
+  } catch(err){
+    msg.textContent = 'Import failed: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const pickBoxes = () => [...document.querySelectorAll('.pickbox')];
+
+function renderPicker(){
+  const wrap = document.getElementById('pickWrap');
+  if (!IMPORTED.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('pickAll').checked = false;
+  document.getElementById('pickList').innerHTML = IMPORTED.map(p => {
+    const meta = [p.title, p.company].filter(Boolean).join(' · ');
+    return `<label class="pick">
+        <input type="checkbox" class="pickbox" value="${esc(p.name)}" onchange="updatePickCount()">
+        <span class="who">${esc(p.name)}
+          ${meta ? `<div class="via">${esc(meta)}</div>` : ''}</span>
+        ${p.enriched ? '<span class="tag">already enriched</span>' : ''}
+      </label>`;
+  }).join('');
+  updatePickCount();
+}
+
+function updatePickCount(){
+  const n   = pickBoxes().filter(b => b.checked).length;
+  const btn = document.getElementById('enrichGo');
+  btn.textContent = `Enrich selected (${n})`;
+  btn.disabled = n === 0;
+}
+
+function selectAllPicks(){
+  const on = document.getElementById('pickAll').checked;
+  pickBoxes().forEach(b => { b.checked = on; });
+  updatePickCount();
+}
+
+async function enrichPicked(){
+  const names = pickBoxes().filter(b => b.checked).map(b => b.value);
+  const out   = document.getElementById('importProg');
+  const btn   = document.getElementById('enrichGo');
+  if (!names.length) return;
+  btn.disabled = true;
+  try {
+    const res  = await fetch('/network/enrich', {method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({names})});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    streamEnrich(data.job_id, names, out, btn);   // btn re-enabled by the stream
+  } catch(err){
+    out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+    btn.disabled = false;
+  }
+}
+
+// Unlike a search, this run has a known total — the enricher announces "[i/N]"
+// per person, so the bar reports true progress instead of easing toward 92%.
+function streamEnrich(job, names, out, btn){
+  out.innerHTML =
+    `<div class="prog">
+       <div class="prophd">[ ENRICHING ${names.length} ]</div>
+       <div style="display:flex;align-items:center">
+         <div class="progbar"><div class="progfill" id="ef" style="width:0%"></div></div>
+         <span class="progpct" id="ep">0%</span>
+       </div>
+       <div class="progmsg" id="em">starting…</div>
+     </div>`;
+  const ef = document.getElementById('ef');
+  const ep = document.getElementById('ep');
+  const em = document.getElementById('em');
+
+  const es = new EventSource(`/network/enrich/stream?job=${encodeURIComponent(job)}`);
+  es.addEventListener('progress', e => {
+    const line = JSON.parse(e.data);
+    em.textContent = line;
+    const m = /^\[(\d+)\/(\d+)\]/.exec(line);
+    if (m){
+      const pct = Math.round(100 * (Number(m[1]) - 1) / Number(m[2]));
+      ef.style.width = pct + '%';
+      ep.textContent = pct + '%';
+    }
+  });
+  es.addEventListener('result', e => {
+    es.close();
+    const d = JSON.parse(e.data);
+    ef.style.width = '100%'; ep.textContent = '100%'; em.textContent = 'done';
+    if (!d.found){
+      out.innerHTML = `<div class="msg err">${esc(d.reason || 'Enrichment failed.')}</div>`;
+      btn.disabled = false;
+      return;
+    }
+    out.innerHTML = `<div class="msg">Enriched <b>${d.enriched}</b> of ${d.total}`
+      + (d.failed ? ` · ${d.failed} had no findable sources` : '')
+      + `. Their links are in the graph now — try <b>Connect</b> or <b>Tree</b>.</div>`;
+    const done = new Set(names);
+    IMPORTED.forEach(p => { if (done.has(p.name)) p.enriched = true; });
+    renderPicker();          // clears the selection and re-tags who is done
+    refreshQuota();          // enrichment likely spent Serper credits
+  });
+  es.onerror = () => {
+    es.close();
+    out.innerHTML = '<div class="msg err">Connection lost mid-enrichment — some people may have been enriched. Re-select anyone still untagged.</div>';
+    btn.disabled = false;
+  };
+}
+
 async function saveKey(){
   const key = document.getElementById('serperKey').value.trim();
   const msg = document.getElementById('settingsMsg');

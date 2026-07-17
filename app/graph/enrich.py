@@ -781,3 +781,29 @@ def enrich_person(db: Session, name: str, **kw) -> Optional[Person]:
 
 def enrich_neighborhood(db: Session, name: str, depth: int = 1, **kw) -> Optional[Person]:
     return get_enricher().enrich_neighborhood(db, name, depth=depth, **kw)
+
+
+def enrich_selected(db: Session, names: List[str], *,
+                    progress: Progress = None) -> dict:
+    """Enrich an explicit, user-chosen list of people (a CSV-import selection).
+
+    Unlike `enrich_neighborhood`, this never walks outward: the caller picked
+    exactly these people and pays for exactly these lookups. One person failing
+    must not abandon the rest of the selection, so each is isolated.
+    """
+    enricher = get_enricher()
+    enriched = failed = 0
+    for i, name in enumerate(names, 1):
+        _note(progress, f"[{i}/{len(names)}] {name}")
+        try:
+            person = enricher.enrich_person(db, name, progress=progress)
+        except Exception as exc:
+            _note(progress, f"  {name} failed: {exc}")
+            person = None
+        if person is None:
+            failed += 1
+        else:
+            enriched += 1
+    _note(progress, f"enriched {enriched} of {len(names)}")
+    return {"found": True, "enriched": enriched, "failed": failed,
+            "total": len(names)}
