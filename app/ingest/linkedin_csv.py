@@ -91,19 +91,21 @@ def _profile_from_row(raw: Dict[str, str]) -> Optional[dict]:
 def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
     """Parse + persist a CSV, linking every row to `owner_name` as tier-1.
 
-    Returns {created, updated, edges, skipped}.
+    Returns {created, updated, edges, skipped, people}. `people` is the imported
+    roster in file order — the UI lists it so the owner can pick who, if anyone,
+    is worth spending an enrichment pass on.
     """
     owner_name = owner_name or config.DEMO_SEED_NAME
     text = _strip_preamble(content.lstrip("﻿"))
     reader = csv.DictReader(io.StringIO(text))
     if not reader.fieldnames:
         return {"created": 0, "updated": 0, "edges": 0, "skipped": 0,
-                "error": "empty or headerless CSV"}
+                "people": [], "error": "empty or headerless CSV"}
 
     owner = builder.get_or_create_person(db, owner_name, is_warm=True)
     if owner is None:
         return {"created": 0, "updated": 0, "edges": 0, "skipped": 0,
-                "error": f"could not resolve owner {owner_name!r}"}
+                "people": [], "error": f"could not resolve owner {owner_name!r}"}
 
     source = builder.get_or_create_source(
         db, f"linkedin-csv://{owner.norm_name}",
@@ -111,6 +113,8 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
         provider="linkedin_csv")
 
     created = updated = edges = skipped = 0
+    people: List[dict] = []
+    listed: set = set()
     for raw in reader:
         parsed = _profile_from_row(raw)
         if parsed is None:
@@ -135,7 +139,20 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
                                               is_warm=True)
         if person is None or person.id == owner.id:
             continue
+        # An export can list the same person twice (a job change writes a second
+        # row). They dedupe onto one graph node, so count and list them once —
+        # add_edge returns the existing row for the repeat, which would
+        # otherwise inflate `edges` past the number of people actually linked.
+        if person.id in listed:
+            continue
+        listed.add(person.id)
         company = parsed["companies"][0] if parsed["companies"] else ""
+        people.append({
+            "name": parsed["canonical_name"],
+            "company": company,
+            "title": parsed["titles"][0] if parsed["titles"] else "",
+            "enriched": bool(person.enriched),
+        })
         edge = builder.add_edge(
             db, owner, person, "linkedin_1st", source=source,
             evidence=(f"A direct LinkedIn connection of {owner.canonical_name}"
@@ -145,7 +162,7 @@ def ingest_csv(db: Session, content: str, owner_name: str = "") -> dict:
 
     db.commit()
     return {"created": created, "updated": updated, "edges": edges,
-            "skipped": skipped}
+            "skipped": skipped, "people": people}
 
 
 def _merge_profile(existing: LocalProfile, parsed: dict) -> None:

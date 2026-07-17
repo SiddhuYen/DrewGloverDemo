@@ -10,6 +10,8 @@ import json
 import os
 import queue
 import threading
+import uuid
+from typing import List
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse, StreamingResponse
@@ -21,6 +23,7 @@ from sqlalchemy.orm import Session
 from . import config
 from .db import SessionLocal, get_db, init_db
 from .graph.connect import connect_people, discover
+from .graph.enrich import enrich_selected
 from .graph.tree import build_tree, compare_trees
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
@@ -237,6 +240,36 @@ async def upload_csv(file: UploadFile = File(...),
         content = raw.decode("latin-1")
     with _write_lock:
         return ingest_csv(db, content, owner_name=config.DEMO_SEED_NAME)
+
+
+# Enrichment selections are handed off by id rather than passed in the stream
+# URL: an EventSource can only GET, and a few hundred picked names would blow
+# past the request-line limit.
+_enrich_jobs: dict = {}
+
+
+@app.post("/network/enrich")
+def start_enrich(names: List[str] = Body(..., embed=True)) -> dict:
+    """Register a chosen set of imported people for enrichment."""
+    picked = [n.strip() for n in names if n and n.strip()]
+    if not picked:
+        raise HTTPException(400, "no people selected")
+    # A selection that is registered but never streamed (the user closed the tab)
+    # would otherwise be held forever; keep only the most recent handful.
+    while len(_enrich_jobs) >= 32:
+        _enrich_jobs.pop(next(iter(_enrich_jobs)))
+    job_id = uuid.uuid4().hex
+    _enrich_jobs[job_id] = picked
+    return {"job_id": job_id, "count": len(picked)}
+
+
+@app.get("/network/enrich/stream")
+def enrich_stream(job: str = Query(..., min_length=1)):
+    """Enrich a registered selection, streaming per-person progress."""
+    names = _enrich_jobs.pop(job, None)   # single-use: a reload can't re-spend quota
+    if names is None:
+        raise HTTPException(404, "unknown or already-started enrichment job")
+    return _sse(lambda db, p: enrich_selected(db, names, progress=p))
 
 
 @app.get("/ui")
