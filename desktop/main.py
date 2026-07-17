@@ -11,12 +11,11 @@ State lives in a per-user, WRITABLE data directory (the app bundle is read-only)
   - settings.json  the user's own Serper API key (entered in the UI), so live
                 search works without shipping anyone's key.
 
-The bundle ALSO ships a read-only resources/litellm_key.json, baked in at CI
-build time from a repo secret (see deploy/README.md) — a LiteLLM-issued
-virtual key, worthless without the proxy in front of it, never the real
-Anthropic key. Unlike settings.json this one is never written by the app;
-it's just read once at startup, into LITELLM_VIRTUAL_KEY (never
-CLAUDE_API_KEY — that name is reserved for a real key in local dev).
+The bundle ALSO ships a read-only resources/claude_key.txt, baked in at CI
+build time from a repo secret (see DESKTOP.md) — a real Anthropic key,
+spend-capped in the Anthropic Console so a worst-case extraction is bounded
+in dollars. Unlike settings.json this one is never written by the app;
+it's just read once at startup.
 
 Env is set BEFORE `app` is imported, because app/config.py reads these at import.
 """
@@ -75,16 +74,14 @@ def _configure_env() -> Path:
     # tell the app where to persist a key the user types into the settings UI
     os.environ["VCWI_SETTINGS_FILE"] = str(settings)
 
-    # baked-in LiteLLM proxy key (see module docstring). A dev env var, if
-    # already set, wins — this only fills the gap in a built app.
-    baked = _resource_dir() / "resources" / "litellm_key.json"
-    if baked.exists():
+    # baked-in Claude key (see module docstring). A dev env var, if already
+    # set, wins — this only fills the gap in a built app.
+    baked = _resource_dir() / "resources" / "claude_key.txt"
+    if baked.exists() and "CLAUDE_API_KEY" not in os.environ:
         try:
-            b = json.loads(baked.read_text())
-            if b.get("virtual_key") and "LITELLM_VIRTUAL_KEY" not in os.environ:
-                os.environ["LITELLM_VIRTUAL_KEY"] = b["virtual_key"]
-            if b.get("base") and "CLAUDE_API_BASE" not in os.environ:
-                os.environ["CLAUDE_API_BASE"] = b["base"]
+            key = baked.read_text().strip()
+            if key:
+                os.environ["CLAUDE_API_KEY"] = key
         except Exception:
             pass
     return data

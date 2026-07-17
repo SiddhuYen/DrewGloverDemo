@@ -32,3 +32,26 @@ State lives in a per-user data dir (auto-created):
 The build (`build/pathfinder.spec`) bundles Python, the app, the spaCy model, and
 `resources/graph.db`. It **excludes** Playwright/Chromium — the browser-render
 fallback (some firm rosters) silently degrades; everything else works.
+
+## Claude relationship-strength classification
+
+Deep search's co-mention edges get an optional confidence label from Claude
+(see `app/providers/llm_classify.py`) — off by default (`CO_MENTION_ENABLED`
+and `DEEP_SEARCH` are both off), and a no-op even when on unless a key is
+configured.
+
+The key is a real Anthropic key, **spend-capped in the Anthropic Console**
+(set a dollar limit on this specific key) rather than routed through a
+proxy — one trusted user, so a bounded worst case beats running extra
+infrastructure. To ship it:
+
+1. Create an API key in the Anthropic Console and set a spend limit on it.
+2. Add it as the `CLAUDE_API_KEY` repository secret (Settings → Secrets and
+   variables → Actions).
+3. The `build-desktop` workflow writes it into `resources/claude_key.txt`
+   during the build (never committed — see `.gitignore`), PyInstaller
+   bundles it, and `desktop/main.py` reads it once at startup.
+
+No secret set → the build still succeeds, the classifier just stays in its
+normal no-op state. For local development, just export `CLAUDE_API_KEY` in
+your own shell — it always wins over the baked-in file.

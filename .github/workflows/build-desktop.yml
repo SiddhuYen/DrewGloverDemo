@@ -40,31 +40,21 @@ jobs:
         if: runner.os == 'Windows'
         run: pip install pythonnet
 
-      # Bakes the LiteLLM proxy's virtual key into the build (see deploy/README.md).
-      # LITELLM_VIRTUAL_KEY is NOT the real Anthropic key — it's a proxy-issued
-      # credential, worthless without the proxy in front of it. Never committed
-      # — generated fresh here from repo secrets, read once by desktop/main.py
-      # at app startup, then bundled inside the .app/.exe like any other
-      # resource. Skipped (writes nothing) if the secret isn't set, so a fork
-      # or a build without the secret still produces a working app — the
-      # classifier just no-ops, same as any other missing API key.
-      - name: Bake in the LiteLLM proxy key
+      # Bakes the (spend-capped) Claude key into the build (see DESKTOP.md).
+      # Never committed — generated fresh here from a repo secret, read once
+      # by desktop/main.py at app startup, then bundled inside the .app/.exe
+      # like any other resource. Skipped (writes nothing) if the secret isn't
+      # set, so a fork or a build without the secret still produces a working
+      # app — the classifier just no-ops, same as any other missing API key.
+      - name: Bake in the Claude API key
         shell: bash
         env:
-          LITELLM_VIRTUAL_KEY: ${{ secrets.LITELLM_VIRTUAL_KEY }}
-          CLAUDE_API_BASE: ${{ secrets.CLAUDE_API_BASE }}
+          CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
         run: |
-          if [ -n "$LITELLM_VIRTUAL_KEY" ]; then
-            python -c "
-          import json, os
-          json.dump(
-              {'virtual_key': os.environ.get('LITELLM_VIRTUAL_KEY', ''),
-               'base': os.environ.get('CLAUDE_API_BASE', '')},
-              open('resources/litellm_key.json', 'w'),
-          )
-          "
+          if [ -n "$CLAUDE_API_KEY" ]; then
+            printf '%s' "$CLAUDE_API_KEY" > resources/claude_key.txt
           else
-            echo "LITELLM_VIRTUAL_KEY secret not set — building without a baked key"
+            echo "CLAUDE_API_KEY secret not set — building without a baked key"
           fi
 
       - name: Build with PyInstaller

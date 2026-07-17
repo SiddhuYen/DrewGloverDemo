@@ -32,6 +32,6 @@ data/*_unenriched_queue.json
 /build/*.toc
 /dist/
 
-# generated at CI build time from repo secrets — never committed, never
+# generated at CI build time from a repo secret — never committed, never
 # present locally unless you've built the desktop app yourself
-resources/litellm_key.json
+resources/claude_key.txt

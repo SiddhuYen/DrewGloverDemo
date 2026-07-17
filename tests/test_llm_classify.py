@@ -17,12 +17,8 @@ def _fake_response(pairs):
 
 
 def _activate(monkeypatch, *, enabled: bool = True, api_key: str = "sk-test"):
-    """Direct-to-Anthropic mode: CLAUDE_API_BASE unset, CLAUDE_API_KEY set —
-    what a local dev run without a proxy looks like."""
     monkeypatch.setattr(config, "LLM_CLASSIFY_ENABLED", enabled)
-    monkeypatch.setattr(config, "CLAUDE_API_BASE", None)
     monkeypatch.setattr(config, "CLAUDE_API_KEY", api_key)
-    monkeypatch.setattr(config, "LITELLM_VIRTUAL_KEY", "")
 
 
 # --- vocabulary --------------------------------------------------------------
@@ -36,36 +32,8 @@ def test_allowed_vocabulary_excludes_non_groundable_types():
     assert "cofounder" in llm_classify._ALLOWED
 
 
-# --- which key gets used (direct vs. proxied) -------------------------------
-def test_active_key_is_the_real_key_when_no_proxy_base_is_set(monkeypatch):
-    monkeypatch.setattr(config, "CLAUDE_API_BASE", None)
-    monkeypatch.setattr(config, "CLAUDE_API_KEY", "sk-real-direct")
-    monkeypatch.setattr(config, "LITELLM_VIRTUAL_KEY", "")
-    assert llm_classify._active_api_key() == "sk-real-direct"
-
-
-def test_active_key_is_the_virtual_key_when_a_proxy_base_is_set(monkeypatch):
-    """A real key sitting in the environment must never leak to a proxy
-    that isn't actually Anthropic — proxied mode uses ONLY the virtual key,
-    even if a real key also happens to be set."""
-    monkeypatch.setattr(config, "CLAUDE_API_BASE", "https://proxy.example.fly.dev")
-    monkeypatch.setattr(config, "CLAUDE_API_KEY", "sk-real-should-be-ignored")
-    monkeypatch.setattr(config, "LITELLM_VIRTUAL_KEY", "sk-virtual")
-    assert llm_classify._active_api_key() == "sk-virtual"
-
-
-def test_available_is_false_with_a_proxy_base_but_no_virtual_key(monkeypatch):
-    """Having a real Anthropic key set doesn't count once we're routed
-    through a proxy — only the virtual key does."""
-    monkeypatch.setattr(config, "CLAUDE_API_BASE", "https://proxy.example.fly.dev")
-    monkeypatch.setattr(config, "CLAUDE_API_KEY", "sk-real-but-irrelevant")
-    monkeypatch.setattr(config, "LITELLM_VIRTUAL_KEY", "")
-    assert llm_classify.llm_available() is False
-
-
 # --- availability --------------------------------------------------------
 def test_llm_available_reflects_api_key_presence(monkeypatch):
-    monkeypatch.setattr(config, "CLAUDE_API_BASE", None)
     monkeypatch.setattr(config, "CLAUDE_API_KEY", "")
     assert llm_classify.llm_available() is False
     monkeypatch.setattr(config, "CLAUDE_API_KEY", "sk-test")

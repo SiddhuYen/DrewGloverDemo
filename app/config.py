@@ -86,20 +86,13 @@ DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
 DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
 DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 
-# --- Claude API access (routed through your own proxy, never a raw key) ---
-# Two DIFFERENT keys, deliberately not sharing a name — see deploy/README.md.
-#
-# CLAUDE_API_KEY   a REAL Anthropic key. Used ONLY when CLAUDE_API_BASE is
-#                  unset (talking to Anthropic directly). Local dev only —
-#                  never put this in the desktop build or a repo secret CI
-#                  reads.
-# LITELLM_VIRTUAL_KEY  a LiteLLM-issued virtual key — worthless without the
-#                  proxy in front of it. Used ONLY when CLAUDE_API_BASE IS
-#                  set (routing through your proxy). This is the one and
-#                  only key that goes into the desktop build.
-CLAUDE_API_BASE = os.environ.get("CLAUDE_API_BASE", "").strip() or None
+# --- Claude API access ------------------------------------------------------
+# A single real Anthropic key, spend-capped in the Anthropic Console (set a
+# dollar limit on this specific key) so a worst-case extraction from the
+# shipped desktop build is bounded, not open-ended. No proxy in front of it
+# — traded a little security margin for zero hosting infrastructure, since
+# this ships to one trusted person. See DESKTOP.md.
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
-LITELLM_VIRTUAL_KEY = os.environ.get("LITELLM_VIRTUAL_KEY", "").strip()
 
 # --- Claude relationship-strength classification (co_mention tier ONLY) ----
 # Claude labels what kind of tie a co-mention's article text implies
