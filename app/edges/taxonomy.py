@@ -46,13 +46,19 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "fiat_colleague":     RelationshipSpec(1, "colleagues at Fiat", True),
     "same_firm_partner":  RelationshipSpec(1, "partners at the same firm", True),
     "linkedin_1st":       RelationshipSpec(1, "a direct LinkedIn connection", True),
-    "instagram_mutual":   RelationshipSpec(1, "follow each other on Instagram", True),
-    "x_mutual":           RelationshipSpec(1, "follow each other on X", True),
 
     # --- tier 2: an ongoing professional tie ------------------------------
     "board_member":       RelationshipSpec(2, "served on the same board", True),
     "co_investor":        RelationshipSpec(2, "invested in the same round", True),
     "coauthor":           RelationshipSpec(2, "published together", True),
+    # A reciprocal follow is a real, ongoing tie — both parties opted in — but
+    # it is not a relationship they BUILT, and tier 1 said it was: following
+    # each other on Instagram scored exactly as warm as co-founding a company.
+    # These are also Drew's widest surface (237 IG + 7 X against 2 cofounder
+    # edges), so mis-tiering them at 1 mispriced most of his network at once and
+    # put strangers-who-follow-back at the top of every discover listing.
+    "instagram_mutual":   RelationshipSpec(2, "follow each other on Instagram", True),
+    "x_mutual":           RelationshipSpec(2, "follow each other on X", True),
     # `podcast_guest` connects a HOST to a GUEST — the host personally
     # interviewed them (never two guests of the same show). A genuine touch, but
     # a single conversation, so it sits below working relationships.

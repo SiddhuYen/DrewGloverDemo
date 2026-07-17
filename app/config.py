@@ -202,6 +202,33 @@ def hop_limit(explicit: int = 0) -> float:
     limit = explicit or MAX_HOPS
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
+# How many routes to show when EVERY chain that exists needs a famous stranger
+# to relay the intro. Deliberately far below CONNECT_MAX_PATHS: connect() only
+# reaches this fallback when there is no usable route at all, and in that state
+# the useful answer is the one real chain plus the reason it will not work.
+# Three of them is the same dead end told three ways — which is exactly what the
+# search used to return, because banning the bridges of one celebrity route just
+# routes you through the next celebrity. Never used while a usable route exists.
+CONNECT_MAX_UNUSABLE_PATHS = int(
+    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "1"))
+# How many routes Yen's may GENERATE while looking for CONNECT_MAX_PATHS worth
+# showing. Far above it on purpose: the cheapest alternates are mostly detours
+# around the best route ("Drew -> Atlas Berry -> Bryce Johnson" when Drew knows
+# Bryce), and _routes has to walk past those to reach a genuinely different
+# intro. Every extra route costs roughly one Dijkstra per hop, so this is the
+# knob that bounds a warm query's worst case; measured at ~0.2s for the default
+# on the bundled 26k-edge graph. Lower it to cap latency, raise it if a dense
+# neighbourhood is returning fewer routes than it should.
+ROUTE_SEARCH_LIMIT = int(os.environ.get("VCWI_ROUTE_SEARCH_LIMIT", "24"))
+# Wall-clock ceiling on that generation loop. The limit above bounds the WORK,
+# which is not the same as bounding the wait: a target reachable through exactly
+# one bridge has nothing but detours to offer, so the search spends the whole
+# allowance proving a second route does not exist. That case measured 3.4s to
+# return one route. Unlike the enrichment budgets this one cannot cost coverage
+# — it only stops re-searching a graph already in memory, and the routes it
+# gives up on are the ones ranked worst — so bounding it does not trade away the
+# accuracy-first posture. 0 disables it.
+ROUTE_SEARCH_BUDGET_S = float(os.environ.get("VCWI_ROUTE_SEARCH_BUDGET", "1.0"))
 
 # --- providers -------------------------------------------------------------
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "").strip()
