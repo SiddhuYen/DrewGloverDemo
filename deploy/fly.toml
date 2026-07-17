@@ -1,0 +1,34 @@
+# Fly.io deploy for the LiteLLM proxy (see litellm_config.yaml for what/why).
+# Uses LiteLLM's official image directly — no custom Dockerfile needed.
+#
+# NOTE: verify the image tag against LiteLLM's current release docs before
+# deploying — this hasn't been run against a live Fly app yet.
+#
+#   fly launch --no-deploy --copy-config --name artemis-claude-proxy
+#   fly secrets set ANTHROPIC_API_KEY=sk-ant-... LITELLM_MASTER_KEY=sk-...
+#   fly deploy
+
+app = "artemis-claude-proxy"
+primary_region = "iad"
+
+[build]
+  image = "ghcr.io/berriai/litellm:main-stable"
+
+[env]
+  # The config file needs to reach the container. Simplest path: base64 the
+  # contents of litellm_config.yaml into a Fly secret and have the entrypoint
+  # decode it, OR mount it via `fly volumes`/`fly deploy --file-local`. Pick
+  # whichever LiteLLM's current Fly/Docker docs recommend at deploy time —
+  # this has moved between LiteLLM releases.
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512

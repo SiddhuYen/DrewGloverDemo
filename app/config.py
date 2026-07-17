@@ -86,6 +86,16 @@ DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
 DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
 DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 
+# --- Claude API access (routed through your own proxy, never a raw key) ---
+# Point CLAUDE_API_BASE at your own LiteLLM proxy (see deploy/) instead of
+# api.anthropic.com directly, so CLAUDE_API_KEY is a low-stakes proxy
+# credential you can revoke instantly — never the real Anthropic key in
+# anything shipped to an end user's machine. Empty base -> SDK default
+# (talks to Anthropic directly with whatever key is set; fine for local
+# dev, not for a shipped desktop build). See deploy/README.md.
+CLAUDE_API_BASE = os.environ.get("CLAUDE_API_BASE", "").strip() or None
+CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
+
 # --- Ollama relationship-strength classification (co_mention tier ONLY) ----
 # A local Ollama daemon labels what kind of tie a co-mention's article text
 # implies (cofounder-sounding vs. gala-photo-sounding) plus a confidence
