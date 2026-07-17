@@ -27,6 +27,7 @@ from .graph.enrich import enrich_selected
 from .graph.tree import build_tree, compare_trees
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
+from . import session
 from .models import Organization, Person, RelationshipEdge
 from .providers.serper import serper_status
 from .providers.stats import STATS
@@ -42,6 +43,33 @@ def _startup() -> None:
     init_db()
 
 
+@app.middleware("http")
+async def _bind_session(request, call_next):
+    """Resolve this request's session before anything reads a credential.
+
+    Issues an id on first contact so a visitor can POST a key immediately. The
+    cookie carries only the opaque id — the key stays in the server-side store
+    (session.py). HttpOnly keeps page scripts out of it; SameSite=Lax keeps a
+    third-party page from driving this API as the visitor.
+    """
+    sid = request.cookies.get(session.COOKIE_NAME)
+    fresh = not session.touch(sid)
+    if fresh:
+        sid = session.new_session()
+    token = session.bind(sid)
+    try:
+        response = await call_next(request)
+    finally:
+        session.reset(token)
+    if fresh:
+        response.set_cookie(
+            session.COOKIE_NAME, sid, httponly=True, samesite="lax",
+            max_age=session.SESSION_TTL_S,
+            secure=config.cookie_secure_for(request.url.scheme),
+        )
+    return response
+
+
 @app.get("/health")
 def health(db: Session = Depends(get_db)) -> dict:
     counts = {
@@ -55,9 +83,25 @@ def health(db: Session = Depends(get_db)) -> dict:
 
 @app.get("/settings")
 def get_settings() -> dict:
-    """Live-search config. Never returns the key itself."""
+    """Live-search config. Never returns either key itself."""
     return {"serper_configured": bool(config.SERPER_API_KEY),
+            "claude_configured": session.claude_configured(),
+            "claude_model": config.CLAUDE_MODEL,
             "deep_search": config.DEEP_SEARCH, "serper": serper_status()}
+
+
+@app.post("/claude-key")
+def set_claude_key(claude_key: str = Body(..., embed=True)) -> dict:
+    """Hold this visitor's Anthropic key for their session only.
+
+    Deliberately not merged into /settings: that endpoint persists to a shared
+    file on disk and mutates process-wide config, which is exactly what a
+    credential must not do on a multi-visitor deployment. This one writes to
+    the per-session store and never echoes the key back.
+    """
+    if not session.set_claude_key(claude_key):
+        raise HTTPException(400, "no active session; enable cookies and retry")
+    return {"ok": True, "claude_configured": session.claude_configured()}
 
 
 @app.post("/settings")

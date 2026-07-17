@@ -31,15 +31,28 @@ Hop = Tuple[str, Optional[RelationshipEdge]]
 
 
 def _edge_cost(edge: RelationshipEdge) -> float:
-    """Pathfinding cost of an edge, derived LIVE from its relationship type.
+    """Cost of TRAVERSING an edge = its tier cost + config.HOP_SURCHARGE.
 
     Deliberately NOT the stored `edge.cost` column: that was frozen at write
     time, so re-tiering the taxonomy would silently have no effect on existing
     rows. Reading `taxonomy.edge_cost(edge.relationship_type)` makes a tier
     change take effect immediately, with the stored column kept only as
     provenance.
+
+    Also deliberately NOT `taxonomy.edge_cost` alone: that is the worth of one
+    relationship, which is the right thing to persist on a row but the wrong
+    thing to route on. Traversing costs an extra person's willingness to relay
+    the intro, and only the traversal side should pay it — builder.add_edge
+    stores the un-surcharged tier cost, so provenance stays a property of the
+    tie rather than of how someone walked it.
+
+    Every consumer in this module goes through here, which is what keeps the
+    reported `warmth_score` ranking the same way Dijkstra does: _adjacency
+    compares with it (a constant shifts both sides, so the warmest edge per pair
+    is unchanged), _best_path minimizes it, and _describe sums it into
+    `total_cost`.
     """
-    return taxonomy.edge_cost(edge.relationship_type)
+    return taxonomy.edge_cost(edge.relationship_type) + config.HOP_SURCHARGE
 
 
 def _adjacency(db: Session, include_weak: bool = False):
@@ -109,10 +122,18 @@ def _best_path(adj, start: str, target: str, max_hops: int,
                ) -> Optional[List[Hop]]:
     """Lowest-cost (warmest) path, skipping `excluded` intermediate nodes.
 
-    Cost of a step = the edge's tier cost + a routing penalty for the node being
-    entered (unless it is the target). The penalty makes a path route around a
-    mega-hub when a cheaper way exists, so long paths stop funnelling through the
-    same handful of interview hosts.
+    Cost of a step = the edge's tier cost + a flat per-hop surcharge + a routing
+    penalty for the node being entered (unless it is the target).
+
+    The surcharge is what makes "one introduction beats three" true of the cost
+    function and not just of the README. Summing tier costs alone made three
+    tier-1 hops (3.0) tie one tier-3 hop (3.0), and made two tier-1 hops (2.0)
+    beat it outright — i.e. the search preferred relaying through two strangers
+    over asking one person who had actually invested in the target's company.
+    Every hop is another human who has to agree to pass the intro along, and
+    that risk compounds per hop rather than averaging out; the node penalty does
+    not cover it, since it only bites above MEGA_HUB_DEGREE and is zero for the
+    ordinary low-degree people such a chain runs through.
     """
     excluded = excluded or set()
     node_penalty = node_penalty or {}

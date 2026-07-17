@@ -161,8 +161,15 @@ def warmth_score(total_cost: float, hops: int = 0) -> float:
     warm intro — one introduction beats three — and total cost already encodes
     both length and tier, so ranking by it agrees with what Dijkstra minimized.
 
-        1 hop, tier 1  -> 0.5     2 hops, tier 1 -> 0.333
-        1 hop, tier 3  -> 0.25    5 hops, tier 1 -> 0.167
+    `total_cost` must therefore be summed from connect._edge_cost, which adds
+    config.HOP_SURCHARGE per hop. Summing bare tier costs made length too cheap
+    to be the tiebreak the paragraph above claims: two tier-1 hops (2.0) beat
+    one tier-3 hop (3.0), so a relay through two strangers outranked asking the
+    person who had invested in the target's company. Examples below are at the
+    default surcharge of 1.0:
+
+        1 hop, tier 1  -> 0.333    2 hops, tier 1 -> 0.2
+        1 hop, tier 3  -> 0.2      5 hops, tier 1 -> 0.091
     """
     if hops <= 0 and total_cost <= 0:
         return 1.0
