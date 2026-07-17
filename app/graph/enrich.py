@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..models import Person
+from ..providers import ollama_classify
 from ..providers.comention import CoMentionProvider
 from ..providers.edgar import EdgarProvider
 from ..providers.firms import FirmsProvider
@@ -291,23 +292,46 @@ class Enricher:
         connect(include_weak=True) to traverse)."""
         if not (config.CO_MENTION_ENABLED or config.DEEP_SEARCH):
             return 0
+        hits = self.comention.co_mentions(subject.canonical_name, hint=self._hint)
+        # Batch-classify what the article text around each mention IMPLIES
+        # (cofounder-sounding vs. gala-photo-sounding) before writing edges —
+        # metadata only, never a Rule-0 promotion. No-op (all "unknown") when
+        # Ollama is unavailable or disabled.
+        labels = ollama_classify.classify([
+            {"a": subject.canonical_name, "b": hit["name"], "evidence": hit.get("evidence", "")}
+            for hit in hits
+        ])
         created = 0
-        for hit in self.comention.co_mentions(subject.canonical_name, hint=self._hint):
+        for hit, label in zip(hits, labels):
             source = builder.get_or_create_source(
                 db, hit["source_url"], title=f"co-mention: {subject.canonical_name}",
                 provider="comention")
             other = builder.get_or_create_person(db, hit["name"])
             if other is None or other.id == subject.id:
                 continue
+            meta = None
+            cost_adjust = 0.0
+            if label["label"] != "unknown" and label["confidence"] > 0:
+                meta = {
+                    "ollama_implied_type": label["label"],
+                    "ollama_confidence": label["confidence"],
+                    "ollama_model": config.OLLAMA_MODEL,
+                }
+                # A confidently-labeled co-mention ranks better among OTHER
+                # co-mentions, but the floor in builder.add_edge keeps it
+                # strictly worse than any real (tier <= 5) structural tie.
+                cost_adjust = label["confidence"] * 2.0
             edge = builder.add_edge(
                 db, subject, other, "co_mention", source=source,
                 evidence=(f"{subject.canonical_name} and {other.canonical_name} "
                           f"were named together on {hit['source_url']} — a "
-                          f"co-mention, NOT a confirmed relationship."))
+                          f"co-mention, NOT a confirmed relationship."),
+                meta=meta, cost_adjust=cost_adjust)
             if edge is not None:
                 created += 1
         if created:
-            _note(progress, f"    co_mention (weak): {created} edges")
+            tag = " (ollama-labeled)" if ollama_classify.is_active() else ""
+            _note(progress, f"    co_mention (weak){tag}: {created} edges")
         return created
 
     def _from_edgar(self, db: Session, subject: Person, progress: Progress) -> int:

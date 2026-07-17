@@ -86,6 +86,18 @@ DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
 DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
 DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 
+# --- Ollama relationship-strength classification (co_mention tier ONLY) ----
+# A local Ollama daemon labels what kind of tie a co-mention's article text
+# implies (cofounder-sounding vs. gala-photo-sounding) plus a confidence
+# score. This is metadata on top of an already-weak edge, never a promotion:
+# it NEVER changes relationship_type away from "co_mention" or touches Rule 0
+# (see edges/taxonomy.py). Auto-enabled but a transparent no-op when the
+# daemon isn't reachable, so the pipeline is unaffected without it running.
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.1")
+OLLAMA_CLASSIFY_RELATIONS = _flag("VCWI_OLLAMA_CLASSIFY", "1")
+OLLAMA_CLASSIFY_BATCH = int(os.environ.get("VCWI_OLLAMA_CLASSIFY_BATCH", "20"))
+
 # Per-node routing surcharge = coefficient x ln(degree), added when a path
 # TRANSITS a person. Discourages funnelling every route through the same few
 # mega-hubs (a podcast host with hundreds of guests) when a lower-degree

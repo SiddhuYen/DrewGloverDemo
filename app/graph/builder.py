@@ -204,7 +204,8 @@ def get_or_create_source(db: Session, url: str, title: str = "",
 # --- Rule 0: the only edge writer -----------------------------------------
 def add_edge(db: Session, person_a: Person, person_b: Person,
              relationship_type: str, *, source: Optional[Source] = None,
-             evidence: str = "", organization: Optional[Organization] = None
+             evidence: str = "", organization: Optional[Organization] = None,
+             meta: Optional[dict] = None, cost_adjust: float = 0.0
              ) -> Optional[RelationshipEdge]:
     """Persist one undirected person-person edge, enforcing RULE 0.
 
@@ -214,6 +215,13 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
 
     The pair is stored sorted, so (a,b) and (b,a) are the same row. On a
     duplicate (pair, type, source) we keep the WARMEST tier seen.
+
+    `meta` is informational only (e.g. an Ollama-derived implied_type/
+    confidence hint on a co_mention edge) — it never influences Rule 0.
+    `cost_adjust` nudges cost WITHIN the type's own tier band only; it is
+    clamped so a weak edge can never out-rank the next tier up (see the
+    tier-6 floor below), so it cannot be used to smuggle a co-mention past
+    a real structural tie.
     """
     if person_a is None or person_b is None or person_a.id == person_b.id:
         return None
@@ -229,6 +237,11 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
     source_id = source.id if source else None
     tier = taxonomy.warmth_tier(relationship_type)
     cost = taxonomy.edge_cost(relationship_type)
+    if cost_adjust:
+        # Floored at the next warmer tier's cost + margin, so no amount of
+        # confidence can let this edge out-compete a real structural tie.
+        floor = config.WARMTH_TIER_COST.get(tier - 1, 0.0) + 0.5
+        cost = max(cost - cost_adjust, floor)
 
     existing = db.execute(
         select(RelationshipEdge).where(
@@ -241,6 +254,8 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
     if existing:
         if tier < existing.warmth_tier:
             existing.warmth_tier, existing.cost = tier, cost
+        if meta:
+            existing.meta = {**(existing.meta or {}), **meta}
         return existing
 
     edge = RelationshipEdge(
@@ -251,6 +266,7 @@ def add_edge(db: Session, person_a: Person, person_b: Person,
         evidence_snippet=evidence or None,
         source_id=source_id,
         structural=True,
+        meta=meta or {},
     )
     db.add(edge)
     db.flush()
