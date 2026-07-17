@@ -5,9 +5,17 @@ org membership is already collapsed into person-person edges under the Rule 1
 cap, so the search runs over a person-only graph and stays simple.
 
 Path cost = sum of edge costs, where cost is a function of warmth tier. Lower is
-warmer. Dijkstra finds the warmest route; `_diverse_paths` then re-runs it with
-the previous route's bridge nodes excluded, yielding genuinely different intros
-rather than three variations on one chain.
+warmer. Dijkstra finds the warmest route; `_routes` then finds alternates by
+re-running it with ONE earlier bridge removed at a time, yielding genuinely
+different intros rather than three variations on one chain.
+
+Two things a warmth tier cannot say, which this module says instead:
+
+  * Whether a bridge would actually relay the intro. `_plausible_first` bans
+    famous strangers from the bridge positions outright, so the lead route is
+    walkable by construction rather than by hoping a penalty outweighs them.
+  * That an alternate route must not be built by demolishing the good one. See
+    `_routes`.
 """
 from __future__ import annotations
 
@@ -31,15 +39,46 @@ Hop = Tuple[str, Optional[RelationshipEdge]]
 
 
 def _edge_cost(edge: RelationshipEdge) -> float:
-    """Pathfinding cost of an edge, derived LIVE from its relationship type.
+    """Cost of TRAVERSING an edge = its tier cost + config.HOP_SURCHARGE.
 
     Deliberately NOT the stored `edge.cost` column: that was frozen at write
     time, so re-tiering the taxonomy would silently have no effect on existing
     rows. Reading `taxonomy.edge_cost(edge.relationship_type)` makes a tier
     change take effect immediately, with the stored column kept only as
     provenance.
+
+    Also deliberately NOT `taxonomy.edge_cost` alone: that is the worth of one
+    relationship, which is the right thing to persist on a row but the wrong
+    thing to route on. Traversing costs an extra person's willingness to relay
+    the intro, and only the traversal side should pay it — builder.add_edge
+    stores the un-surcharged tier cost, so provenance stays a property of the
+    tie rather than of how someone walked it.
+
+    Every consumer in this module goes through here, which is what keeps the
+    reported `warmth_score` ranking the same way Dijkstra does: _adjacency
+    compares with it (a constant shifts both sides, so the warmest edge per pair
+    is unchanged), _best_path minimizes it, and _describe sums it into
+    `total_cost`.
     """
-    return taxonomy.edge_cost(edge.relationship_type)
+    return taxonomy.edge_cost(edge.relationship_type) + config.HOP_SURCHARGE
+
+
+def fame_penalty(person: Person) -> float:
+    """Routing surcharge for someone famous we do not actually know.
+
+    Reads the STORED qid only — never bridge.is_notable(), which falls back to a
+    live Wikipedia lookup. This runs once per person in the graph on every query,
+    so a network call here would be thousands of them.
+
+    Someone Drew genuinely knows is reachable regardless of fame, which is why
+    is_warm is checked first: Harry Stebbings carries a QID and is also Drew's
+    first-degree contact.
+    """
+    if person.is_warm:
+        return 0.0
+    if person.wikidata_qid:
+        return config.UNREACHABLE_FAME_PENALTY
+    return 0.0
 
 
 def _adjacency(db: Session, include_weak: bool = False):
@@ -95,27 +134,55 @@ def _adjacency(db: Session, include_weak: bool = False):
     # recognisable connector below the threshold pays nothing; only a true funnel
     # (Harry Stebbings, degree 119) pays a mild surcharge to keep every path from
     # collapsing onto the same handful of hubs.
+    #
+    # Degree alone does not answer "will this person take the call". Samuel L.
+    # Jackson sits at degree 3 and pays nothing here, yet he is the single worst
+    # node to route through; Bree Hanson at degree 36 is a real connector. So a
+    # second, orthogonal surcharge is added for people who are famous but not
+    # actually known to us (see config.UNREACHABLE_FAME_PENALTY).
     thr = config.MEGA_HUB_DEGREE
-    node_penalty = {
-        pid: config.DEGREE_PENALTY_COEF * math.log(deg / thr)
-        for pid, deg in degree.items() if deg > thr
-    }
+    node_penalty: Dict[str, float] = {}
+    for pid, deg in degree.items():
+        penalty = 0.0
+        if deg > thr:
+            penalty += config.DEGREE_PENALTY_COEF * math.log(deg / thr)
+        person = person_by_id.get(pid)
+        if person is not None:
+            penalty += fame_penalty(person)
+        if penalty:
+            node_penalty[pid] = penalty
     return adj, person_by_id, src_by_id, node_penalty
 
 
 def _best_path(adj, start: str, target: str, max_hops: int,
                excluded: Optional[Set[str]] = None,
-               node_penalty: Optional[Dict[str, float]] = None
+               node_penalty: Optional[Dict[str, float]] = None,
+               banned_steps: Optional[Set[Tuple[str, str]]] = None
                ) -> Optional[List[Hop]]:
     """Lowest-cost (warmest) path, skipping `excluded` intermediate nodes.
 
-    Cost of a step = the edge's tier cost + a routing penalty for the node being
-    entered (unless it is the target). The penalty makes a path route around a
-    mega-hub when a cheaper way exists, so long paths stop funnelling through the
-    same handful of interview hosts.
+    `banned_steps` closes individual (from, to) links rather than whole people,
+    which is what lets `_routes` ask for "another way out of Drew" without
+    striking Drew's best connector off the map. Directed, and that is enough:
+    the reverse of a banned step leads back into a node the caller has already
+    excluded.
+
+    Cost of a step = the edge's tier cost + a flat per-hop surcharge + a routing
+    penalty for the node being entered (unless it is the target).
+
+    The surcharge is what makes "one introduction beats three" true of the cost
+    function and not just of the README. Summing tier costs alone made three
+    tier-1 hops (3.0) tie one tier-3 hop (3.0), and made two tier-1 hops (2.0)
+    beat it outright — i.e. the search preferred relaying through two strangers
+    over asking one person who had actually invested in the target's company.
+    Every hop is another human who has to agree to pass the intro along, and
+    that risk compounds per hop rather than averaging out; the node penalty does
+    not cover it, since it only bites above MEGA_HUB_DEGREE and is zero for the
+    ordinary low-degree people such a chain runs through.
     """
     excluded = excluded or set()
     node_penalty = node_penalty or {}
+    banned_steps = banned_steps or set()
     if start == target:
         return [(start, None)]
 
@@ -139,6 +206,8 @@ def _best_path(adj, start: str, target: str, max_hops: int,
             continue
         for neighbor, edge in adj.get(node, []):
             if neighbor in excluded and neighbor != target:
+                continue
+            if (node, neighbor) in banned_steps:
                 continue
             step = _edge_cost(edge)
             if neighbor != target:
@@ -191,39 +260,153 @@ def _hop_distance(adj, start: str, target: str) -> Optional[int]:
     return None
 
 
-def _diverse_paths(adj, start: str, target: str, max_hops: int,
-                   k: int, node_penalty: Optional[Dict[str, float]] = None
-                   ) -> List[List[Hop]]:
-    """Up to k routes; each avoids every bridge node used by the earlier ones."""
-    paths: List[List[Hop]] = []
-    excluded: Set[str] = set()
-    seen: Set[Tuple[str, ...]] = set()
-    for _ in range(k):
-        path = _best_path(adj, start, target, max_hops, excluded, node_penalty)
-        if path is None:
-            break
-        signature = tuple(pid for pid, _edge in path)
-        if signature in seen:
-            break
-        seen.add(signature)
-        paths.append(path)
+def _bridges(path: List[Hop]) -> List[str]:
+    """The people who would have to relay the intro — everyone but the ends."""
+    return [pid for pid, _edge in path[1:-1]]
 
-        bridges = [pid for pid, _edge in path[1:-1]]
-        if not bridges:
-            # A direct edge has no bridge to exclude, so re-running would return
-            # this very same path k times. One route IS the answer here.
-            break
-        excluded.update(bridges)
-    return paths
+
+def _route_cost(path: List[Hop], node_penalty: Dict[str, float]) -> float:
+    """Exactly what _best_path minimized for this path.
+
+    Must stay in step with the loop there: every hop pays its edge cost, and
+    every node ENTERED except the target pays its node penalty — which is the
+    bridges, since the start is never entered.
+    """
+    total = sum(_edge_cost(edge) for _pid, edge in path if edge is not None)
+    return total + sum(node_penalty.get(pid, 0.0) for pid in _bridges(path))
+
+
+def _is_a_detour_around(candidate: List[Hop], shown: List[List[Hop]]) -> bool:
+    """True when `candidate` is just an accepted route with extra people in it.
+
+    The k cheapest paths in a graph are mostly trivial variations on each other,
+    and the variations read as nonsense here. The second-cheapest route to Garry
+    Tan was `Drew -> Atlas Berry -> Bryce Johnson -> Garry Tan`: the best route
+    with a stranger wedged in front of it. Drew already knows Bryce. Going
+    through Atlas to reach him is not a second option, it is the same intro made
+    worse, and offering it as a choice is what "three variations on one chain"
+    meant.
+
+    Superset of the BRIDGES, which is exactly the "everyone I already had to
+    ask, plus more" test. It leaves genuine alternatives alone: a route reaching
+    the same warm tail through a different first contact drops someone, so it is
+    never a superset. A direct edge has no bridges, so every longer route is a
+    detour around it — correct, and the reason a 1-hop answer stands alone.
+    """
+    bridges = set(_bridges(candidate))
+    return any(bridges >= set(_bridges(route)) for route in shown)
+
+
+def _routes(adj, start: str, target: str, max_hops: int, k: int,
+            node_penalty: Optional[Dict[str, float]] = None,
+            banned: Optional[Set[str]] = None) -> List[List[Hop]]:
+    """The k warmest distinct routes, warmest first — Yen's k-shortest-paths.
+
+    Replaces a homegrown rule that excluded every bridge of every route already
+    accepted. That rule is what put celebrities in the results: two good answers
+    through Drew's real connectors banned Sophia Amoruso, Turner Novak, Peter
+    Rahal AND Harry Stebbings, so the warmest chain still standing to Marc
+    Andreessen ran through Joe Rogan. The junk route was not discovered, it was
+    manufactured — the search demolished every alternative before asking for
+    one, and no amount of re-ranking helps once the good candidates are gone.
+
+    Yen's deviates by closing one LINK at a time rather than deleting people.
+    That distinction is the whole fix. Asking "another way out of Drew?" closes
+    Drew -> Sophia and leaves Sophia standing, so she is still available deeper
+    in the next route — and Harry Stebbings, who every good route to Marc
+    Andreessen runs through, is never struck off merely for being useful twice.
+
+    Each round extends every prefix of the last route found: keep the root,
+    close the links already taken out of its spur node, bar the root's own nodes
+    from being revisited (which is what keeps a route loopless), and re-search
+    from there. Candidates pool across rounds and are taken cheapest-first, so
+    route 2 is genuinely the second-warmest route and not whichever deviation
+    happened to be tried first.
+
+    `explored` and `shown` are deliberately different lists. A detour we would
+    never show still has to be deviated FROM, because the route worth showing
+    usually sits behind it: the real second-best route to Garry Tan is only
+    generated by deviating off `Drew -> Atlas Berry -> Bryce Johnson -> ...`,
+    the very candidate _is_a_detour_around discards. Filtering at the pop and
+    walking on would stall the search on the first junk candidate and return one
+    route where three exist. Yen's bookkeeping reads `explored` for the same
+    reason — its correctness depends on knowing every route already generated.
+
+    `banned` nodes may never be TRANSITED (the target is always exempt — see
+    _best_path), which is how _plausible_first guarantees a usable lead route.
+    """
+    node_penalty = node_penalty or {}
+    banned = set(banned or ())
+
+    first = _best_path(adj, start, target, max_hops, banned, node_penalty)
+    if first is None:
+        return []
+
+    explored = [first]               # every route Yen's has generated, in cost order
+    shown = [first]                  # the subset a human would call distinct
+    seen: Set[Tuple[str, ...]] = {tuple(pid for pid, _e in first)}
+    pool: List[Tuple[float, int, List[Hop]]] = []
+    counter = itertools.count()      # keeps heapq off the path lists (ORM edges)
+    deadline = (time.monotonic() + config.ROUTE_SEARCH_BUDGET_S
+                if config.ROUTE_SEARCH_BUDGET_S > 0 else float("inf"))
+
+    while len(shown) < k and len(explored) < config.ROUTE_SEARCH_LIMIT:
+        if time.monotonic() > deadline:
+            break        # keep what we have; the routes given up on rank worst
+        previous = explored[-1]
+        for i in range(len(previous) - 1):
+            spur_node = previous[i][0]
+            root = previous[:i + 1]
+            root_sig = tuple(pid for pid, _e in root)
+
+            # Close every link already taken out of this spur node by a route
+            # that reached it the same way. Without this the search just returns
+            # the route we already have; with it, only that one exit closes.
+            banned_steps = {
+                (path[i][0], path[i + 1][0]) for path in explored
+                if len(path) > i + 1
+                and tuple(pid for pid, _e in path[:i + 1]) == root_sig
+            }
+            # The root's own people are off-limits to the spur, so a route can
+            # never loop back through someone it has already used.
+            excluded = banned | {pid for pid, _e in root[:-1]}
+
+            spur = _best_path(adj, spur_node, target, max_hops - i, excluded,
+                              node_penalty, banned_steps)
+            if spur is None:
+                continue
+            candidate = root + spur[1:]
+            signature = tuple(pid for pid, _e in candidate)
+            if signature in seen:
+                continue
+            seen.add(signature)
+            heapq.heappush(pool, (_route_cost(candidate, node_penalty),
+                                  next(counter), candidate))
+        if not pool:
+            break            # every distinct route has been found; k was optimistic
+        _cost, _tie, next_best = heapq.heappop(pool)
+        explored.append(next_best)
+        if not _is_a_detour_around(next_best, shown):
+            shown.append(next_best)
+    return shown
 
 
 def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
-    nodes, costs, bridges = [], [], []
+    nodes, costs, bridges, unreachable = [], [], [], []
     for i, (pid, edge) in enumerate(path):
         person = person_by_id.get(pid)
+        # A famous stranger standing MID-path is the thing that makes a route
+        # unusable: the hop is real, but expecting Samuel L. Jackson to pass an
+        # intro along to Elon Musk is not a plan. Marked rather than dropped —
+        # sometimes it is the only route there is, and the honest answer is to
+        # show it and say why it will not work. As the ENDPOINT it is fine: you
+        # asked to reach them, and nobody has to relay anything.
+        is_bridge = 0 < i < len(path) - 1
+        blocked = bool(person is not None and is_bridge and fame_penalty(person))
         node = {
             "label": person.canonical_name if person else pid,
             "is_warm": bool(person.is_warm) if person else False,
+            "unreachable": blocked,
         }
         if edge is not None:
             costs.append(_edge_cost(edge))
@@ -235,8 +418,10 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
                 "evidence_snippet": edge.evidence_snippet or "",
                 "source_url": source.url if source else "",
             })
-        if 0 < i < len(path) - 1:
+        if is_bridge:
             bridges.append(node["label"])
+            if blocked:
+                unreachable.append(node["label"])
         nodes.append(node)
 
     hops = len(path) - 1
@@ -246,6 +431,11 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
         "total_cost": round(total, 2),
         "warmth_score": taxonomy.warmth_score(total, hops),
         "bridges": bridges,
+        # Names, not just a flag: "this route needs Samuel L. Jackson to make an
+        # introduction" is the sentence that tells you to stop, and it needs the
+        # name to land. Empty for the ordinary case.
+        "unreachable_bridges": unreachable,
+        "usable": not unreachable,
         "path": nodes,
     }
 
@@ -255,10 +445,46 @@ def _lookup(db: Session, name: str) -> Optional[Person]:
         Person.norm_name == person_norm_key(name))).scalar_one_or_none()
 
 
+def unroutable_bridge_ids(person_by_id: Dict[str, Person]) -> Set[str]:
+    """Everyone who may not stand MID-path: famous, and not actually known to us.
+
+    Same test as fame_penalty, used as a hard gate rather than a surcharge. The
+    surcharge alone could not do this job: it re-ranks, so it only helps when
+    something better exists to re-rank to, and it is a fixed number that a long
+    enough chain of warm hops will always out-sum. As a bridge ban the question
+    it answers is the right one — not "how much worse is this route" but "is
+    this a route at all" — and the answer does not drift with path length.
+    """
+    return {pid for pid, person in person_by_id.items() if fame_penalty(person)}
+
+
+def _plausible_first(adj, a: Person, b: Person, person_by_id, node_penalty):
+    """Routes for a -> b, led by a walkable one whenever one exists at all.
+
+    Pass 1 bars every famous stranger from the bridge positions, so anything it
+    returns is usable by construction. The target is exempt: asking to reach
+    Elon Musk by name is a different request from being routed THROUGH him, and
+    nobody has to relay anything to the person you named.
+
+    Pass 2 runs only when pass 1 came back empty — i.e. every chain that exists
+    needs a celebrity to pass the intro along, which is the honest answer for
+    Ira Matthew Ehrenpreis in the bundled graph. It is capped separately and
+    hard: showing the one real chain and labelling why it will not work is
+    useful, and showing three of them is just noise wearing the same label. The
+    cap is why a usable route is never crowded out by variations on a dead end.
+    """
+    blocked = unroutable_bridge_ids(person_by_id) - {a.id, b.id}
+    routes = _routes(adj, a.id, b.id, config.hop_limit(),
+                     config.CONNECT_MAX_PATHS, node_penalty, blocked)
+    if routes:
+        return routes
+    return _routes(adj, a.id, b.id, config.hop_limit(),
+                   config.CONNECT_MAX_UNUSABLE_PATHS, node_penalty)
+
+
 def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
     adj, person_by_id, src_by_id, node_penalty = _adjacency(db, include_weak)
-    routes = _diverse_paths(adj, a.id, b.id, config.hop_limit(),
-                            config.CONNECT_MAX_PATHS, node_penalty)
+    routes = _plausible_first(adj, a, b, person_by_id, node_penalty)
     return routes, person_by_id, src_by_id
 
 
@@ -367,7 +593,10 @@ def connect_people(db: Session, name_a: str, name_b: str,
         }
 
     paths = [_serialize(r, person_by_id, src_by_id) for r in routes]
-    paths.sort(key=lambda p: (-p["warmth_score"], p["hops"]))
+    # Usable first, THEN warmth. A route that needs a celebrity to relay is not
+    # a better answer than a colder one you can actually walk, however warm its
+    # hops score — and `best` below is what the UI leads with.
+    paths.sort(key=lambda p: (not p["usable"], -p["warmth_score"], p["hops"]))
     best = paths[0]
     return {
         "connected": True,
@@ -400,10 +629,28 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}
 
-    adj, person_by_id, src_by_id, _pen = _adjacency(db)
+    adj, person_by_id, src_by_id, node_penalty = _adjacency(db)
 
     # Dijkstra from the root; keep the cheapest total cost to each person.
-    limit = config.hop_limit()
+    #
+    # Costs must match connect(): this used the frozen `edge.cost` column and
+    # threw the node penalty away, so it was the one surface that re-tiering,
+    # the hop surcharge, and hub avoidance never reached. That is why it filled
+    # with celebrities — a podcast edge to Samuel L. Jackson is cheap, and
+    # nothing here ever charged for the fact that he will not take the call.
+    #
+    # Unlike connect(), the penalty is NOT exempted for any node: in a discover
+    # listing every person is a suggestion, so being unreachable disqualifies
+    # them as a destination exactly as it does as a stepping stone. connect()
+    # exempts only its explicit target — asking to reach a celebrity by name is
+    # a different request from being handed one unprompted.
+    # `hop_cap`, NOT `limit`. These are different quantities and this line used
+    # to assign the hop cap over the caller's result count. hop_limit() returns
+    # inf by default, so `len(people) >= limit` below was `>= inf` — never true.
+    # The cap silently vanished and every caller got the entire reachable set:
+    # /discover?limit=20 answered with ~2.4k people, which is why the listing
+    # was full of celebrities. They were never ranked in; nothing was ranked out.
+    hop_cap = config.hop_limit()
     counter = itertools.count()
     dist: Dict[str, float] = {root.id: 0.0}
     hops_to: Dict[str, int] = {root.id: 0}
@@ -411,10 +658,10 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
     heap = [(0.0, 0, next(counter), root.id)]
     while heap:
         cost, hops, _t, node = heapq.heappop(heap)
-        if cost > dist.get(node, float("inf")) or hops >= limit:
+        if cost > dist.get(node, float("inf")) or hops >= hop_cap:
             continue
         for neighbor, edge in adj.get(node, []):
-            new_cost = cost + edge.cost
+            new_cost = cost + _edge_cost(edge) + node_penalty.get(neighbor, 0.0)
             if new_cost < dist.get(neighbor, float("inf")):
                 dist[neighbor] = new_cost
                 hops_to[neighbor] = hops + 1

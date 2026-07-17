@@ -1,7 +1,7 @@
 """Pathfinding: warmest route wins, routes are diverse, no path is fabricated."""
 from app import config
 from app.graph import builder
-from app.graph.connect import _adjacency, _best_path, _diverse_paths
+from app.graph.connect import _adjacency, _best_path, _routes
 
 
 def _p(db, name):
@@ -35,7 +35,7 @@ def test_prefers_the_warmer_route_over_the_shorter_one(db):
     assert [pid for pid, _e in path] == [drew.id, bree.id, target.id]
 
 
-def test_diverse_paths_avoid_earlier_bridges(db):
+def test_alternate_routes_use_a_different_bridge(db):
     drew, target = _p(db, "Drew Glover"), _p(db, "Charles Hudson")
     bree, vikram = _p(db, "Bree Hanson"), _p(db, "Vikram Lakhwara")
     for bridge in (bree, vikram):
@@ -43,7 +43,7 @@ def test_diverse_paths_avoid_earlier_bridges(db):
         builder.add_edge(db, bridge, target, "podcast_guest")
 
     adj, _, _, _ = _adjacency(db)
-    routes = _diverse_paths(adj, drew.id, target.id, config.hop_limit(), 3)
+    routes = _routes(adj, drew.id, target.id, config.hop_limit(), 3)
     assert len(routes) == 2                       # only two distinct bridges exist
     bridges = {r[1][0] for r in routes}
     assert bridges == {bree.id, vikram.id}        # genuinely different routes
@@ -56,19 +56,19 @@ def test_a_direct_edge_yields_exactly_one_route(db):
     builder.add_edge(db, drew, marcos, "cofounder")
 
     adj, _, _, _ = _adjacency(db)
-    routes = _diverse_paths(adj, drew.id, marcos.id, config.hop_limit(),
+    routes = _routes(adj, drew.id, marcos.id, config.hop_limit(),
                             config.CONNECT_MAX_PATHS)
     assert len(routes) == 1
 
 
-def test_diverse_paths_never_repeats_a_route(db):
+def test_routes_never_repeat_a_route(db):
     drew, bree, target = [_p(db, n) for n in
                           ("Drew Glover", "Bree Hanson", "Only Bridge")]
     builder.add_edge(db, drew, bree, "podcast_guest")
     builder.add_edge(db, bree, target, "podcast_guest")
 
     adj, _, _, _ = _adjacency(db)
-    routes = _diverse_paths(adj, drew.id, target.id, config.hop_limit(), 3)
+    routes = _routes(adj, drew.id, target.id, config.hop_limit(), 3)
     signatures = [tuple(pid for pid, _e in r) for r in routes]
     assert len(signatures) == len(set(signatures)) == 1
 

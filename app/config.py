@@ -67,6 +67,37 @@ MAX_ORG_MEMBERS_FOR_EDGES = int(os.environ.get("VCWI_MAX_ORG_MEMBERS", "40"))
 # on-the-record relationship; tier 5 is a weak structural affiliation.
 WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 
+# Surcharge for routing through — or suggesting — someone famous we do not
+# actually know. An edge to Samuel L. Jackson can be perfectly real (Rule 0 is
+# about whether a source asserts the tie, not about whether the tie is useful)
+# and still be worthless as an intro: he will not take the call. Warmth tiers
+# measure how well two people know each other, which is not the same question.
+#
+# The signal is a stored Wikidata QID, which is what graph/bridge.py already
+# calls "the signal that actually matters for reachability" when it walks DOWN
+# the fame gradient during expansion. This applies the same idea to ROUTING,
+# which is where it was missing. It separates the two populations cleanly in the
+# bundled graph: Samuel L. Jackson, Joe Rogan and Elon Musk carry a QID; Charles
+# Hudson and Sheel Mohnot — the people you actually want introduced to — do not.
+#
+# `is_warm` is exempt, and that exemption is load-bearing: Harry Stebbings has a
+# QID and is also Drew's real first-degree contact. Someone Drew genuinely knows
+# is reachable no matter how famous they are.
+#
+# Finite, never infinite: a path through a celebrity still beats no path, so
+# this re-ranks rather than censors. 0.0 disables it.
+UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
+
+# Flat cost added to every hop, on top of that hop's tier cost. Encodes the
+# thing tier costs alone cannot: each hop is another person who has to agree to
+# pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one
+# tier-3 hop and two tier-1 hops beat it — the search would route through two
+# strangers rather than ask one investor directly. At 1.0 a direct tie wins
+# unless the detour is genuinely warmer, which is the "one introduction beats
+# three" rule the README already claims. Raise to bias harder toward short
+# chains; 0.0 restores the old ranking.
+HOP_SURCHARGE = float(os.environ.get("VCWI_HOP_SURCHARGE", "1.0"))
+
 # --- opt-in weak co-occurrence tier (the hybrid) ---------------------------
 # OFF by default: the graph stays Rule-0 pure. When enabled, enrichment mines
 # co_mention edges (two people named together on a page) as a tier-6 last
@@ -92,7 +123,28 @@ DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 # shipped desktop build is bounded, not open-ended. No proxy in front of it
 # — traded a little security margin for zero hosting infrastructure, since
 # this ships to one trusted person. See DESKTOP.md.
+# The server's own key. On the web this is the FALLBACK, not the norm: visitors
+# bring their own via /settings, held per-session (session.py). Set this only
+# for a single-operator deployment or the CLI — every visitor shares it, and
+# your bill, when it is set.
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
+
+# Whether the session cookie is marked Secure. "auto" (the default) decides per
+# request from the scheme, which is the only setting that is correct in both of
+# this app's deployments: a Secure cookie is never sent over plain HTTP, so
+# hard-coding it on silently breaks http://localhost and the desktop wrapper,
+# and hard-coding it off would ship the session id in the clear in production.
+# Force with 1/0 behind a TLS-terminating proxy that does not forward the
+# scheme (uvicorn needs --proxy-headers to see it).
+COOKIE_SECURE = os.environ.get("VCWI_COOKIE_SECURE", "auto").strip().lower()
+
+
+def cookie_secure_for(scheme: str) -> bool:
+    if COOKIE_SECURE in ("1", "true", "yes", "on"):
+        return True
+    if COOKIE_SECURE in ("0", "false", "no", "off"):
+        return False
+    return scheme == "https"
 
 # --- Claude relationship-strength classification (co_mention tier ONLY) ----
 # Claude labels what kind of tie a co-mention's article text implies
@@ -150,10 +202,33 @@ def hop_limit(explicit: int = 0) -> float:
     limit = explicit or MAX_HOPS
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
-# A person's NETWORK radius for comparison. Full 5-hop reachability is useless:
-# inside one connected component everybody reaches everybody, so overlap is
-# always 100%. Two hops is who you could plausibly be introduced to.
-COMPARE_RADIUS = int(os.environ.get("VCWI_COMPARE_RADIUS", "2"))
+# How many routes to show when EVERY chain that exists needs a famous stranger
+# to relay the intro. Deliberately far below CONNECT_MAX_PATHS: connect() only
+# reaches this fallback when there is no usable route at all, and in that state
+# the useful answer is the one real chain plus the reason it will not work.
+# Three of them is the same dead end told three ways — which is exactly what the
+# search used to return, because banning the bridges of one celebrity route just
+# routes you through the next celebrity. Never used while a usable route exists.
+CONNECT_MAX_UNUSABLE_PATHS = int(
+    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "1"))
+# How many routes Yen's may GENERATE while looking for CONNECT_MAX_PATHS worth
+# showing. Far above it on purpose: the cheapest alternates are mostly detours
+# around the best route ("Drew -> Atlas Berry -> Bryce Johnson" when Drew knows
+# Bryce), and _routes has to walk past those to reach a genuinely different
+# intro. Every extra route costs roughly one Dijkstra per hop, so this is the
+# knob that bounds a warm query's worst case; measured at ~0.2s for the default
+# on the bundled 26k-edge graph. Lower it to cap latency, raise it if a dense
+# neighbourhood is returning fewer routes than it should.
+ROUTE_SEARCH_LIMIT = int(os.environ.get("VCWI_ROUTE_SEARCH_LIMIT", "24"))
+# Wall-clock ceiling on that generation loop. The limit above bounds the WORK,
+# which is not the same as bounding the wait: a target reachable through exactly
+# one bridge has nothing but detours to offer, so the search spends the whole
+# allowance proving a second route does not exist. That case measured 3.4s to
+# return one route. Unlike the enrichment budgets this one cannot cost coverage
+# — it only stops re-searching a graph already in memory, and the routes it
+# gives up on are the ones ranked worst — so bounding it does not trade away the
+# accuracy-first posture. 0 disables it.
+ROUTE_SEARCH_BUDGET_S = float(os.environ.get("VCWI_ROUTE_SEARCH_BUDGET", "1.0"))
 
 # --- providers -------------------------------------------------------------
 SERPER_API_KEY = os.environ.get("SERPER_API_KEY", "").strip()
@@ -182,6 +257,22 @@ EDGAR_USER_AGENT = os.environ.get(
     "VCWI_EDGAR_USER_AGENT", "VC WarmIntro Demo research@example.com")
 EDGAR_MIN_INTERVAL = float(os.environ.get("VCWI_EDGAR_MIN_INTERVAL", "0.2"))
 
+# --- accuracy-vs-latency posture -------------------------------------------
+# This app answers "is there a REAL path?", and here a miss costs more than a
+# wait: an under-searched query reports "no path exists" for a connection that
+# does, and the caller cannot tell that apart from a true negative. So the two
+# frontier budgets that were explicitly cut for latency (see each) default back
+# to the wide end of their measured range.
+#
+# This buys coverage, not correctness: it widens where we look, and every edge
+# still has to clear Rule 0 to exist. It cannot manufacture a path that isn't
+# there — it only stops us from missing one.
+#
+# The cost is real and is the whole point of the trade: a cold connect goes from
+# roughly 2 minutes to roughly 4-5. Set VCWI_ACCURACY_FIRST=0 for the old
+# latency-tuned defaults; either way the per-knob env vars still win.
+ACCURACY_FIRST = _flag("VCWI_ACCURACY_FIRST", "1")
+
 # --- enrichment budget -----------------------------------------------------
 # Caps per enriched person, so one hub doesn't blow up the graph or the latency.
 MAX_FIRMS_PER_PERSON = int(os.environ.get("VCWI_MAX_FIRMS_PER_PERSON", "3"))
@@ -197,13 +288,24 @@ MAX_ROSTER_MEMBERS = int(os.environ.get("VCWI_MAX_ROSTER_MEMBERS", "40"))
 MAX_PORTFOLIO_COMPANIES = int(os.environ.get("VCWI_MAX_PORTFOLIO", "400"))
 # How many frontier people get their own enrichment pass on the 2nd hop.
 # Each costs ~3 search calls plus page fetches, so this is the dominant term in
-# cold-query latency: at 6 per endpoint a cold connect took 4m30s.
-ENRICH_FRONTIER_FANOUT = int(os.environ.get("VCWI_ENRICH_FRONTIER_FANOUT", "3"))
+# cold-query latency: at 6 per endpoint a cold connect took 4m30s. It is also
+# the dominant term in COVERAGE — an unenriched frontier person contributes no
+# edges, so a path through them is not missed, it is invisible. 4m30s is the
+# price of the accuracy-first trade, so ACCURACY_FIRST puts it back to 6.
+ENRICH_FRONTIER_FANOUT = int(os.environ.get(
+    "VCWI_ENRICH_FRONTIER_FANOUT", "6" if ACCURACY_FIRST else "3"))
 # Wall-clock ceiling for widening one neighborhood. On expiry we stop and SAY SO
 # rather than silently returning a thinner graph than the caller believes.
-ENRICH_TIME_BUDGET_S = float(os.environ.get("VCWI_ENRICH_TIME_BUDGET", "45"))
-# Total wall-clock a single cold connect() may spend widening both sides.
-CONNECT_WORK_BUDGET_S = float(os.environ.get("VCWI_CONNECT_WORK_BUDGET", "180"))
+# Raised under ACCURACY_FIRST so the wider fanout above can actually finish:
+# leaving it at 45s would let the extra frontier people time out mid-pass, which
+# buys the latency back by throwing away the coverage it was spent on.
+ENRICH_TIME_BUDGET_S = float(os.environ.get(
+    "VCWI_ENRICH_TIME_BUDGET", "120" if ACCURACY_FIRST else "45"))
+# Total wall-clock a single cold connect() may spend widening both sides. Must
+# stay above 2x ENRICH_TIME_BUDGET_S or it, not the per-side budget, becomes the
+# real ceiling and the second endpoint is the one that gets starved.
+CONNECT_WORK_BUDGET_S = float(os.environ.get(
+    "VCWI_CONNECT_WORK_BUDGET", "300" if ACCURACY_FIRST else "180"))
 # How many hops to walk OUTWARD from a cold target (its island is small and far;
 # the fixed seed's neighbourhood is already dense, so it stays at CONNECT_DEPTH).
 CONNECT_TARGET_DEPTH = int(os.environ.get("VCWI_CONNECT_TARGET_DEPTH", "4"))
