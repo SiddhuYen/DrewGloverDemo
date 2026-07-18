@@ -528,11 +528,14 @@ def connect_people(db: Session, name_a: str, name_b: str,
                 if progress:
                     progress(f"[1] enriching {name}…")
                 h = hint if name == name_b else ""   # hint is for the target only
+                is_target = name == name_b           # so is the homonym guard
                 if config.DEEP_SEARCH:
                     enricher.enrich_neighborhood(db, name, depth=2,
-                                                 progress=progress, hint=h)
+                                                 progress=progress, hint=h,
+                                                 is_target=is_target)
                 else:
-                    enricher.enrich_person(db, name, progress=progress, hint=h)
+                    enricher.enrich_person(db, name, progress=progress, hint=h,
+                                           is_target=is_target)
         a, b = _lookup(db, name_a), _lookup(db, name_b)
         if a is None or b is None:
             missing = name_a if a is None else name_b
@@ -566,7 +569,8 @@ def connect_people(db: Session, name_a: str, name_b: str,
                          f"(depth {config.CONNECT_TARGET_DEPTH})…")
             enricher.enrich_neighborhood(
                 db, name_b, depth=config.CONNECT_TARGET_DEPTH, progress=progress,
-                opposite_component=drew_reach, deadline=deadline, hint=hint)
+                opposite_component=drew_reach, deadline=deadline, hint=hint,
+                is_target=True)
             routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
     if not routes:
@@ -624,7 +628,7 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
     root = _lookup(db, name)
     if root is None or root.enriched < target_enrichment_level():
         get_enricher().enrich_neighborhood(db, name, depth=depth, hint=hint,
-                                           progress=progress)
+                                           progress=progress, is_target=True)
         root = _lookup(db, name)
     if root is None:
         return {"found": False, "reason": f"'{name}' is not in the graph"}

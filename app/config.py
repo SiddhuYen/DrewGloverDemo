@@ -157,6 +157,14 @@ CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5")
 LLM_CLASSIFY_ENABLED = _flag("VCWI_LLM_CLASSIFY", "1")
 LLM_CLASSIFY_BATCH = int(os.environ.get("VCWI_LLM_CLASSIFY_BATCH", "20"))
 
+# Homonym guard: when the target's name matches a Wikidata page, reject that
+# identity if the LLM says "different" at or above this confidence, or (keyless)
+# if the web background and the Wikidata description anchor in conflicting
+# professional domains. Keeps a searched person from inheriting a same-named
+# stranger's connections.
+IDENTITY_VERIFY_ENABLED = _flag("VCWI_IDENTITY_VERIFY", "1")
+IDENTITY_MISMATCH_MIN_CONF = float(os.environ.get("VCWI_IDENTITY_MISMATCH_MIN_CONF", "0.6"))
+
 # --- LLM-triggered structural verification (co_mention -> a REAL tie) ------
 # When a co-mention's LLM label is confident AND high-tier enough, spend
 # ONE extra targeted lookup: pull a candidate org out of the evidence text
