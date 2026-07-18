@@ -182,11 +182,22 @@ class Enricher:
 
         Runs only for the explicit search target (frontier people arrive already
         keyed by QID from structural claims). Compares the candidate's Wikidata
-        description + occupation against what we actually know about the person
-        we searched — the user's context hint plus a quick web-background pull.
-        LLM-judged when a Claude key is present; a deterministic cross-domain
-        check otherwise. Fails OPEN (returns True) whenever there is no signal on
-        either side, so the common notable-person case is unaffected.
+        description + occupation + known affiliations against what we actually
+        know about the person we searched — the user's context hint plus a
+        quick web-background pull. LLM-judged when a Claude key is present; a
+        deterministic cross-domain check otherwise. Fails OPEN (returns True)
+        whenever there is no signal on either side, so the common notable-person
+        case is unaffected.
+
+        A broad career category alone cannot separate two people IN the same
+        field — "venture capitalist" vs "venture capitalist" tells the LLM
+        nothing, even though two same-named VCs at two different, unrelated
+        funds are exactly the kind of homonym this guard exists to catch. The
+        candidate's specific employer/affiliation names (from
+        wikidata.orgs_for_person, the same call _from_wikidata makes again on
+        acceptance — cached, so a pass that ends up confirming the match pays
+        for this fetch only once) give the LLM something concrete enough to
+        actually disambiguate on, instead of two matching adjectives.
         """
         if not (self._verify_identity and config.IDENTITY_VERIFY_ENABLED):
             return True
@@ -195,6 +206,9 @@ class Enricher:
                      + " ".join(card.get("occupations", []))).strip()
         if not candidate:
             return True                       # nothing to check the name against
+        org_names = [o["org_name"] for o in self.wikidata.orgs_for_person(qid)][:5]
+        if org_names:
+            candidate = f"{candidate} — affiliated with {', '.join(org_names)}"
         signal = f"{self._background_text} {self._hint}".strip()
         if not signal:
             return True                       # no context to dispute the match
