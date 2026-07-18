@@ -573,6 +573,19 @@ def connect_people(db: Session, name_a: str, name_b: str,
                 is_target=True)
             routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
 
+    # Stage 3 — context escalation. No structural path exists, but the caller
+    # supplied a context for the target and a web-search key is configured. Spend
+    # it: web-search the target for co-mentions (steered by the context), then
+    # retry ALLOWING those weak links. This is the "use the context + API keys
+    # more when the in-graph search fails" path — the links stay tier-6 and
+    # labelled, so Rule 0 is untouched; they are just now traversable.
+    if not routes and hint and hint.strip() and enricher.comention._available():
+        if progress:
+            progress(f"[3] no structural path — web-searching {name_b} "
+                     f"with your context…")
+        enricher.enrich_target_comention(db, name_b, hint=hint, progress=progress)
+        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak=True)
+
     if not routes:
         # With no hop limit, the only way to fail is genuine disconnection: no
         # chain of asserted relationships joins them. Report the distance anyway

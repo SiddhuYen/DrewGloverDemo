@@ -401,13 +401,18 @@ class Enricher:
         return False
 
     def _from_comention(self, db: Session, subject: Person,
-                        progress: Progress) -> int:
+                        progress: Progress, *, force: bool = False) -> int:
         """OPT-IN weak tier. Off unless config.CO_MENTION_ENABLED — then every
         person co-mentioned with the subject on a fetched page becomes a tier-6
         `co_mention` edge, labelled as NOT a confirmed relationship. This is the
         one deliberate exception to Rule 0, gated twice (here to create, and
-        connect(include_weak=True) to traverse)."""
-        if not (config.CO_MENTION_ENABLED or config.DEEP_SEARCH):
+        connect(include_weak=True) to traverse).
+
+        `force` runs it outside deep mode — used by the context-escalation pass,
+        when a normal search found no structural path and the user supplied a
+        context to focus a web search on the target.
+        """
+        if not (force or config.CO_MENTION_ENABLED or config.DEEP_SEARCH):
             return 0
         hits = self.comention.co_mentions(subject.canonical_name, hint=self._hint)
         # Batch-classify what the article text around each mention IMPLIES
@@ -772,6 +777,25 @@ class Enricher:
         db.commit()
         _note(progress, f"  {subject.canonical_name}: {total} structural edges")
         return subject
+
+    def enrich_target_comention(self, db: Session, name: str, *,
+                                hint: str = "", progress: Progress = None) -> int:
+        """Context-escalation: web-search the target for co-mentions and write the
+        weak (tier-6) links, regardless of the global deep-search toggle. Called
+        when a normal connect found no structural path; the user's context steers
+        the search to the right person. Uses the configured web-search API key
+        (Serper) — a no-op if none is available. Returns edges created.
+        """
+        subject = builder.get_or_create_person(db, name)
+        if subject is None or not self.comention._available():
+            return 0
+        self._hint = (hint or "").strip()
+        self._verify_identity = False   # identity already settled by enrich_person
+        _note(progress, f"  web-searching {subject.canonical_name} for co-mentions…")
+        created = self._from_comention(db, subject, progress, force=True)
+        db.commit()
+        _note(progress, f"  {subject.canonical_name}: {created} co-mention links")
+        return created
 
     def enrich_neighborhood(self, db: Session, name: str, depth: int = 1,
                             progress: Progress = None, *,

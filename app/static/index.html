@@ -54,30 +54,39 @@
   *{box-sizing:border-box}
   [hidden]{display:none !important}
   html,body{margin:0}
-  body{background:var(--base);color:var(--ink);
+  /* Neon / retro-red field: a bright crimson→magenta wash, a scanning glow, and
+     a synthwave horizon grid, all far brighter than the old near-black Ember
+     ground. The random neon SHAPES are drawn on #bgfx (canvas) so they can move
+     and glow cheaply. Content panels stay dark for text contrast over it. */
+  body{color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #ff2d55 0%, transparent 45%),
+      radial-gradient(90% 70% at 12% 8%, #ff5e3a55 0%, transparent 55%),
+      radial-gradient(90% 70% at 88% 4%, #ff2ea855 0%, transparent 55%),
+      linear-gradient(180deg, #3a0512 0%, #55071d 38%, #7a0d24 68%, #a3122b 100%);
+    background-attachment:fixed;
     font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
-  ::selection{background:var(--accent-soft)}
+  ::selection{background:rgba(255,45,85,.35)}
 
-  /* Ember field: a slow-drifting diagonal hatch + dot grid, well below the
-     content in z-index. Reduced-motion turns the drift off but keeps the
-     field visible — it is texture, not signal. */
+  /* Random neon shapes live on this canvas (drawn in JS). */
+  #bgfx{position:fixed;inset:0;z-index:-2;pointer-events:none;width:100vw;height:100vh}
+  /* Retro synthwave grid receding to a horizon, plus a soft scanline sheen. */
   body::before{
-    content:"";position:fixed;inset:-60px;z-index:-2;pointer-events:none;
-    animation:emberDrift 22s ease-in-out infinite alternate;
+    content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
     background-image:
-      repeating-linear-gradient(135deg,rgba(236,48,19,.14) 0px,rgba(236,48,19,.14) 2px,transparent 2px,transparent 46px),
-      repeating-linear-gradient(45deg,rgba(232,162,58,.09) 0px,rgba(232,162,58,.09) 2px,transparent 2px,transparent 46px),
-      radial-gradient(rgba(239,232,229,.10) 1.5px,transparent 1.5px);
-    background-size:auto,auto,30px 30px;
+      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(255,60,90,.5) 68px,rgba(255,60,90,.5) 70px),
+      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(255,120,60,.35) 46px,rgba(255,120,60,.35) 48px);
+    transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
+    -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
+    opacity:.5;
   }
   body::after{
-    content:"";position:fixed;top:-160px;right:-120px;width:520px;height:520px;
-    z-index:-2;pointer-events:none;border:2px solid rgba(236,48,19,.16);border-radius:50%;
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0,rgba(0,0,0,.10) 1px,transparent 1px,transparent 3px);
+    animation:scan 8s linear infinite;opacity:.4;
   }
-  @keyframes emberDrift{
-    0%{transform:translate(0,0) rotate(0deg)}
-    100%{transform:translate(-40px,-30px) rotate(6deg)}}
+  @keyframes scan{0%{background-position:0 0}100%{background-position:0 120px}}
 
   .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 40px 100px}
 
@@ -275,8 +284,10 @@
      `.star svg` have identical specificity, so the later one won and blew the
      13px first-degree star up to 311px. Targeting the graph directly means
      adding an icon anywhere under .web can't inherit a full-width stretch. */
-  .web svg.webgraph{display:block;width:100%;height:auto;background:#0d0908}
-  .strand{fill:none;stroke:rgba(236,48,19,.16);stroke-width:1}
+  .web svg.webgraph{display:block;width:100%;height:auto;background:#160a0c}
+  .strand{fill:none;stroke:rgba(255,60,90,.14);stroke-width:1}
+  .ring{fill:none;stroke:rgba(255,45,85,.42);stroke-width:1.5}
+  .ringf{fill:none;stroke:rgba(255,120,60,.14);stroke-width:1}
   .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
     transition:stroke-width .15s,opacity .15s}
   .wnode{cursor:pointer}
@@ -326,13 +337,55 @@
     .wrap{padding:34px 16px 72px}h1{font-size:34px}
     .row{flex-direction:column}.row button{width:100%}
   }
+  /* --- cinematic reveal overlay (fullscreen draw-out of the connection) --- */
+  .cinema{position:fixed;inset:0;z-index:60;display:none;place-items:center;
+    padding:24px;overflow:auto;
+    background:
+      radial-gradient(90% 70% at 50% 0%, #ff2d55 0%, transparent 46%),
+      radial-gradient(70% 60% at 12% 100%, #ff5e3a66 0%, transparent 60%),
+      radial-gradient(70% 60% at 88% 100%, #ff2ea866 0%, transparent 60%),
+      linear-gradient(180deg,#2a0410,#55071d 55%,#8a0f28);
+    animation:cineIn .5s ease both}
+  .cinema.show{display:grid}
+  .cinema.closing{animation:cineOut .4s ease both}
+  @keyframes cineIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+  @keyframes cineOut{to{opacity:0;transform:scale(.98)}}
+  .cinema-inner{width:min(1000px,96vw);position:relative}
+  .cinema-hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+    margin-bottom:6px}
+  .cinema-hd .kick{font:700 11px/1 var(--font-display);letter-spacing:.34em;
+    text-transform:uppercase;color:#ffd0d8}
+  .cinema-hd h2{font:800 clamp(24px,4vw,40px)/1 var(--font-display);margin:6px 0 0;
+    text-transform:uppercase;letter-spacing:-.01em;color:#fff;
+    text-shadow:0 0 18px rgba(255,45,85,.7)}
+  .cinema-close{position:absolute;top:-6px;right:0;width:42px;height:42px;padding:0;
+    display:grid;place-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.35);
+    border-radius:50%;color:#fff;font-size:20px;line-height:1}
+  .cinema-close:hover{box-shadow:0 0 20px rgba(255,45,85,.6);transform:none}
+  .cinema svg.webgraph{width:100%;height:auto;background:transparent;
+    filter:drop-shadow(0 0 22px rgba(255,45,85,.28))}
+  .cinema-tip{text-align:center;color:#ffd0d8;font-size:13px;margin-top:10px;opacity:.85}
+
+  /* Draw-out animation primitives, shared by the cinema graph. */
+  .draw{stroke-dasharray:var(--len,600);stroke-dashoffset:var(--len,600);
+    animation:draw .9s ease forwards;animation-delay:var(--d,0s)}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .pop{opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:pop .5s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:var(--d,0s)}
+  @keyframes pop{0%{opacity:0;transform:scale(.2)}70%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+  .glow-node{animation:glowPulse 2.2s ease-in-out infinite;animation-delay:var(--d,0s)}
+  @keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,45,85,.5))}
+    50%{filter:drop-shadow(0 0 16px rgba(255,45,85,.95))}}
+
   @media(prefers-reduced-motion:reduce){
     *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
-    body::before{animation:none}
+    body::after,#bgfx{animation:none}
+    .draw{stroke-dashoffset:0}.pop{opacity:1;transform:none}
   }
 </style>
 </head>
 <body>
+<canvas id="bgfx" aria-hidden="true"></canvas>
 <div class="wrap">
   <h1><span class="lede"><span class="accent">Warm</span> Intro<br>Pathfinder</span>
     <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
@@ -483,6 +536,20 @@
 
   <div id="out"></div>
 
+  <div class="cinema" id="cinema" role="dialog" aria-modal="true" aria-label="Connection reveal">
+    <div class="cinema-inner">
+      <button class="cinema-close" onclick="closeCinema()" aria-label="Close">×</button>
+      <div class="cinema-hd">
+        <div>
+          <div class="kick">Warm path found</div>
+          <h2 id="cinema-title">Connection</h2>
+        </div>
+      </div>
+      <div id="cinema-graph"></div>
+      <div class="cinema-tip">Press Esc or click anywhere to continue</div>
+    </div>
+  </div>
+
   <footer>
     Warmth tiers: <span class="t1">1</span> demonstrated (podcast, co-founder, direct connection) ·
     <span class="t2">2</span> same small firm / shared board ·
@@ -581,8 +648,12 @@ function runStream(q, out, btn){
     setTimeout(() => {
       if (MODE === 'discover' && !data.found)
         out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
-      else
+      else {
         out.innerHTML = RENDER[MODE](data);
+        // Cinematic fullscreen reveal for a found connection; the inline result
+        // is already in place underneath for when the reveal is dismissed.
+        if (MODE === 'connect' && data.connected) playCinema(data);
+      }
       btn.disabled = false;
       refreshQuota();               // a live search likely spent Serper credits
     }, 200);
@@ -662,47 +733,60 @@ function webDetail(el){
     + (d.src ? `<div class="src"><a href="${esc(d.src)}" target="_blank" rel="noopener">${esc(d.src)}</a></div>` : '');
 }
 
-function buildWeb(d){
-  const W = 760, H = 560, cx = 380, cy = 280, Rmax = 205;
+// A CIRCULAR connection graph: the TARGET glows at the centre of a neon ring,
+// and every route is a spoke running from YOU (on the outer circle) inward to
+// the target. `opts.animated` makes the strokes draw out from you to the target
+// and the nodes pop in sequence — the cinematic reveal. The geometry is shared
+// so the inline view and the fullscreen cinema render the same graph.
+function buildWeb(d, opts){
+  opts = opts || {};
+  const animated = !!opts.animated;
+  const W = 760, H = 560, cx = 380, cy = 280, Rmax = 210;
   const paths = d.paths;
   const R = paths.length;
   const maxHops = Math.max(1, ...paths.map(p => p.hops));
   const ringR = k => (k / maxHops) * Rmax;
-  const angleOf = r => -Math.PI / 2 + (2 * Math.PI * r) / R;
+  // Spread routes around the FULL circle; a lone route sits on the left so it
+  // reads left-to-right (you → target).
+  const angleOf = r => R === 1 ? Math.PI : (-Math.PI / 2 + (2 * Math.PI * r) / R);
   const pt = (radius, ang) => [cx + radius * Math.cos(ang), cy + radius * Math.sin(ang)];
   const clip = s => { s = String(s || ''); return s.length > 20 ? s.slice(0, 19) + '…' : s; };
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const tierColor = t => `var(--t${t || 5})`;
 
   let deco = '', edges = '', nodes = '';
 
-  // Decorative lattice: full concentric rings + radial guides, so it reads as a
-  // web even when the routes are of different lengths.
+  // Concentric neon rings — the circular frame. Boldest on the outside.
   for (let k = 1; k <= maxHops; k++){
-    const ring = [];
-    for (let r = 0; r < R; r++) ring.push(pt(ringR(k), angleOf(r)));
-    if (R >= 2){
-      let dd = `M${ring[0][0].toFixed(1)},${ring[0][1].toFixed(1)}`;
-      for (let r = 1; r < R; r++) dd += `L${ring[r][0].toFixed(1)},${ring[r][1].toFixed(1)}`;
-      if (R >= 3) dd += 'Z';
-      deco += `<path class="strand" d="${dd}"/>`;
-    }
+    const rr = ringR(k).toFixed(1);
+    const cls = k === maxHops ? 'ring' : 'ringf';
+    deco += `<circle class="${cls}" cx="${cx}" cy="${cy}" r="${rr}"/>`;
   }
+  // Faint radial guides to each route's spoke.
   for (let r = 0; r < R; r++){
     const [ex, ey] = pt(Rmax, angleOf(r));
     deco += `<line class="strand" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
   }
 
-  const tierColor = t => `var(--t${t || 5})`;
+  // Timing for the draw-out: each route staggers in, each hop draws outward→
+  // inward (you → target). Delays only apply when animated.
+  const HOP = 0.5, ROUTE = 0.35;
   const seen = {};   // target drawn once
   paths.forEach((p, r) => {
     const ang = angleOf(r);
     const L = p.path.length;
     const pos = p.path.map((n, i) => pt(ringR((L - 1) - i), ang));
+    const base = r * ROUTE;
     // real strands: node i-1 -> i, coloured by node i's incoming tier
     for (let i = 1; i < L; i++){
       const n = p.path[i];
-      const [x1, y1] = pos[i - 1], [x2, y2] = pos[i];
-      edges += `<line class="edge" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" `
-             + `x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${tierColor(n.warmth_tier)}"/>`;
+      const a = pos[i - 1], b = pos[i];
+      const dly = base + (i - 1) * HOP;
+      const anim = animated
+        ? ` draw" style="--len:${len(a, b).toFixed(1)};--d:${dly.toFixed(2)}s`
+        : '"';
+      edges += `<line class="edge${anim}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" `
+             + `x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${tierColor(n.warmth_tier)}"/>`;
     }
     // nodes
     p.path.forEach((n, i) => {
@@ -711,14 +795,13 @@ function buildWeb(d){
       if (isTarget && seen.t) return;   // one central target
       if (isTarget) seen.t = 1;
       const [x, y] = pos[i];
-      const rad = isTarget ? 22 : isFinder ? 14 : 10;
+      const rad = isTarget ? 24 : isFinder ? 14 : 10;
       const fill = isTarget ? 'var(--color-primary)'
                  : isFinder ? 'var(--accent-soft)'
                  : n.is_warm ? 'var(--warm)' : 'var(--color-surface-2)';
       const stroke = isTarget ? 'var(--color-primary)'
                    : isFinder ? 'var(--color-primary)'
                    : n.is_warm ? 'var(--warm)' : tierColor(n.warmth_tier);
-      // label placement: outward, side chosen by which half of the web
       let tx, ty, anchor;
       if (isTarget){ tx = x; ty = y + rad + 18; anchor = 'middle'; }
       else if (x >= cx){ tx = x + rad + 6; ty = y + 4; anchor = 'start'; }
@@ -728,10 +811,16 @@ function buildWeb(d){
                  : isFinder ? `data-role="finder" data-label="${esc(n.label)}"`
                  : `data-label="${esc(n.label)}" data-prev="${esc(prev)}" data-tier="${n.warmth_tier || 5}" `
                    + `data-why="${esc(n.why || '')}" data-ev="${esc(n.evidence_snippet || '')}" data-src="${esc(n.source_url || '')}"`;
+      // node pops in just as its incoming edge finishes drawing
+      const dly = isTarget ? base + (L - 1) * HOP : base + i * HOP;
+      const cls = 'wnode'
+        + (animated ? ' pop' : '')
+        + (isTarget ? ' glow-node' : '');
+      const style = animated ? ` style="--d:${dly.toFixed(2)}s"` : '';
       const finderHalo = isFinder
         ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
       const star = (n.is_warm && !isTarget && !isFinder) ? '★ ' : '';
-      nodes += `<g class="wnode" ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
+      nodes += `<g class="${cls}"${style} ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
              + finderHalo
              + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${fill}" stroke="${stroke}"/>`
              + `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(star + clip(n.label))}</text>`
@@ -742,6 +831,118 @@ function buildWeb(d){
   return `<svg class="webgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Connection web to ${esc(d.paths[0].path.slice(-1)[0].label)}">`
     + deco + edges + nodes + `</svg>`;
 }
+
+// The total run-time of the draw-out animation, so we know when the reveal is
+// "done" and can let the user settle into the interactive view.
+function cinemaDuration(d){
+  const R = d.paths.length;
+  const maxHops = Math.max(1, ...d.paths.map(p => p.hops));
+  return (R - 1) * 0.35 + maxHops * 0.5 + 1.0;   // last stagger + last hop + tail
+}
+
+// --- cinematic reveal ------------------------------------------------------
+let _cinemaTimer = null;
+function playCinema(d){
+  const cin = document.getElementById('cinema');
+  const graph = document.getElementById('cinema-graph');
+  const title = document.getElementById('cinema-title');
+  if (!cin || !graph) return;
+  const target = d.paths[0].path[d.paths[0].path.length - 1].label;
+  const n = d.paths.length;
+  title.textContent = `You → ${target}`;
+  graph.innerHTML = buildWeb(d, {animated: true});
+  cin.classList.remove('closing');
+  cin.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  // Soften the "press Esc" tip until the draw has actually finished.
+  const tip = cin.querySelector('.cinema-tip');
+  if (tip){
+    tip.style.opacity = '0';
+    clearTimeout(_cinemaTimer);
+    _cinemaTimer = setTimeout(() => { tip.style.opacity = '.85'; },
+                              Math.min(cinemaDuration(d), 6) * 1000);
+  }
+}
+function closeCinema(){
+  const cin = document.getElementById('cinema');
+  if (!cin || !cin.classList.contains('show')) return;
+  cin.classList.add('closing');
+  setTimeout(() => {
+    cin.classList.remove('show', 'closing');
+    document.body.style.overflow = '';
+  }, 380);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(); });
+// Click the backdrop (not a node) to dismiss.
+(function(){
+  const cin = document.getElementById('cinema');
+  if (cin) cin.addEventListener('click', e => {
+    if (e.target === cin || e.target.closest('.cinema-inner') === null) closeCinema();
+  });
+})();
+
+// --- neon / retro-red background shapes (canvas) ---------------------------
+(function bgfx(){
+  const cv = document.getElementById('bgfx');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const COLORS = ['#ff2d55', '#ff5e3a', '#ff2ea8', '#ff8a3d', '#ff165d'];
+  const KINDS = ['circle', 'triangle', 'square', 'cross', 'diamond'];
+  let shapes = [], w = 0, h = 0, raf = 0;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth; h = window.innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function seed(){
+    const count = Math.round(Math.min(34, Math.max(16, w * h / 46000)));
+    shapes = Array.from({length: count}, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      s: 10 + Math.random() * 46,
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.006,
+      vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
+      kind: KINDS[(Math.random() * KINDS.length) | 0],
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      a: 0.25 + Math.random() * 0.5,
+      fill: Math.random() < 0.25,
+    }));
+  }
+  function shape(sp){
+    ctx.save();
+    ctx.translate(sp.x, sp.y); ctx.rotate(sp.rot);
+    ctx.globalAlpha = sp.a;
+    ctx.strokeStyle = sp.color; ctx.fillStyle = sp.color;
+    ctx.lineWidth = 2; ctx.shadowColor = sp.color; ctx.shadowBlur = 18;
+    const r = sp.s / 2;
+    ctx.beginPath();
+    if (sp.kind === 'circle'){ ctx.arc(0, 0, r, 0, Math.PI * 2); }
+    else if (sp.kind === 'square'){ ctx.rect(-r, -r, sp.s, sp.s); }
+    else if (sp.kind === 'diamond'){ ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
+    else if (sp.kind === 'triangle'){ ctx.moveTo(0, -r); ctx.lineTo(r, r); ctx.lineTo(-r, r); ctx.closePath(); }
+    else if (sp.kind === 'cross'){ ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); }
+    sp.fill && sp.kind !== 'cross' ? ctx.fill() : ctx.stroke();
+    ctx.restore();
+  }
+  function frame(){
+    ctx.clearRect(0, 0, w, h);
+    for (const sp of shapes){
+      sp.x += sp.vx; sp.y += sp.vy; sp.rot += sp.vr;
+      const m = sp.s;
+      if (sp.x < -m) sp.x = w + m; if (sp.x > w + m) sp.x = -m;
+      if (sp.y < -m) sp.y = h + m; if (sp.y > h + m) sp.y = -m;
+      shape(sp);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function start(){ resize(); seed(); cancelAnimationFrame(raf);
+    if (reduce){ ctx.clearRect(0, 0, w, h); shapes.forEach(shape); }
+    else frame(); }
+  window.addEventListener('resize', () => { resize(); seed(); if (reduce){ ctx.clearRect(0,0,w,h); shapes.forEach(shape); } });
+  start();
+})();
 
 function renderPaths(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
