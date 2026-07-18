@@ -445,6 +445,23 @@ def _lookup(db: Session, name: str) -> Optional[Person]:
         Person.norm_name == person_norm_key(name))).scalar_one_or_none()
 
 
+def _homonym_notice(person: Optional[Person]) -> Optional[dict]:
+    """A pending homonym-guard rejection on `person`, if any.
+
+    enrich._identity_confirmed can reject a name-matched Wikidata candidate for
+    the search target, and — since the person is then marked fully enriched —
+    that rejection is otherwise unrecoverable: nothing ever asks Wikidata about
+    this name again. Surfacing it lets a caller say "actually, that IS them" via
+    POST /confirm-identity instead of the rejection being silently permanent.
+    """
+    if person is None:
+        return None
+    rejected = (person.meta or {}).get("homonym_rejected")
+    if not rejected:
+        return None
+    return {"name": person.canonical_name, **rejected}
+
+
 def unroutable_bridge_ids(person_by_id: Dict[str, Person]) -> Set[str]:
     """Everyone who may not stand MID-path: famous, and not actually known to us.
 
@@ -624,6 +641,9 @@ def connect_people(db: Session, name_a: str, name_b: str,
         "bridges": best["bridges"],
         "path": best["path"],
         "paths": paths,
+        # None unless the homonym guard rejected a name-matched Wikidata
+        # identity for the target this pass — see _homonym_notice.
+        "identity_uncertain": _homonym_notice(b),
         "warnings": [
             "Paths are built from structurally-asserted relationships and are "
             "unverified — confirm before requesting an intro.",
@@ -707,4 +727,5 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
             break
 
     return {"found": True, "person": root.canonical_name,
-            "neighborhood": people, "count": len(people)}
+            "neighborhood": people, "count": len(people),
+            "identity_uncertain": _homonym_notice(root)}

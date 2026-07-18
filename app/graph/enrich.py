@@ -88,6 +88,15 @@ class Enricher:
         # so they need no name-search verification).
         self._verify_identity = False
         self._background_text = ""
+        # Set by _identity_confirmed when it rejects a name-matched Wikidata
+        # candidate this pass. Without this, a rejection is a log line only:
+        # subject.enriched still gets bumped to "done" at the end of
+        # enrich_person, so enrich_person's idempotency check skips this person
+        # on every later call and the rejection is never revisited. Persisting
+        # it turns a silent, permanent "we guessed no" into a visible one a
+        # human can override — see connect._homonym_notice and
+        # POST /confirm-identity.
+        self._identity_rejected = None
 
     # --- one org's roster -> membership + (maybe) pairwise edges ----------
     def _absorb_org(self, db: Session, subject: Person, org_name: str,
@@ -152,13 +161,19 @@ class Enricher:
 
     def _store_wikidata_identity(self, subject: Person, qid: str) -> None:
         """Persist the adopted entity's description on the node, so a later run
-        (and the UI) can show which same-named individual this actually is."""
+        (and the UI) can show which same-named individual this actually is.
+
+        Also clears any earlier homonym-guard rejection recorded for this name:
+        an identity was just confirmed (by this pass, or by a human via
+        POST /confirm-identity forcing a retry), so a stale "we think this is a
+        different person" note would now be actively wrong.
+        """
         card = self.wikidata.identity_card(qid)
         desc = (card.get("description") or "").strip()
-        if not desc:
-            return
         meta = dict(subject.meta or {})
-        meta["wikidata_desc"] = desc
+        if desc:
+            meta["wikidata_desc"] = desc
+        meta.pop("homonym_rejected", None)
         subject.meta = meta
 
     def _identity_confirmed(self, subject: Person, qid: str,
@@ -192,6 +207,10 @@ class Enricher:
             # which case the deterministic domain check gets the deciding vote.
             mismatch = mismatch or disambiguate.domain_conflict(signal, candidate)
         if mismatch:
+            self._identity_rejected = {
+                "qid": qid,
+                "description": card.get("description") or qid,
+            }
             _note(progress,
                   f"    wikidata: '{card.get('description') or qid}' looks like a "
                   f"different {subject.canonical_name} — skipping (homonym guard)")
@@ -746,6 +765,7 @@ class Enricher:
         # person actually is, independent of any same-named Wikidata page.
         self._verify_identity = is_target
         self._background_text = ""
+        self._identity_rejected = None
         if is_target and config.IDENTITY_VERIFY_ENABLED and not subject.wikidata_qid:
             self._background_text = self._web_background(subject.canonical_name, self._hint)
             if self._background_text:
@@ -769,6 +789,11 @@ class Enricher:
                 total += step(db, subject, progress)
             except Exception as exc:  # one dead provider must not sink the run
                 _note(progress, f"    {step.__name__} failed: {exc}")
+
+        if self._identity_rejected:
+            meta = dict(subject.meta or {})
+            meta["homonym_rejected"] = self._identity_rejected
+            subject.meta = meta
 
         # Record the richness achieved, so a thin (keyless) run is re-done once a
         # Serper key — or deep search — becomes available, instead of being cached

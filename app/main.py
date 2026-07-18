@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 
 from . import config
 from .db import SessionLocal, get_db, init_db
-from .graph.connect import connect_people, discover
-from .graph.enrich import enrich_selected
+from .graph.connect import _lookup, connect_people, discover
+from .graph.enrich import enrich_selected, get_enricher
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
 from . import session
@@ -130,6 +130,34 @@ def set_settings(serper_key: str = Body(None, embed=True),
             raise HTTPException(500, f"could not persist settings: {exc}")
     return {"ok": True, "serper_configured": bool(config.SERPER_API_KEY),
             "deep_search": config.DEEP_SEARCH}
+
+
+@app.post("/confirm-identity")
+def confirm_identity(name: str = Body(..., embed=True),
+                     qid: str = Body(..., embed=True),
+                     db: Session = Depends(get_db)) -> dict:
+    """Override a homonym-guard rejection: the caller is asserting that a
+    name-matched Wikidata candidate the guard skipped IS actually this person.
+
+    Setting wikidata_qid directly bypasses enrich._identity_confirmed on the
+    next enrich_person call — the guard only runs when a candidate QID is being
+    adopted by NAME (see graph.enrich._from_wikidata), and a stored qid short-
+    circuits that resolution. `force=True` re-runs the full pipeline against
+    the now-trusted identity instead of leaving the earlier rejection's edges
+    (or lack of them) cached as "done". See connect._homonym_notice, which is
+    what surfaces the rejection this endpoint corrects.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.wikidata_qid = qid
+        meta = dict(person.meta or {})
+        meta.pop("homonym_rejected", None)
+        person.meta = meta
+        db.commit()
+        get_enricher().enrich_person(db, person.canonical_name, force=True)
+        return {"ok": True, "name": person.canonical_name, "wikidata_qid": qid}
 
 
 @app.post("/seed")
