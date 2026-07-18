@@ -193,7 +193,15 @@ def _sse(work):
 
     def gen():
         while True:
-            kind, msg = q.get()
+            try:
+                kind, msg = q.get(timeout=config.SSE_HEARTBEAT_S)
+            except queue.Empty:
+                # A long enrichment step has emitted nothing for a while. Send an
+                # SSE comment (ignored by EventSource) so the idle connection is
+                # not dropped by a proxy / Codespaces port-forward / the browser
+                # mid-deep-search — the "connection lost" bug.
+                yield ": keepalive\n\n"
+                continue
             if kind == "done":
                 yield f"event: result\ndata: {json.dumps(box.get('result', {}))}\n\n"
                 return

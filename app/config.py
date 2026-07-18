@@ -117,6 +117,14 @@ DEEP_SEARCH = _flag("VCWI_DEEP_SEARCH", "0")
 DEEP_FANOUT = int(os.environ.get("VCWI_DEEP_FANOUT", "25"))
 DEEP_TIME_BUDGET_S = float(os.environ.get("VCWI_DEEP_TIME_BUDGET", "150"))
 
+# SSE keepalive: a long enrichment step can run this many seconds without
+# emitting a progress line. With no bytes flowing, an idle proxy / port-forward /
+# browser drops the connection mid-deep-search ("connection lost"). We send an
+# SSE comment on this interval so the socket never goes idle. Must be shorter
+# than the tightest idle timeout in the path (GitHub Codespaces port-forwarding
+# is ~60s), so 15s leaves generous margin.
+SSE_HEARTBEAT_S = float(os.environ.get("VCWI_SSE_HEARTBEAT_S", "15"))
+
 # --- Claude API access ------------------------------------------------------
 # A single real Anthropic key, spend-capped in the Anthropic Console (set a
 # dollar limit on this specific key) so a worst-case extraction from the
