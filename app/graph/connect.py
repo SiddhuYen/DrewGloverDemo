@@ -408,6 +408,7 @@ def _routes(adj, start: str, target: str, max_hops: int, k: int,
 
 def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
     nodes, costs, bridges, unreachable = [], [], [], []
+    worst_blocker_fame = 0
     for i, (pid, edge) in enumerate(path):
         person = person_by_id.get(pid)
         # A famous stranger standing MID-path is the thing that makes a route
@@ -437,6 +438,8 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
             bridges.append(node["label"])
             if blocked:
                 unreachable.append(node["label"])
+                sitelinks = getattr(person, "wikidata_sitelinks", 0) or 0
+                worst_blocker_fame = max(worst_blocker_fame, sitelinks)
         nodes.append(node)
 
     hops = len(path) - 1
@@ -451,6 +454,12 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
         # name to land. Empty for the ordinary case.
         "unreachable_bridges": unreachable,
         "usable": not unreachable,
+        # Highest sitelink count among this route's blocked bridges — 0 for any
+        # usable route, since only a blocked bridge ever sets it. Lets a listing
+        # of otherwise-unusable routes tell "needs a moderately-known operator"
+        # apart from "needs an actual household name" instead of collapsing them
+        # into the same "usable: false" (see connect_people's sort key).
+        "worst_blocker_fame": worst_blocker_fame,
         "path": nodes,
     }
 
@@ -666,10 +675,15 @@ def connect_people(db: Session, name_a: str, name_b: str,
         }
 
     paths = [_serialize(r, person_by_id, src_by_id) for r in routes]
-    # Usable first, THEN warmth. A route that needs a celebrity to relay is not
-    # a better answer than a colder one you can actually walk, however warm its
-    # hops score — and `best` below is what the UI leads with.
-    paths.sort(key=lambda p: (not p["usable"], -p["warmth_score"], p["hops"]))
+    # Usable first, THEN fame magnitude, THEN warmth. A route that needs a
+    # celebrity to relay is not a better answer than a colder one you can
+    # actually walk, however warm its hops score — and `best` below is what the
+    # UI leads with. worst_blocker_fame is 0 for every usable route, so this
+    # tiebreaker is a no-op within that group; it only ever reorders the
+    # unusable fallback, where it ranks the route needing the LEAST-famous
+    # required stranger first rather than by cost alone.
+    paths.sort(key=lambda p: (not p["usable"], p["worst_blocker_fame"],
+                              -p["warmth_score"], p["hops"]))
     best = paths[0]
     return {
         "connected": True,

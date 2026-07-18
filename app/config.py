@@ -234,14 +234,20 @@ def hop_limit(explicit: int = 0) -> float:
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
 # How many routes to show when EVERY chain that exists needs a famous stranger
-# to relay the intro. Deliberately far below CONNECT_MAX_PATHS: connect() only
-# reaches this fallback when there is no usable route at all, and in that state
-# the useful answer is the one real chain plus the reason it will not work.
-# Three of them is the same dead end told three ways — which is exactly what the
-# search used to return, because banning the bridges of one celebrity route just
-# routes you through the next celebrity. Never used while a usable route exists.
+# to relay the intro. Below CONNECT_MAX_PATHS: connect() only reaches this
+# fallback when there is no usable route at all, and in that state the useful
+# answer is the real chain(s) plus the reason they will not work.
+#
+# Was capped at 1 on the reasoning that three of them is the same dead end
+# told three ways. That held when every unusable route was ranked by tier
+# cost alone, with no way to tell "needs a moderately-known operator" apart
+# from "needs an actual household name" — but sitelink magnitude (see
+# fame_penalty / _serialize's worst_blocker_fame) now makes that a real
+# distinction, so more than one dead end can be a genuinely different answer:
+# the least-implausible one is worth seeing even when it is not warmest by
+# tier cost. Never used while a usable route exists.
 CONNECT_MAX_UNUSABLE_PATHS = int(
-    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "1"))
+    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "3"))
 # How many routes Yen's may GENERATE while looking for CONNECT_MAX_PATHS worth
 # showing. Far above it on purpose: the cheapest alternates are mostly detours
 # around the best route ("Drew -> Atlas Berry -> Bryce Johnson" when Drew knows

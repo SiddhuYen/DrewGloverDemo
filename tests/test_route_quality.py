@@ -32,7 +32,8 @@ def _docs(db, drew, target):
     adj, people, srcs, pen = _adjacency(db)
     routes, _suggestion = _plausible_first(adj, drew, target, people, pen)
     docs = [_serialize(r, people, srcs) for r in routes]
-    docs.sort(key=lambda d: (not d["usable"], -d["warmth_score"], d["hops"]))
+    docs.sort(key=lambda d: (not d["usable"], d["worst_blocker_fame"],
+                             -d["warmth_score"], d["hops"]))
     return docs
 
 
@@ -109,10 +110,14 @@ def test_the_only_route_there_is_gets_shown_and_labelled(db):
     assert docs[0]["unreachable_bridges"] == ["Elon Musk"]
 
 
-def test_a_dead_end_is_never_told_three_ways(db):
-    """Every route needs some celebrity, and there are three to choose from.
-    Banning one celebrity's bridge just routes through the next one, which is
-    how a listing ends up as three variations on 'you cannot do this'."""
+def test_dead_ends_of_equal_fame_magnitude_are_not_suppressed_to_one(db):
+    """Every route needs some celebrity, and there are three to choose from —
+    all with unmeasured (0-sitelink) fame, so there is genuinely no 'least
+    bad' one among them. That indistinguishability is why the OLD fixed cap of
+    1 existed (three of them read as the same dead end told three ways). Fame
+    magnitude ranking does not manufacture a distinction where none exists, so
+    all three real, equally-dead-end chains are eligible to surface up to
+    CONNECT_MAX_UNUSABLE_PATHS instead of being arbitrarily chopped to one."""
     drew = _p(db, "Drew Glover", warm=True)
     target = _p(db, "Ira Ehrenpreis")
     for name, qid in (("Elon Musk", "Q317521"), ("Joe Rogan", "Q2718421"),
@@ -123,8 +128,35 @@ def test_a_dead_end_is_never_told_three_ways(db):
     db.flush()
 
     docs = _docs(db, drew, target)
-    assert len(docs) == config.CONNECT_MAX_UNUSABLE_PATHS == 1
-    assert docs[0]["usable"] is False
+    assert len(docs) == min(3, config.CONNECT_MAX_UNUSABLE_PATHS)
+    assert all(d["usable"] is False for d in docs)
+    assert all(d["worst_blocker_fame"] == 0 for d in docs)
+
+
+def test_unusable_routes_are_ranked_by_least_famous_required_blocker(db):
+    """Three dead ends, but not the same dead end told three ways this time:
+    each needs a stranger of measurably different fame. The route needing the
+    LEAST notable stranger is the least-implausible answer and should lead,
+    even though its raw tier cost is identical to the other two — exactly the
+    distinction cost-only ranking could never draw."""
+    drew = _p(db, "Drew Glover", warm=True)
+    target = _p(db, "Ira Ehrenpreis")
+    for name, qid, sitelinks in (
+        ("Minor Local Figure", "Q900001", 10),
+        ("Regional Notable", "Q900002", 40),
+        ("Samuel L. Jackson", "Q172678", 90),
+    ):
+        celeb = _p(db, name, qid=qid)
+        celeb.wikidata_sitelinks = sitelinks
+        _link(db, drew, celeb)
+        _link(db, celeb, target)
+    db.flush()
+
+    docs = _docs(db, drew, target)
+    assert len(docs) == 3
+    assert all(d["usable"] is False for d in docs)
+    assert [d["worst_blocker_fame"] for d in docs] == [10, 40, 90]
+    assert _names(docs[0])[1] == "Minor Local Figure"
 
 
 def test_a_famous_target_is_still_reachable_by_name(db):
