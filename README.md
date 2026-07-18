@@ -1,5 +1,11 @@
 # VC Warm-Intro Pathfinder
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SiddhuYen/DrewGloverDemo?quickstart=1&ref=artemis-ui-latest)
+
+**Click the badge** to launch the app in the cloud — no install. Codespaces builds it,
+starts the server, and opens the UI in a browser tab (first build takes a few minutes).
+Prefer to run it locally? See [Run the app](#-run-the-app) below.
+
 Finds the warmest **real** introduction path from **Drew Glover** (Co-Founder & GP,
 [Fiat Ventures](https://www.fiat.vc)) to anyone in the VC/startup world — and says so
 honestly when no such path exists.
@@ -21,7 +27,12 @@ Charles Hudson
 
 ## ▶ Run the app
 
-The fastest way to see it: a native desktop window with the graph already loaded.
+**No install (cloud):** click the
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SiddhuYen/DrewGloverDemo?quickstart=1&ref=artemis-ui-latest)
+badge. It builds the environment, seeds the bundled graph, and serves the app on port
+8000 — which opens in a browser tab automatically once it's ready.
+
+**Locally:** the fastest way is a native desktop window with the graph already loaded.
 No API key needed.
 
 **First time — set up the environment (once):**
