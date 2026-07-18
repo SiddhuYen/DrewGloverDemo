@@ -919,67 +919,66 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(
   });
 })();
 
-// --- neon / retro-red background shapes (canvas) ---------------------------
+// --- cursor-reactive dot field (canvas) -------------------------------------
+// The base grid is CSS (body::before, a flat 24px dot tile) so it's always
+// crisp and free. This canvas draws nothing of its own except a highlight:
+// dots on that SAME 24px grid brighten and grow as the cursor nears them,
+// fading out over a ~180px radius. It replaces the old drifting neon-shape
+// animation, which read as decorative confetti against the calmer,
+// case-board-style grid the rest of the redesign moved to.
 (function bgfx(){
   const cv = document.getElementById('bgfx');
   if (!cv) return;
   const ctx = cv.getContext('2d');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const COLORS = ['#ff2d55', '#ff5e3a', '#ff2ea8', '#ff8a3d', '#ff165d'];
-  const KINDS = ['circle', 'triangle', 'square', 'cross', 'diamond'];
-  let shapes = [], w = 0, h = 0, raf = 0;
+  const STEP = 24;      // must match body::before's background-size
+  const RADIUS = 180;   // px — how far the brightening reaches from the cursor
+  const DOT_R_BASE = 0.75, DOT_R_MAX = 2.6;
+  const ALPHA_BASE = 0, ALPHA_MAX = 0.85;
+  let w = 0, h = 0, raf = 0, mx = -9999, my = -9999, dirty = true;
 
   function resize(){
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     w = window.innerWidth; h = window.innerHeight;
     cv.width = w * dpr; cv.height = h * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    dirty = true;
   }
-  function seed(){
-    const count = Math.round(Math.min(34, Math.max(16, w * h / 46000)));
-    shapes = Array.from({length: count}, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      s: 10 + Math.random() * 46,
-      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.006,
-      vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
-      kind: KINDS[(Math.random() * KINDS.length) | 0],
-      color: COLORS[(Math.random() * COLORS.length) | 0],
-      a: 0.14 + Math.random() * 0.28,
-      fill: Math.random() < 0.25,
-    }));
-  }
-  function shape(sp){
-    ctx.save();
-    ctx.translate(sp.x, sp.y); ctx.rotate(sp.rot);
-    ctx.globalAlpha = sp.a;
-    ctx.strokeStyle = sp.color; ctx.fillStyle = sp.color;
-    ctx.lineWidth = 2; ctx.shadowColor = sp.color; ctx.shadowBlur = 18;
-    const r = sp.s / 2;
-    ctx.beginPath();
-    if (sp.kind === 'circle'){ ctx.arc(0, 0, r, 0, Math.PI * 2); }
-    else if (sp.kind === 'square'){ ctx.rect(-r, -r, sp.s, sp.s); }
-    else if (sp.kind === 'diamond'){ ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
-    else if (sp.kind === 'triangle'){ ctx.moveTo(0, -r); ctx.lineTo(r, r); ctx.lineTo(-r, r); ctx.closePath(); }
-    else if (sp.kind === 'cross'){ ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); }
-    sp.fill && sp.kind !== 'cross' ? ctx.fill() : ctx.stroke();
-    ctx.restore();
+  function draw(){
+    ctx.clearRect(0, 0, w, h);
+    if (mx < -RADIUS || mx > w + RADIUS || my < -RADIUS || my > h + RADIUS) return;
+    const c0 = Math.max(0, Math.floor((mx - RADIUS) / STEP));
+    const c1 = Math.ceil((mx + RADIUS) / STEP);
+    const r0 = Math.max(0, Math.floor((my - RADIUS) / STEP));
+    const r1 = Math.ceil((my + RADIUS) / STEP);
+    ctx.fillStyle = '#e0203a';
+    ctx.shadowColor = '#e0203a';
+    for (let row = r0; row <= r1; row++){
+      const y = row * STEP;
+      for (let col = c0; col <= c1; col++){
+        const x = col * STEP;
+        const dist = Math.hypot(x - mx, y - my);
+        if (dist >= RADIUS) continue;
+        const t = 1 - dist / RADIUS;   // 0 at the edge, 1 right under the cursor
+        ctx.globalAlpha = ALPHA_BASE + (ALPHA_MAX - ALPHA_BASE) * t;
+        ctx.shadowBlur = 10 * t;
+        ctx.beginPath();
+        ctx.arc(x, y, DOT_R_BASE + (DOT_R_MAX - DOT_R_BASE) * t, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
   function frame(){
-    ctx.clearRect(0, 0, w, h);
-    for (const sp of shapes){
-      sp.x += sp.vx; sp.y += sp.vy; sp.rot += sp.vr;
-      const m = sp.s;
-      if (sp.x < -m) sp.x = w + m; if (sp.x > w + m) sp.x = -m;
-      if (sp.y < -m) sp.y = h + m; if (sp.y > h + m) sp.y = -m;
-      shape(sp);
-    }
+    if (dirty){ draw(); dirty = false; }
     raf = requestAnimationFrame(frame);
   }
-  function start(){ resize(); seed(); cancelAnimationFrame(raf);
-    if (reduce){ ctx.clearRect(0, 0, w, h); shapes.forEach(shape); }
-    else frame(); }
-  window.addEventListener('resize', () => { resize(); seed(); if (reduce){ ctx.clearRect(0,0,w,h); shapes.forEach(shape); } });
-  start();
+  if (!reduce){
+    window.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; dirty = true; });
+    window.addEventListener('mouseleave', () => { mx = my = -9999; dirty = true; });
+  }
+  window.addEventListener('resize', () => { resize(); if (reduce) draw(); });
+  resize();
+  if (reduce) draw(); else frame();
 })();
 
 function renderPaths(d){
