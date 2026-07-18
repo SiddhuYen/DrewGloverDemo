@@ -66,9 +66,21 @@ def _edge_cost(edge: RelationshipEdge) -> float:
 def fame_penalty(person: Person) -> float:
     """Routing surcharge for someone famous we do not actually know.
 
-    Reads the STORED qid only — never bridge.is_notable(), which falls back to a
-    live Wikipedia lookup. This runs once per person in the graph on every query,
-    so a network call here would be thousands of them.
+    Reads STORED fields only — never bridge.is_notable(), which falls back to a
+    live Wikipedia lookup, and never a live sitelink fetch. This runs once per
+    person in the graph on every query, so a network call here would be
+    thousands of them.
+
+    Gated on sitelink MAGNITUDE (config.FAME_SITELINK_THRESHOLD), not just the
+    binary fact of having a QID: a thin Wikidata stub for a locally-known
+    founder clears Wikidata's notability bar exactly like Samuel L. Jackson
+    does, but only one of them is actually implausible as an intro bridge.
+
+    0 sitelinks means "not yet measured" (a QID adopted before this field
+    existed, or the column's default before the next enrichment) — that fails
+    TOWARD caution, same as clearing the threshold, not toward permissiveness.
+    Otherwise an already-enriched celebrity in the bundled graph would
+    silently lose protection until re-enriched.
 
     Someone Drew genuinely knows is reachable regardless of fame, which is why
     is_warm is checked first: Harry Stebbings carries a QID and is also Drew's
@@ -76,7 +88,10 @@ def fame_penalty(person: Person) -> float:
     """
     if person.is_warm:
         return 0.0
-    if person.wikidata_qid:
+    if not person.wikidata_qid:
+        return 0.0
+    sitelinks = getattr(person, "wikidata_sitelinks", 0) or 0
+    if sitelinks == 0 or sitelinks >= config.FAME_SITELINK_THRESHOLD:
         return config.UNREACHABLE_FAME_PENALTY
     return 0.0
 

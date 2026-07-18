@@ -11,10 +11,11 @@ from app.graph import connect
 
 
 class _Person:
-    def __init__(self, name, warm=False, qid=None):
+    def __init__(self, name, warm=False, qid=None, sitelinks=0):
         self.canonical_name = name
         self.is_warm = warm
         self.wikidata_qid = qid
+        self.wikidata_sitelinks = sitelinks
 
 
 class _Edge:
@@ -91,10 +92,48 @@ def test_disabling_the_penalty_stops_flagging():
 
 def test_fame_penalty_reads_only_the_stored_qid():
     """It runs per person per query; a live lookup here would be thousands of
-    network calls. bridge.is_notable() is the one that may hit Wikipedia."""
+    network calls. bridge.is_notable() is the one that may hit Wikipedia.
+
+    No sitelinks given here on purpose: 0 is the "not yet measured" state,
+    which fails toward caution — this is really testing that path too, and
+    the two other tests below test the MEASURED cases explicitly.
+    """
     assert connect.fame_penalty(_Person("Nobody")) == 0.0
     assert connect.fame_penalty(_Person("Famous", qid="Q1")) > 0.0
     assert connect.fame_penalty(_Person("Known", warm=True, qid="Q1")) == 0.0
+
+
+def test_a_thin_wikidata_stub_below_threshold_is_not_penalized():
+    """A locally-known founder with a couple of language pages clears
+    Wikidata's notability bar exactly like a household name does — but a
+    MEASURED low sitelink count is a real, different answer from '0, not yet
+    measured', and must not fail toward caution the way unmeasured does."""
+    original = config.FAME_SITELINK_THRESHOLD
+    try:
+        config.FAME_SITELINK_THRESHOLD = 8
+        stub = _Person("Local Founder", qid="Q9001", sitelinks=2)
+        assert connect.fame_penalty(stub) == 0.0
+    finally:
+        config.FAME_SITELINK_THRESHOLD = original
+
+
+def test_a_household_name_above_threshold_is_penalized():
+    original = config.FAME_SITELINK_THRESHOLD
+    try:
+        config.FAME_SITELINK_THRESHOLD = 8
+        celeb = _Person("Household Name", qid="Q9002", sitelinks=90)
+        assert connect.fame_penalty(celeb) == config.UNREACHABLE_FAME_PENALTY
+    finally:
+        config.FAME_SITELINK_THRESHOLD = original
+
+
+def test_zero_sitelinks_fails_toward_caution_not_toward_permissiveness():
+    """0 must mean 'not yet measured', not 'measured and confirmed obscure' —
+    otherwise every already-enriched celebrity in the bundled graph (QIDs
+    adopted before this field existed) silently loses protection until
+    re-enriched, which could take a long time for a rarely-requeried target."""
+    assert connect.fame_penalty(_Person("Unmeasured", qid="Q9003", sitelinks=0)) \
+        == config.UNREACHABLE_FAME_PENALTY
 
 
 def test_discover_honours_the_caller_limit(db, monkeypatch):

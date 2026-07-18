@@ -152,14 +152,19 @@ class Enricher:
 
     def _store_wikidata_identity(self, subject: Person, qid: str) -> None:
         """Persist the adopted entity's description on the node, so a later run
-        (and the UI) can show which same-named individual this actually is."""
+        (and the UI) can show which same-named individual this actually is.
+
+        Also stores the sitelink count — a fame MAGNITUDE, not just the binary
+        fact of holding a QID — so graph.connect.fame_penalty can tell a thin
+        Wikidata stub apart from an actual household name.
+        """
         card = self.wikidata.identity_card(qid)
         desc = (card.get("description") or "").strip()
-        if not desc:
-            return
-        meta = dict(subject.meta or {})
-        meta["wikidata_desc"] = desc
-        subject.meta = meta
+        if desc:
+            meta = dict(subject.meta or {})
+            meta["wikidata_desc"] = desc
+            subject.meta = meta
+        subject.wikidata_sitelinks = self.wikidata.sitelink_count(qid)
 
     def _identity_confirmed(self, subject: Person, qid: str,
                             progress: Progress) -> bool:

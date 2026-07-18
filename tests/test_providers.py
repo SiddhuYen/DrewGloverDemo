@@ -365,6 +365,30 @@ def test_costars_resolve_by_qid(monkeypatch):
         {"person_qid": "Q167768", "person_name": "Samuel L. Jackson"}]
 
 
+def test_sitelink_count_parses_the_sparql_count(monkeypatch):
+    from app.providers import wikidata as wdmod
+    w = wdmod.WikidataProvider()
+    monkeypatch.setattr(wdmod.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(wdmod.cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(w, "_sparql", lambda q, f: [{"n": "42"}])
+    assert w.sitelink_count("Q317521") == 42
+
+
+def test_sitelink_count_of_no_qid_is_zero_with_no_network_call():
+    from app.providers.wikidata import WikidataProvider
+    wd = WikidataProvider()
+    assert wd.sitelink_count("") == 0
+
+
+def test_sitelink_count_of_an_empty_sparql_result_is_zero(monkeypatch):
+    from app.providers import wikidata as wdmod
+    w = wdmod.WikidataProvider()
+    monkeypatch.setattr(wdmod.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(wdmod.cache, "set", lambda *a, **k: None)
+    monkeypatch.setattr(w, "_sparql", lambda q, f: [])
+    assert w.sitelink_count("Q1") == 0
+
+
 # --- wikipedia: the page title must BE the person -------------------------
 def test_best_title_rejects_a_mismatched_top_hit(monkeypatch):
     """Regression: Wikipedia's top hit for "Drew Glover" resolves to Nikolas

@@ -88,6 +88,21 @@ WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 # this re-ranks rather than censors. 0.0 disables it.
 UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
 
+# How many Wikidata sitelinks (language Wikipedia pages) someone needs before
+# fame_penalty treats them as famous-enough-to-be-implausible, rather than just
+# "has a QID at all". A thin stub — a locally-known founder with one or two
+# language pages — clears Wikidata's notability bar exactly like Samuel L.
+# Jackson does, but only one of them will actually decline to relay a
+# stranger's intro. Starting value, not a calibrated one — tune once this runs
+# against real queries, same as MEGA_HUB_DEGREE and HOP_SURCHARGE were.
+#
+# 0 sitelinks is NOT "measured and obscure" — it means "not yet measured"
+# (e.g. a QID adopted before this field existed) and fame_penalty fails
+# TOWARD caution in that case, treating it the same as clearing the
+# threshold. Otherwise every already-enriched celebrity in the bundled graph
+# would silently lose protection until re-enriched.
+FAME_SITELINK_THRESHOLD = int(os.environ.get("VCWI_FAME_SITELINK_THRESHOLD", "8"))
+
 # Flat cost added to every hop, on top of that hop's tier cost. Encodes the
 # thing tier costs alone cannot: each hop is another person who has to agree to
 # pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one

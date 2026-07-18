@@ -319,6 +319,34 @@ class WikidataProvider:
         cache.set(key, "teammates", {"teammates": out}, config.CACHE_TTL_WIKI)
         return out
 
+    # --- fame magnitude -----------------------------------------------------
+    def sitelink_count(self, qid: str) -> int:
+        """How many language Wikipedia pages link to this QID.
+
+        A magnitude of fame, not just the binary "has any Wikidata page at
+        all" — Wikidata's notability bar is low enough that a two-line stub
+        for a locally-known founder and a global household name both clear
+        it, but only one of them is actually implausible as an intro bridge
+        (see config.UNREACHABLE_FAME_PENALTY / graph.connect.fame_penalty).
+        """
+        if not qid:
+            return 0
+        key = cache.make_key(self.name, "sitelinks", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return int(cached.get("n", 0))
+        query = (f"SELECT (COUNT(?sitelink) AS ?n) WHERE {{ "
+                 f"?sitelink schema:about wd:{qid} }}")
+        n = 0
+        rows = self._sparql(query, ["n"])
+        if rows:
+            try:
+                n = int(rows[0]["n"])
+            except (ValueError, KeyError):
+                n = 0
+        cache.set(key, "sitelinks", {"n": n}, config.CACHE_TTL_WIKI)
+        return n
+
     # --- what kind of thing is this org? ----------------------------------
     def org_kinds(self, org_qid: str) -> List[str]:
         """English labels of the org's `instance of` (P31) claims. Cached."""
