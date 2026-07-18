@@ -193,6 +193,20 @@
     background:linear-gradient(var(--color-accent),var(--color-primary))}
   .banner b{color:var(--ink);font-weight:600}
 
+  /* fame_penalty can false-positive on a real contact who isn't yet marked
+     is_warm — this is the correction surface for that (see connect.py's
+     _suggest_known_contact / "warmer_if_known"). Amber, not primary red: it
+     is an optional self-correction, the same register as the amber Save
+     buttons elsewhere, not the main action on the page. */
+  .warmer-prompt{margin:16px 0;padding:14px 18px;border:1px solid var(--color-accent);
+    background:var(--surface);position:relative;overflow:hidden}
+  .warmer-prompt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--color-accent)}
+  .warmer-q{display:block;font-weight:700;color:var(--ink);font-size:14px}
+  .warmer-sub{display:block;color:var(--muted);font-size:12.5px;margin-top:4px}
+  .warmer-btns{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .warmer-btns button{padding:0 18px;height:38px;font-size:12.5px}
+
   /* The old always-on explainer paragraph is now a single question button; the
      explanation itself lives in the shared .help-body reveal below it. */
   .what-btn{display:flex;align-items:center;gap:10px;width:fit-content;margin:18px 0 0;
@@ -798,13 +812,57 @@ async function run(){
   }
 }
 
+// A route can be blocked on a real contact the tool just doesn't know is
+// warm yet (a college friend, someone met at a conference). Surfaces that as
+// a correctable prompt instead of the warmer route silently never appearing
+// — see connect.py's _suggest_known_contact. Absent on any backend that
+// doesn't send `warmer_if_known` yet, so this degrades to nothing rather
+// than erroring.
+function renderWarmerPrompt(w){
+  const names = ((w && w.blocked_bridges) || []).map(esc);
+  if (!names.length) return '';
+  // Name goes in a data attribute, read back from `this` in the handler —
+  // NOT embedded as a JS string literal in the onclick source. A name like
+  // "O'Brien" HTML-escapes to "O&#39;Brien", but the browser decodes
+  // attribute entities BEFORE parsing the onclick JS, so an embedded literal
+  // would still land as an unescaped quote and break the string. Matches how
+  // every other dynamic-name handler in this file already does it (e.g. the
+  // CSV picker's checkboxes read .value rather than taking a JS argument).
+  const btns = names.map(n => `<button class="amber" data-name="${n}" onclick="confirmContact(this)">`
+    + `Yes, I know ${n}</button>`).join('');
+  return `<div class="warmer-prompt">
+      <span class="warmer-q">Do you actually know ${names.join(' or ')}?</span>
+      <span class="warmer-sub">A route through them would be warmer — confirming saves
+        ${w.would_improve_cost_by} on cost the next time you search.</span>
+      <span class="warmer-btns">${btns}</span>
+    </div>`;
+}
+
+async function confirmContact(btn){
+  const name = btn.dataset.name;
+  const prompt = btn.closest('.warmer-prompt');
+  btn.disabled = true;
+  btn.textContent = 'Confirming…';
+  try {
+    const res = await fetch('/confirm-contact', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    prompt.innerHTML = `<span class="warmer-q">✓ ${esc(data.name)} confirmed — `
+      + `search again to see the warmer route.</span>`;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  }
+}
+
 // The Connect view: a spider web with the TARGET at the centre and every route
 // branching out to you (the finder) on the rim. The cited-routes list is kept a
 // click away, because the evidence is the whole point of the tool.
 function renderConnect(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
   const target = d.paths[0].path[d.paths[0].path.length - 1].label;
-  return `<div class="web">
+  return `${renderWarmerPrompt(d.warmer_if_known)}<div class="web">
       <div class="web-hd">
         <span class="n">Reaching <b>${esc(target)}</b> — ${d.paths.length} route${d.paths.length === 1 ? '' : 's'}</span>
         <span class="toggle">
