@@ -473,6 +473,40 @@ def unroutable_bridge_ids(person_by_id: Dict[str, Person]) -> Set[str]:
     return {pid for pid, person in person_by_id.items() if fame_penalty(person)}
 
 
+def _suggest_known_contact(adj, start: str, target: str, node_penalty,
+                           person_by_id, best_usable_cost: float):
+    """None, unless dropping the fame ban entirely would find a route CHEAPER
+    than the best usable one already found.
+
+    fame_penalty can false-positive: a real contact who isn't yet marked
+    is_warm (a college friend, someone met at a conference — nothing that
+    populates is_warm today) gets banned exactly like an actual stranger,
+    and the better route through them just silently doesn't appear. This
+    makes that failure visible and correctable instead of silent.
+
+    Banning only removes options, so the unbanned best cost can never exceed
+    the banned one — if it's strictly cheaper, that improvement can only come
+    from a node the ban excluded, which is why `blocked_names` is expected to
+    be non-empty whenever we get past the cost check; the check stays as
+    defense in depth rather than an assumption load-bearing on its own.
+    """
+    unbanned = _best_path(adj, start, target, config.hop_limit(), set(), node_penalty)
+    if unbanned is None:
+        return None
+    cost = _route_cost(unbanned, node_penalty)
+    if cost >= best_usable_cost:
+        return None
+    blocked_names = [
+        person_by_id[pid].canonical_name
+        for pid in _bridges(unbanned)
+        if pid in person_by_id and fame_penalty(person_by_id[pid])
+    ]
+    if not blocked_names:
+        return None
+    return {"blocked_bridges": blocked_names,
+           "would_improve_cost_by": round(best_usable_cost - cost, 2)}
+
+
 def _plausible_first(adj, a: Person, b: Person, person_by_id, node_penalty):
     """Routes for a -> b, led by a walkable one whenever one exists at all.
 
@@ -487,20 +521,26 @@ def _plausible_first(adj, a: Person, b: Person, person_by_id, node_penalty):
     hard: showing the one real chain and labelling why it will not work is
     useful, and showing three of them is just noise wearing the same label. The
     cap is why a usable route is never crowded out by variations on a dead end.
+
+    Returns (routes, suggestion) — see _suggest_known_contact for the second.
     """
     blocked = unroutable_bridge_ids(person_by_id) - {a.id, b.id}
     routes = _routes(adj, a.id, b.id, config.hop_limit(),
                      config.CONNECT_MAX_PATHS, node_penalty, blocked)
     if routes:
-        return routes
-    return _routes(adj, a.id, b.id, config.hop_limit(),
-                   config.CONNECT_MAX_UNUSABLE_PATHS, node_penalty)
+        suggestion = _suggest_known_contact(
+            adj, a.id, b.id, node_penalty, person_by_id,
+            _route_cost(routes[0], node_penalty))
+        return routes, suggestion
+    fallback = _routes(adj, a.id, b.id, config.hop_limit(),
+                       config.CONNECT_MAX_UNUSABLE_PATHS, node_penalty)
+    return fallback, None
 
 
 def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
     adj, person_by_id, src_by_id, node_penalty = _adjacency(db, include_weak)
-    routes = _plausible_first(adj, a, b, person_by_id, node_penalty)
-    return routes, person_by_id, src_by_id
+    routes, suggestion = _plausible_first(adj, a, b, person_by_id, node_penalty)
+    return routes, person_by_id, src_by_id, suggestion
 
 
 def connect_people(db: Session, name_a: str, name_b: str,
@@ -528,12 +568,13 @@ def connect_people(db: Session, name_a: str, name_b: str,
 
     routes: List[List[Hop]] = []
     person_by_id = src_by_id = {}
+    suggestion = None
 
     # Stage 0 — the graph may already hold a route (pre-crawled backbone).
     if a is not None and b is not None:
         if progress:
             progress("[0] searching the existing graph…")
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 1 — pull structured sources for the endpoints only.
     if not routes:
@@ -559,7 +600,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                               f"source places them in the VC/startup network."}
         if a.id == b.id:
             return {"connected": False, "reason": "those are the same person"}
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 2 — widen until the two sides meet, or the budget is spent.
     #
@@ -575,7 +616,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             progress(f"[2] expanding {name_a} (depth {depth})…")
         enricher.enrich_neighborhood(db, name_a, depth=depth, progress=progress,
                                      deadline=deadline)
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
         if not routes:
             drew_reach = set(_reachable_ids(db, a.id))
@@ -586,7 +627,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                 db, name_b, depth=config.CONNECT_TARGET_DEPTH, progress=progress,
                 opposite_component=drew_reach, deadline=deadline, hint=hint,
                 is_target=True)
-            routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+            routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 3 — context escalation. No structural path exists, but the caller
     # supplied a context for the target and a web-search key is configured. Spend
@@ -599,7 +640,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             progress(f"[3] no structural path — web-searching {name_b} "
                      f"with your context…")
         enricher.enrich_target_comention(db, name_b, hint=hint, progress=progress)
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak=True)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak=True)
 
     if not routes:
         # With no hop limit, the only way to fail is genuine disconnection: no
@@ -639,6 +680,12 @@ def connect_people(db: Session, name_a: str, name_b: str,
         "bridges": best["bridges"],
         "path": best["path"],
         "paths": paths,
+        # None unless dropping the fame ban would find a route BETTER than the
+        # one being shown — see _suggest_known_contact. Names the blocked
+        # bridge so the UI can ask "do you actually know them?" and, if so,
+        # POST /confirm-contact to fix it going forward instead of the better
+        # route just silently never appearing.
+        "warmer_if_known": suggestion,
         "warnings": [
             "Paths are built from structurally-asserted relationships and are "
             "unverified — confirm before requesting an intro.",

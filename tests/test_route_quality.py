@@ -30,7 +30,7 @@ def _link(db, a, b, rtype="cofounder"):
 def _docs(db, drew, target):
     """What connect_people would rank, without the enrichment machinery."""
     adj, people, srcs, pen = _adjacency(db)
-    routes = _plausible_first(adj, drew, target, people, pen)
+    routes, _suggestion = _plausible_first(adj, drew, target, people, pen)
     docs = [_serialize(r, people, srcs) for r in routes]
     docs.sort(key=lambda d: (not d["usable"], -d["warmth_score"], d["hops"]))
     return docs
@@ -199,6 +199,53 @@ def test_a_direct_edge_stands_alone(db):
     docs = _docs(db, drew, marcos)
     assert len(docs) == 1
     assert _names(docs[0]) == ["Drew Glover", "Marcos Fernandez"]
+
+
+def test_suggests_a_real_contact_when_banning_them_costs_a_warmer_route(db):
+    """A real friend who happens to have a thin Wikidata page, but isn't
+    marked is_warm, gets banned exactly like a stranger — so the strong,
+    short route through them is hidden behind a much colder allowed one.
+    That should surface as a suggestion, not vanish silently."""
+    drew = _p(db, "Drew Glover", warm=True)
+    target = _p(db, "Some Founder")
+    friend = _p(db, "Unmarked Friend", qid="Q999001")   # famous-looking, not warm
+    cold_a, cold_b = _p(db, "Cold Contact A"), _p(db, "Cold Contact B")
+
+    _link(db, drew, friend, "cofounder")
+    _link(db, friend, target, "cofounder")
+    _link(db, drew, cold_a, "co_speaker")
+    _link(db, cold_a, cold_b, "co_speaker")
+    _link(db, cold_b, target, "co_speaker")
+    db.flush()
+
+    adj, people, _srcs, pen = _adjacency(db)
+    routes, suggestion = _plausible_first(adj, drew, target, people, pen)
+    assert all(_serialize(r, people, _srcs)["usable"] for r in routes)
+
+    assert suggestion is not None
+    assert suggestion["blocked_bridges"] == ["Unmarked Friend"]
+    assert suggestion["would_improve_cost_by"] > 0
+
+
+def test_no_suggestion_when_the_allowed_route_is_already_the_best_one(db):
+    """The celebrity shortcut in this graph is actually MORE expensive once
+    the fame penalty is added, not less — so removing the ban would change
+    nothing, and there is nothing to suggest."""
+    drew = _p(db, "Drew Glover", warm=True)
+    target = _p(db, "Ira Ehrenpreis")
+    celeb = _p(db, "Elon Musk", qid="Q317521")
+    x, h = _p(db, "Bree Hanson"), _p(db, "Charles Hudson")
+
+    _link(db, drew, celeb)
+    _link(db, celeb, target)
+    _link(db, drew, x)
+    _link(db, x, h)
+    _link(db, h, target)
+    db.flush()
+
+    adj, people, _srcs, pen = _adjacency(db)
+    _routes_found, suggestion = _plausible_first(adj, drew, target, people, pen)
+    assert suggestion is None
 
 
 def test_routes_are_returned_warmest_first(db):
