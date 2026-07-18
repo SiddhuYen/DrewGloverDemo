@@ -54,16 +54,16 @@
   *{box-sizing:border-box}
   [hidden]{display:none !important}
   html,body{margin:0}
-  /* Neon / retro-red field: a bright crimson→magenta wash, a scanning glow, and
-     a synthwave horizon grid, all far brighter than the old near-black Ember
-     ground. The random neon SHAPES are drawn on #bgfx (canvas) so they can move
-     and glow cheaply. Content panels stay dark for text contrast over it. */
+  /* Neon / retro-red field: a DARK crimson-black ground with the same geometry
+     as before (synthwave horizon grid, scanline sheen, drifting neon canvas
+     shapes) — just far less bright, so the glow reads as neon-on-black rather
+     than a lit-up wash. Content panels stay dark for text contrast over it. */
   body{color:var(--ink);
     background:
-      radial-gradient(120% 80% at 50% -10%, #ff2d55 0%, transparent 45%),
-      radial-gradient(90% 70% at 12% 8%, #ff5e3a55 0%, transparent 55%),
-      radial-gradient(90% 70% at 88% 4%, #ff2ea855 0%, transparent 55%),
-      linear-gradient(180deg, #3a0512 0%, #55071d 38%, #7a0d24 68%, #a3122b 100%);
+      radial-gradient(120% 80% at 50% -10%, #6e0a20 0%, transparent 48%),
+      radial-gradient(90% 70% at 12% 8%, #7a1f1230 0%, transparent 55%),
+      radial-gradient(90% 70% at 88% 4%, #5a123f30 0%, transparent 55%),
+      linear-gradient(180deg, #0c0407 0%, #170509 38%, #200509 68%, #2a060b 100%);
     background-attachment:fixed;
     font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
@@ -75,16 +75,16 @@
   body::before{
     content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
     background-image:
-      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(255,60,90,.5) 68px,rgba(255,60,90,.5) 70px),
-      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(255,120,60,.35) 46px,rgba(255,120,60,.35) 48px);
+      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.28) 68px,rgba(236,48,19,.28) 70px),
+      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.18) 46px,rgba(200,80,40,.18) 48px);
     transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
     -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
-    opacity:.5;
+    opacity:.4;
   }
   body::after{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
-    background:repeating-linear-gradient(0deg,rgba(0,0,0,.10) 0,rgba(0,0,0,.10) 1px,transparent 1px,transparent 3px);
-    animation:scan 8s linear infinite;opacity:.4;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0,rgba(0,0,0,.14) 1px,transparent 1px,transparent 3px);
+    animation:scan 8s linear infinite;opacity:.35;
   }
   @keyframes scan{0%{background-position:0 0}100%{background-position:0 120px}}
 
@@ -341,10 +341,10 @@
   .cinema{position:fixed;inset:0;z-index:60;display:none;place-items:center;
     padding:24px;overflow:auto;
     background:
-      radial-gradient(90% 70% at 50% 0%, #ff2d55 0%, transparent 46%),
-      radial-gradient(70% 60% at 12% 100%, #ff5e3a66 0%, transparent 60%),
-      radial-gradient(70% 60% at 88% 100%, #ff2ea866 0%, transparent 60%),
-      linear-gradient(180deg,#2a0410,#55071d 55%,#8a0f28);
+      radial-gradient(90% 70% at 50% 0%, #6e0a20 0%, transparent 46%),
+      radial-gradient(70% 60% at 12% 100%, #7a1f1245 0%, transparent 60%),
+      radial-gradient(70% 60% at 88% 100%, #5a123f45 0%, transparent 60%),
+      linear-gradient(180deg,#0c0407,#170509 55%,#20050c);
     animation:cineIn .5s ease both}
   .cinema.show{display:grid}
   .cinema.closing{animation:cineOut .4s ease both}
@@ -906,7 +906,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(
       vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
       kind: KINDS[(Math.random() * KINDS.length) | 0],
       color: COLORS[(Math.random() * COLORS.length) | 0],
-      a: 0.25 + Math.random() * 0.5,
+      a: 0.14 + Math.random() * 0.28,
       fill: Math.random() < 0.25,
     }));
   }
