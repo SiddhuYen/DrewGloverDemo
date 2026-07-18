@@ -265,6 +265,20 @@
   .mono{font-family:var(--mono);
     font-size:.92em;color:var(--color-primary-hover)}
 
+  /* --- session search history --------------------------------------------- */
+  #historyList{display:flex;flex-direction:column;max-height:280px;overflow-y:auto}
+  .hist-row{display:flex;align-items:center;gap:10px;padding:9px 4px;cursor:pointer;
+    border-bottom:1px solid var(--hair);font-size:12.5px;transition:background-color .15s ease}
+  .hist-row:last-child{border-bottom:0}
+  .hist-row:hover{background:var(--accent-soft)}
+  .hist-dot{width:6px;height:6px;border-radius:50%;background:var(--color-primary-hover);flex:none}
+  .hist-row.hist-miss .hist-dot{background:var(--faint)}
+  .hist-q{flex:1;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-mode{font:600 10px/1 var(--font-display);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
+  .hist-ago{color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums;
+    min-width:52px;text-align:right}
+
   /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
   input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
   input[type=file]::file-selector-button{margin-right:10px;padding:7px 13px;
@@ -474,6 +488,14 @@
         <line x1="12" y1="3" x2="12" y2="15"></line>
       </svg>
     </button>
+    <button class="gear" id="historyBtn" onclick="toggleHistory()"
+            title="Searches this session" aria-label="Searches this session">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"></circle>
+        <polyline points="12 7 12 12 16 14"></polyline>
+      </svg>
+    </button>
   </h1>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
@@ -546,6 +568,12 @@
       </div>
       <div id="importProg"></div>
     </div>
+  </div>
+
+  <div id="history" class="settings-panel">
+    <div style="margin-bottom:8px"><b>Searches this session</b>
+      <span style="font-size:11px;color:var(--faint)">cleared on reload — not saved anywhere</span></div>
+    <div id="historyList"></div>
   </div>
 
   <nav class="tabs" role="tablist">
@@ -633,6 +661,15 @@
 <script>
 let MODE = 'connect';
 
+// Every completed Connect/Discover query this tab has run, most recent
+// first — client-side only, on purpose: this app has no accounts, so there
+// is no "whose history" to scope a persistent version to, and the existing
+// server-side settings file already covers the one thing that DOES need to
+// survive a restart (the Serper key). Capped so a long session doesn't grow
+// this without bound.
+let SEARCH_HISTORY = [];
+const HISTORY_CAP = 20;
+
 const MODES = {
   connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
   discover: {placeholder: 'Whose neighborhood? (blank = Drew Glover)',        button: 'Discover'},
@@ -714,6 +751,7 @@ function runStream(q, out, btn){
     es.close();
     pf.style.transform = 'scaleX(1)'; pp.textContent = '100%'; pm.textContent = 'done';
     const data = JSON.parse(e.data);
+    recordSearch(MODE, q, data);
     setTimeout(() => {
       if (MODE === 'discover' && !data.found)
         out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
@@ -750,6 +788,7 @@ async function run(){
     const res  = await fetch(ENDPOINT[MODE](q));
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    recordSearch(MODE, q, data);
     out.innerHTML = RENDER[MODE](data);
   } catch (err) {
     out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
@@ -1166,6 +1205,64 @@ function toggleSettings(){
 function toggleImport(){
   const p = document.getElementById('import');
   p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
+}
+function toggleHistory(){
+  const p = document.getElementById('history');
+  const opening = getComputedStyle(p).display === 'none';
+  p.style.display = opening ? 'block' : 'none';
+  if (opening) renderHistory();
+}
+
+// Records every completed query (found or not — a dead end is still worth
+// recalling) so re-opening it never costs a second network round trip.
+function recordSearch(mode, query, data){
+  SEARCH_HISTORY.unshift({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    mode, query, ts: Date.now(), data,
+  });
+  SEARCH_HISTORY.length = Math.min(SEARCH_HISTORY.length, HISTORY_CAP);
+}
+
+function timeAgo(ts){
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.round(m / 60)}h ago`;
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  if (!SEARCH_HISTORY.length){
+    list.innerHTML = '<div class="sub" style="margin:0">No searches yet this session.</div>';
+    return;
+  }
+  list.innerHTML = SEARCH_HISTORY.map(entry => {
+    const ok = entry.mode === 'discover' ? entry.data.found : entry.data.connected;
+    return `<div class="hist-row${ok ? '' : ' hist-miss'}" onclick="recallSearch('${entry.id}')">
+        <span class="hist-dot"></span>
+        <span class="hist-q">${esc(entry.query || '(blank)')}</span>
+        <span class="hist-mode">${entry.mode}</span>
+        <span class="hist-ago">${timeAgo(entry.ts)}</span>
+      </div>`;
+  }).join('');
+}
+
+// Replays a cached result straight from SEARCH_HISTORY — no request, exactly
+// what was shown at the time, including a route that no longer exists if the
+// graph has since changed.
+function recallSearch(id){
+  const entry = SEARCH_HISTORY.find(e => e.id === id);
+  if (!entry) return;
+  mode(entry.mode);
+  document.getElementById('q').value = entry.query;
+  const out = document.getElementById('out');
+  out.innerHTML = (entry.mode === 'discover' && !entry.data.found)
+    ? `<div class="msg err">${esc(entry.data.reason || 'Not found.')}</div>`
+    : RENDER[entry.mode](entry.data);
+  toggleHistory();
 }
 // Inline "?" help toggles — expand/collapse the paragraph right after the
 // button, keyed off a shared class rather than an id per instance.
