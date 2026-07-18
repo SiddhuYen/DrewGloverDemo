@@ -84,13 +84,22 @@ def expansion_rank(db: Session, person: Person,
     via_podcast = arrival_rel in _PODCAST_RELS
     notable = is_notable(db, person)
     deg = _degree(db, person)
+    warm_key = 1                           # neutral unless walking down (below)
     if prefer_notable:
         fame_key = 0 if notable else 1     # famous first
         deg_key = -deg                     # hubs first
     else:
         fame_key = 1 if notable else 0     # famous last (walk down)
         deg_key = deg                      # leaves first
-    return (0 if meets else 1, 0 if via_podcast else 1, fame_key, deg_key)
+        # The seed's OWN first degree — seeded warm contacts and imported
+        # LinkedIn connections — is the warmest possible bridge. Enrich it before
+        # equally-ordinary strangers so a path through the user's real network is
+        # found inside the fanout budget, instead of being crowded out. This is
+        # what makes deep search compose with an uploaded LinkedIn export: the
+        # people you actually know are explored first.
+        warm_key = 0 if getattr(person, "is_warm", False) else 1
+    return (0 if meets else 1, 0 if via_podcast else 1,
+            warm_key, fame_key, deg_key)
 
 
 def rank_frontier(db: Session, candidates, *,
