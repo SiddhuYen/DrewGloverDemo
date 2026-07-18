@@ -4,197 +4,185 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Warm Intro Pathfinder — Drew Glover</title>
-<!-- Startup Bold pairing (Outfit + Rubik) per the design system. Loaded from
-     Google Fonts with a full system fallback stack, so the desktop app still
-     renders cleanly offline. -->
+<!-- Archivo, per the Ember design system (design-system/warm-intro-pathfinder/MASTER.md).
+     Full weight range so display (800) and body (400) both come from one family. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* ── Design system: UI/UX Pro Max → "Aurora UI" ──────────────────────────
+  /* ── Design system: Ember UI ──────────────────────────────────────────
      Generated + persisted at design-system/warm-intro-pathfinder/MASTER.md.
-     Aurora UI = luminous mesh gradients, smooth colour blends, subtle 8-12s
-     loops. Palette: vibrant rose brand + engagement-blue CTA on a light rose
-     ground. Type: Startup Bold (Outfit display / Rubik body). Class names/IDs
-     are unchanged so the app's JS keeps working; only the design language is
-     new. Tokens below are the MASTER source of truth; the app's semantic vars
-     alias onto them. */
+     Ember = a dark, near-black ground with a live ember-red / amber accent
+     pair, Archivo throughout, and small kinetic details (button ripple,
+     hover-rotate icons, expanding help text) rather than one big ambient
+     animation. Class names/IDs are unchanged from the prior system so the
+     app's JS keeps working; only the visual language is new. */
   :root{
-    color-scheme: light dark;
-    /* MASTER tokens (design-system/warm-intro-pathfinder/MASTER.md) */
-    --color-primary:#e11d48; --color-on-primary:#ffffff; --color-secondary:#fb7185;
-    --color-accent:#2563eb; --color-background:#fff1f2; --color-foreground:#881337;
-    --color-muted:#f0ecf2; --color-border:#fecdd3; --color-destructive:#dc2626;
-    --color-ring:#e11d48;
-    /* spacing scale */
+    color-scheme: dark;
+    --color-bg:#0a0807; --color-surface:#110c0a; --color-surface-2:#140a08;
+    --color-ink:#efe8e5; --color-muted:#a89a94; --color-faint:#6b5a55;
+    --color-border:#3c2b25; --color-hair:#241a16;
+    --color-primary:#ec3013; --color-primary-hover:#ff3b1d;
+    --color-accent:#e8a23a; --color-accent-hover:#f4b653;
+    --color-destructive:#f87171; --color-ring:#ec3013;
+
     --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px;
     --space-xl:32px; --space-2xl:48px; --space-3xl:64px;
-    /* shadow depths */
-    --shadow-sm:0 1px 2px rgba(136,19,55,.06); --shadow-md:0 4px 10px rgba(136,19,55,.10);
-    --shadow-lg:0 12px 26px rgba(136,19,55,.14); --shadow-xl:0 22px 40px rgba(136,19,55,.18);
-    /* Startup Bold pairing */
-    --font-display:"Outfit","SF Pro Display","Segoe UI Variable Display","Segoe UI",
-                   system-ui,sans-serif;
-    --font-body:"Rubik",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 4px 14px rgba(0,0,0,.45);
+    --shadow-lg:0 14px 34px rgba(0,0,0,.55); --shadow-xl:0 24px 48px rgba(0,0,0,.6);
+
+    --font-display:"Archivo",system-ui,sans-serif;
+    --font-body:"Archivo",system-ui,sans-serif;
 
     /* App semantic aliases (referenced by CSS + the SVG-building JS) */
-    --base:var(--color-background);
-    --ink:var(--color-foreground); --muted:#9a5566; --faint:#c48a99;
-    --accent:var(--color-primary); --accent-2:var(--color-secondary); --accent-ink:#ffffff;
-    --accent-soft:rgba(225,29,72,.12);
-    --cta:var(--color-accent); --cta-2:#3b82f6;      /* engagement blue for actions */
-    --glass:rgba(255,255,255,.60); --glass-strong:rgba(255,255,255,.82);
-    --glass-border:rgba(255,255,255,.85); --hair:rgba(136,19,55,.12);
+    --base:var(--color-bg); --surface:var(--color-surface);
+    --ink:var(--color-ink); --muted:var(--color-muted); --faint:var(--color-faint);
+    --accent:var(--color-primary); --accent-2:var(--color-accent); --accent-ink:#ffffff;
+    --accent-soft:rgba(236,48,19,.16);
+    --cta:var(--color-accent); --cta-2:var(--color-accent-hover);
+    --hair:var(--color-hair); --border:var(--color-border);
     --shadow:var(--shadow-lg);
-    --star:#f59e0b; --warm:#f97316; --ok:#059669; --bad:#dc2626; --hot:#e11d48;
-    /* Tiers retuned for legibility on the light rose ground (kept off brand rose). */
-    --t1:#059669; --t2:#2563eb; --t3:#7c3aed; --t4:#d97706; --t5:#64748b; --t6:#be7c8a;
-    /* Aurora mesh blobs — rose / pink / periwinkle / orchid. */
-    --blob-a:#ffc2d4; --blob-b:#ffa9c6; --blob-c:#c9d4ff; --blob-d:#f6c9e9;
-    /* Base wash stops (theme-aware so the whole field flips in dark mode). */
-    --grad-1:#fff1f2; --grad-2:#ffe4ee; --grad-3:#eef1ff; --grad-4:#fbe8ff;
+    --star:var(--color-accent); --warm:#fb923c; --ok:#34d399; --bad:var(--color-destructive);
+    --hot:var(--color-primary);
+    /* Warmth tiers — an ember gradient from hottest (tier 1) to coldest (tier 6),
+       so "how warm is this hop" reads the same way in the palette as in the copy. */
+    --t1:#ff3b1d; --t2:#e8542f; --t3:#e8a23a; --t4:#b97a2b; --t5:#63464a; --t6:#4a4148;
     --sans:var(--font-body);
     --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      /* Aurora supports dark; keep the rose/blue identity on a deep rose-black. */
-      --color-background:#1a0d14; --color-foreground:#ffe4ec;
-      --base:#1a0d14; --ink:#ffe4ec; --muted:#d09bab; --faint:#8f6270;
-      --accent:#fb4f74; --accent-2:#ff8fa8; --accent-soft:rgba(251,79,116,.20);
-      --cta:#3b82f6; --cta-2:#60a5fa;
-      --glass:rgba(46,22,32,.52); --glass-strong:rgba(58,28,40,.66);
-      --glass-border:rgba(255,255,255,.14); --hair:rgba(255,255,255,.10);
-      --shadow-sm:0 1px 2px rgba(0,0,0,.3); --shadow-md:0 4px 10px rgba(0,0,0,.4);
-      --shadow-lg:0 14px 30px rgba(0,0,0,.5); --shadow-xl:0 24px 44px rgba(0,0,0,.55);
-      --star:#fbbf24; --warm:#fb923c; --ok:#34d399; --bad:#f87171; --hot:#fb4f74;
-      --t1:#34d399; --t2:#60a5fa; --t3:#c084fc; --t4:#fbbf24; --t5:#94a3b8; --t6:#e59aad;
-      --blob-a:#7a1f3a; --blob-b:#9a2350; --blob-c:#2a3a7a; --blob-d:#5a2a6a;
-      --grad-1:#1a0d14; --grad-2:#2a0f1e; --grad-3:#151833; --grad-4:#2a1030;
-    }
   }
   *{box-sizing:border-box}
   [hidden]{display:none !important}
   html,body{margin:0}
   body{background:var(--base);color:var(--ink);
     font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
-    text-rendering:optimizeLegibility;min-height:100vh}
-  /* Aurora field: layered luminous mesh gradients + a base wash. Slow morph
-     via background-position drift on a scaled layer, saturate(1.2). */
-  body::before{
-    content:"";position:fixed;inset:-30%;z-index:-2;pointer-events:none;
-    background:
-      radial-gradient(46% 44% at 18% 14%, var(--blob-a), transparent 62%),
-      radial-gradient(42% 42% at 84% 10%, var(--blob-b), transparent 60%),
-      radial-gradient(54% 52% at 80% 88%, var(--blob-c), transparent 66%),
-      radial-gradient(48% 46% at 8% 90%,  var(--blob-d), transparent 64%),
-      linear-gradient(160deg,var(--grad-1) 0%,var(--grad-2) 42%,var(--grad-3) 72%,var(--grad-4) 100%);
-    background-size:180% 180%;filter:blur(52px) saturate(1.2);opacity:.92;
-    animation:aurora 12s ease-in-out infinite alternate;
-  }
-  /* Faint tick grid, sampled from the reference frame. */
-  body::after{
-    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.4;
-    background-image:radial-gradient(color-mix(in srgb,var(--color-primary) 34%,transparent) 1px,transparent 1.4px);
-    background-size:46px 46px;background-position:6px 6px;
-    -webkit-mask-image:linear-gradient(#000,rgba(0,0,0,.35) 42%,transparent 80%);
-            mask-image:linear-gradient(#000,rgba(0,0,0,.35) 42%,transparent 80%);
-  }
-  @keyframes aurora{
-    0%{background-position:0% 50%;transform:translate3d(0,0,0) scale(1)}
-    100%{background-position:100% 50%;transform:translate3d(1%,-2%,0) scale(1.06)}}
+    text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
   ::selection{background:var(--accent-soft)}
-  .wrap{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:52px 26px 100px}
 
-  h1{font:800 clamp(38px,6vw,60px)/.98 var(--font-display);margin:0 0 12px;
-    letter-spacing:-.03em;text-wrap:balance;display:flex;align-items:flex-start;gap:16px}
+  /* Ember field: a slow-drifting diagonal hatch + dot grid, well below the
+     content in z-index. Reduced-motion turns the drift off but keeps the
+     field visible — it is texture, not signal. */
+  body::before{
+    content:"";position:fixed;inset:-60px;z-index:-2;pointer-events:none;
+    animation:emberDrift 22s ease-in-out infinite alternate;
+    background-image:
+      repeating-linear-gradient(135deg,rgba(236,48,19,.14) 0px,rgba(236,48,19,.14) 2px,transparent 2px,transparent 46px),
+      repeating-linear-gradient(45deg,rgba(232,162,58,.09) 0px,rgba(232,162,58,.09) 2px,transparent 2px,transparent 46px),
+      radial-gradient(rgba(239,232,229,.10) 1.5px,transparent 1.5px);
+    background-size:auto,auto,30px 30px;
+  }
+  body::after{
+    content:"";position:fixed;top:-160px;right:-120px;width:520px;height:520px;
+    z-index:-2;pointer-events:none;border:2px solid rgba(236,48,19,.16);border-radius:50%;
+  }
+  @keyframes emberDrift{
+    0%{transform:translate(0,0) rotate(0deg)}
+    100%{transform:translate(-40px,-30px) rotate(6deg)}}
+
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 40px 100px}
+
+  h1{font:800 clamp(38px,6vw,64px)/.95 var(--font-display);margin:0 0 12px;
+    letter-spacing:-.02em;text-transform:uppercase;text-wrap:balance;
+    display:flex;align-items:flex-start;gap:16px}
   h1 .lede{display:block}
-  /* Two-tone display headline. Solid brand rose on the first word: gradient
-     text is decoration, and it dilutes the one colour that means "warm". */
-  h1 .accent{color:var(--accent)}
-  .sub{color:var(--muted);margin:0 0 30px;font-size:15.5px;max-width:60ch}
+  h1 .accent{color:var(--accent-primary,var(--color-primary))}
+  .sub{color:var(--muted);margin:0 0 30px;font-size:15px;max-width:60ch}
   .sub b{color:var(--ink);font-weight:600}
 
-  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
-  .tab{padding:10px 18px;border:1px solid var(--glass-border);background:var(--glass);
-    color:var(--muted);cursor:pointer;border-radius:999px;font:600 12.5px/1 var(--font-display);
-    letter-spacing:.01em;
-    backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);
-    box-shadow:var(--shadow-sm);
-    transition:transform .2s cubic-bezier(.3,.7,.3,1),color .2s,box-shadow .2s,border-color .2s}
-  .tab:hover{color:var(--ink);transform:translateY(-1px);
-    border-color:color-mix(in srgb,var(--accent) 30%,transparent)}
-  .tab[aria-selected="true"]{color:var(--accent-ink);border-color:transparent;
-    background:linear-gradient(135deg,var(--accent-2),var(--accent));
-    box-shadow:0 8px 20px color-mix(in srgb,var(--accent) 38%,transparent)}
+  .tabs{display:flex;gap:0;margin-bottom:18px;flex-wrap:wrap;
+    border:1px solid var(--border);width:fit-content}
+  .tab{padding:12px 26px;border:0;border-right:1px solid var(--border);
+    background:transparent;color:var(--muted);cursor:pointer;
+    font:600 14px/1 var(--font-display);letter-spacing:.01em;
+    transition:color .18s ease,background-color .18s ease;text-align:left}
+  .tab:last-child{border-right:0}
+  .tab:hover{color:var(--accent-hover,var(--color-accent-hover))}
+  .tab[aria-selected="true"]{color:#fff;background:var(--color-primary)}
 
-  .row{display:flex;gap:12px}
-  input{min-width:0;flex:1;padding:15px 20px;background:var(--glass-strong);
-    border:1px solid var(--glass-border);color:var(--ink);font:400 15px var(--sans);
-    border-radius:14px;backdrop-filter:blur(20px) saturate(140%);
-    -webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:var(--shadow-sm);
-    transition:box-shadow .2s,border-color .2s}
+  .row{display:flex;gap:10px}
+  input{min-width:0;flex:1;padding:16px 18px;background:var(--surface);
+    border:1px solid var(--border);color:var(--ink);font:400 15px var(--sans);
+    border-radius:0;transition:border-color .15s ease,box-shadow .15s ease}
   input::placeholder{color:var(--faint)}
-  input:focus{outline:none;border-color:var(--color-ring);
-    box-shadow:0 0 0 3px color-mix(in srgb,var(--color-ring) 22%,transparent)}
-  /* CTA = engagement blue per the component spec; brand rose stays for identity. */
-  button{padding:15px 28px;border:0;border-radius:999px;color:#fff;cursor:pointer;
-    background:linear-gradient(135deg,var(--cta-2),var(--cta));
+  input:hover{border-color:#5a3f38}
+  input:focus{outline:none;border-color:var(--color-accent);
+    box-shadow:0 0 0 3px rgba(232,162,58,.18)}
+
+  /* Buttons — a shared kinetic base (ripple on click, lift on hover, press-down
+     on active) with two accent variants: primary (ember red) for the main
+     action per screen, amber for the secondary one. */
+  button{position:relative;overflow:hidden;padding:0 28px;height:52px;border:0;
+    border-radius:0;color:#fff;cursor:pointer;background:var(--color-primary);
     font:700 14px/1 var(--font-display);letter-spacing:.02em;
-    box-shadow:0 8px 20px color-mix(in srgb,var(--cta) 36%,transparent);
-    transition:transform .2s cubic-bezier(.3,.7,.3,1),box-shadow .2s,filter .2s}
-  button:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.06);
-    box-shadow:0 14px 30px color-mix(in srgb,var(--cta) 46%,transparent)}
-  button:active:not(:disabled){transform:translateY(0) scale(.98)}
-  button:disabled{opacity:.5;cursor:default;box-shadow:none}
+    transition:transform .15s ease,box-shadow .18s ease,filter .15s ease}
+  button:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 6px 22px rgba(236,48,19,.45)}
+  button:active:not(:disabled){transform:translateY(1px) scale(.96)}
+  button:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
+  button.amber{background:var(--color-accent);color:#1a1006}
+  button.amber:hover:not(:disabled){box-shadow:0 6px 22px rgba(232,162,58,.45)}
   :focus-visible{outline:2px solid var(--color-ring);outline-offset:2px}
-  a{color:var(--cta)}
-  a:hover{text-decoration:underline}
+  a{color:var(--color-primary-hover)}
+  a:hover{color:#ff6a4a;text-decoration:underline}
 
-  .gear{flex:none;margin-left:auto;width:44px;height:44px;padding:0;display:grid;place-items:center;
-    border:1px solid var(--glass-border);border-radius:50%;background:var(--glass-strong);
-    color:var(--muted);box-shadow:var(--shadow-sm);
-    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-  .gear svg{width:19px;height:19px;display:block}
-  .gear:hover:not(:disabled){filter:none;color:var(--accent);transform:translateY(-2px) rotate(35deg);
-    box-shadow:var(--shadow-md)}
-  .settings-panel{display:none;border:1px solid var(--glass-border);border-radius:18px;
-    padding:20px;margin:16px 0;background:var(--glass);box-shadow:var(--shadow-lg);
-    backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%)}
-  .settings-panel .row{margin-top:10px}
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);
+    transform:scale(0);animation:rippleOut .6s ease-out forwards;pointer-events:none}
+  @keyframes rippleOut{to{transform:scale(2.6);opacity:0}}
 
-  .banner{margin:20px 0;padding:16px 20px;border:1px solid var(--glass-border);border-radius:16px;
-    background:var(--glass);color:var(--muted);font-size:13.5px;position:relative;overflow:hidden;
-    backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%);
-    box-shadow:var(--shadow-md)}
+  .gear{flex:none;margin-left:auto;width:44px;height:44px;padding:0;height:44px;
+    display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;
+    background:transparent;color:var(--muted);transition:transform .18s ease,color .18s ease,border-color .18s ease}
+  .gear svg{width:17px;height:17px;display:block}
+  .gear:hover:not(:disabled){transform:translateY(-2px) rotate(35deg);
+    border-color:var(--color-primary);color:var(--color-primary)}
+  .settings-panel{display:none;border:1px solid var(--border);border-top:none;
+    padding:26px 32px;margin:0 0 18px;background:var(--surface)}
+  .settings-panel .row{margin-top:14px}
+
+  /* An inline "?" help toggle expands a short paragraph under the label it
+     belongs to. Deliberately not a tooltip: the routing/tier logic is worth
+     reading, not glancing at, and a click leaves the answer on the page. */
+  .help{width:22px;height:22px;flex:none;border-radius:50%;border:1px solid var(--color-primary);
+    background:none;color:var(--color-primary);font:700 13px/1 var(--font-display);
+    padding:0;display:inline-grid;place-items:center;height:22px;
+    transition:transform .18s ease,background-color .18s ease,color .18s ease}
+  .help:hover{background:var(--color-primary);color:#fff;transform:rotate(90deg) scale(1.08)}
+  .help.amber{border-color:var(--color-accent);color:var(--color-accent)}
+  .help.amber:hover{background:var(--color-accent);color:#1a1006}
+  .help-body{overflow:hidden;max-height:0;opacity:0;
+    transition:max-height .35s ease,opacity .3s ease,margin .35s ease}
+  .help-body.open{max-height:260px;opacity:1;margin-top:8px}
+  .help-body p{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+
+  .banner{margin:20px 0;padding:16px 20px;border:1px solid var(--border);
+    background:var(--surface);color:var(--muted);font-size:13.5px;
+    position:relative;overflow:hidden}
   .banner::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
-    background:linear-gradient(var(--accent-2),var(--accent))}
+    background:linear-gradient(var(--color-accent),var(--color-primary))}
   .banner b{color:var(--ink);font-weight:600}
 
-  .route{margin:20px 0;border:1px solid var(--glass-border);border-radius:18px;
-    background:var(--glass);overflow:hidden;box-shadow:var(--shadow-lg);
-    backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%)}
+  .route{margin:20px 0;border:1px solid var(--border);background:var(--surface);overflow:hidden}
   .route-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
   .route-hd .n{font-weight:600}
   .score{color:var(--muted);font-variant-numeric:tabular-nums}
   .chain{padding:12px 22px 20px}
   .person{display:flex;align-items:center;gap:10px;padding:8px 0;font-weight:600}
-  .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex:none;
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--color-primary);flex:none;
     box-shadow:0 0 0 4px var(--accent-soft)}
-  .person.warm .dot{background:var(--warm);box-shadow:0 0 0 4px color-mix(in srgb,var(--warm) 24%,transparent)}
+  .person.warm .dot{background:var(--warm);box-shadow:0 0 0 4px rgba(251,146,60,.22)}
   .star{color:var(--star);display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600}
   .star svg{width:13px;height:13px;fill:currentColor}
   .link{margin-left:5px;padding:2px 0 12px 16px;border-left:2px solid var(--hair)}
 
   /* An unusable route is muted, not hidden — you asked to still see it. Muted
      rather than red: this is "don't bother", not "something went wrong". */
-  .route-nogo{opacity:.72}
-  .nogo-banner{margin:0 0 10px;padding:10px 12px;border-radius:10px;
-    background:var(--color-muted);border:1px dashed var(--hair);
+  .route-nogo{opacity:.68}
+  .nogo-banner{margin:0 0 10px;padding:10px 12px;
+    background:var(--color-hair);border:1px dashed var(--border);
     color:var(--muted);font-size:12.5px;line-height:1.5}
   .nogo-banner b{color:var(--ink)}
-  .person.unreachable{opacity:.65}
+  .person.unreachable{opacity:.62}
   .person.unreachable .dot{background:var(--faint)}
   .nogo{margin-left:8px;font-size:10.5px;text-transform:uppercase;
     letter-spacing:.06em;font-weight:700;color:var(--faint)}
@@ -205,85 +193,80 @@
   .keyblock{margin-top:var(--space-md);padding-top:var(--space-md);
     border-top:1px solid var(--hair)}
   .mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-    font-size:.92em;color:var(--accent)}
+    font-size:.92em;color:var(--color-primary-hover)}
 
-  /* --- LinkedIn CSV import (from add-linkedin-csv-import) -----------------
-     Re-tokenised onto the MASTER palette: it shipped against the old
-     amber/mono theme's --red/--white/Courier vars, which this file no longer
-     defines, so the original rules would silently render unstyled. Actions are
-     engagement blue per MASTER; brand rose stays for identity/tags only. */
+  /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
   input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
   input[type=file]::file-selector-button{margin-right:10px;padding:7px 13px;
-    background:var(--cta);border:0;color:#fff;cursor:pointer;border-radius:9px;
+    background:var(--color-accent);border:0;color:#1a1006;cursor:pointer;
     font:600 11.5px/1.2 var(--font-body);letter-spacing:.02em}
-  input[type=file]::file-selector-button:hover{background:var(--cta-2)}
-  .picks{max-height:300px;overflow-y:auto;margin-top:10px;border-radius:12px;
-    border:1px solid var(--hair);background:var(--glass)}
+  input[type=file]::file-selector-button:hover{background:var(--color-accent-hover)}
+  .picks{max-height:300px;overflow-y:auto;margin-top:10px;
+    border:1px solid var(--hair);background:var(--surface-2,var(--color-surface-2))}
   .pick{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;
     border-bottom:1px solid var(--hair);font-size:12.5px}
   .pick:last-child{border-bottom:0}
   .pick:hover{background:var(--accent-soft)}
-  .pick input{flex:none;min-width:0;box-shadow:none}
+  .pick input{flex:none;min-width:0;box-shadow:none;padding:0}
   .pick .who{flex:1}
-  .pick .tag{font-size:10px;color:var(--accent);text-transform:uppercase;font-weight:700;
+  .pick .tag{font-size:10px;color:var(--color-accent);text-transform:uppercase;font-weight:700;
     letter-spacing:.06em}
   .pickbar{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
   .why{font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .tier{font-size:11px;padding:3px 10px;border-radius:999px;font-weight:600;color:var(--t5);
-    background:color-mix(in srgb,currentColor 16%,transparent);
-    border:1px solid color-mix(in srgb,currentColor 40%,transparent)}
+  .tier{font-size:11px;padding:4px 10px;font-weight:700;color:var(--t5);
+    text-transform:uppercase;letter-spacing:.06em;
+    border:1px solid currentColor}
   .t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}
   .t4{color:var(--t4)}.t5{color:var(--t5)}.t6{color:var(--t6)}
   .t6.tier{border-style:dashed}
   .ev{color:var(--muted);font-size:12.5px;font-style:italic;margin-top:6px}
   .src{font-size:12px;margin-top:5px}
   .src a{word-break:break-all}
-  .msg{padding:18px 20px;border:1px solid var(--glass-border);border-radius:16px;
-    background:var(--glass);color:var(--muted);font-size:14px;box-shadow:var(--shadow-md);
-    backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%)}
+  .msg{padding:18px 20px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);font-size:14px}
   .msg b{color:var(--ink)}
-  .msg.err{border-color:color-mix(in srgb,var(--bad) 55%,var(--glass-border))}
+  .msg.err{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
   ul.nb{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
   ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;
-    border:1px solid var(--glass-border);border-radius:12px;background:var(--glass);
-    font-size:14px;backdrop-filter:blur(20px) saturate(140%);
-    -webkit-backdrop-filter:blur(20px) saturate(140%);box-shadow:var(--shadow-sm)}
+    border:1px solid var(--border);background:var(--surface);font-size:14px;
+    transition:background-color .15s ease}
+  ul.nb li:hover{background:var(--color-hair)}
   ul.nb .via{color:var(--muted);font-size:12.5px}
 
   .spin{color:var(--muted);font:400 13.5px/1.6 var(--sans);padding:18px 20px;
-    border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);
-    box-shadow:var(--shadow-md);backdrop-filter:blur(26px) saturate(140%);
-    -webkit-backdrop-filter:blur(26px) saturate(140%)}
+    border:1px solid var(--border);background:var(--surface)}
   .spin::before{content:"";display:inline-block;width:9px;height:9px;margin-right:9px;
-    border-radius:50%;background:var(--cta);vertical-align:middle;
+    border-radius:50%;background:var(--color-accent);vertical-align:middle;
     animation:pulse 1.1s ease-in-out infinite}
   @keyframes pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
 
-  .prog{padding:18px 20px;border:1px solid var(--glass-border);border-radius:16px;background:var(--glass);
-    box-shadow:var(--shadow-md);backdrop-filter:blur(26px) saturate(140%);
-    -webkit-backdrop-filter:blur(26px) saturate(140%)}
+  .prog{padding:18px 20px;border:1px solid var(--border);background:var(--surface);
+    position:relative;overflow:hidden}
+  .prog::before{content:"";position:absolute;top:0;bottom:0;width:120px;
+    background:linear-gradient(90deg,transparent,rgba(236,48,19,.22),transparent);
+    animation:progScan 1.1s linear infinite}
+  @keyframes progScan{0%{left:-30%}100%{left:100%}}
   /* flex:1 is load-bearing: the track sits in a flex row, so without it the
      bar shrinks to its content and the fill (a %) resolves against zero. */
-  .progbar{flex:1;height:10px;border-radius:999px;
-    background:color-mix(in srgb,var(--muted) 18%,transparent);
-    padding:0;display:flex;overflow:hidden}
+  .progbar{flex:1;height:10px;position:relative;z-index:1;
+    background:rgba(168,154,148,.16);padding:0;display:flex;overflow:hidden}
   /* Scale, don't animate width: transform stays off the layout path, and the
-     rounded track already clips the fill. */
+     track already clips the fill. */
   .progfill{width:100%;transform:scaleX(.04);transform-origin:left center;
     transition:transform .35s cubic-bezier(.3,.7,.3,1);
-    background:linear-gradient(90deg,var(--cta-2),var(--accent))}
-  .progpct{margin-left:12px;color:var(--cta);font-weight:700;font-size:12.5px;
-    font-variant-numeric:tabular-nums}
-  .progmsg{margin-top:12px;color:var(--muted);font-size:12.5px;
+    background:linear-gradient(90deg,var(--color-accent),var(--color-primary))}
+  .progpct{margin-left:12px;color:var(--color-accent);font-weight:700;font-size:12.5px;
+    font-variant-numeric:tabular-nums;position:relative;z-index:1}
+  .progmsg{margin-top:12px;color:var(--muted);font-size:12.5px;position:relative;z-index:1;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .progmsg::before{content:"› ";color:var(--cta)}
+  .progmsg::before{content:"› ";color:var(--color-accent)}
   .prophd{color:var(--muted);font-weight:700;font-size:11px;letter-spacing:.14em;
-    text-transform:uppercase;margin-bottom:12px;font-family:var(--font-display)}
+    text-transform:uppercase;margin-bottom:12px;font-family:var(--font-display);
+    position:relative;z-index:1}
 
   /* --- spider web (Connect) --- */
-  .web{margin:20px 0;border:1px solid var(--glass-border);border-radius:18px;overflow:hidden;
-    background:var(--glass);box-shadow:var(--shadow-lg);
-    backdrop-filter:blur(30px) saturate(140%);-webkit-backdrop-filter:blur(30px) saturate(140%)}
+  .web{margin:20px 0;border:1px solid var(--border);overflow:hidden;
+    background:var(--surface);position:relative}
   .web-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
   .web-hd .n{font-weight:600}
@@ -292,60 +275,61 @@
      `.star svg` have identical specificity, so the later one won and blew the
      13px first-degree star up to 311px. Targeting the graph directly means
      adding an icon anywhere under .web can't inherit a full-width stretch. */
-  .web svg.webgraph{display:block;width:100%;height:auto}
-  .strand{fill:none;stroke:color-mix(in srgb,var(--accent) 18%,transparent);stroke-width:1}
+  .web svg.webgraph{display:block;width:100%;height:auto;background:#0d0908}
+  .strand{fill:none;stroke:rgba(236,48,19,.16);stroke-width:1}
   .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
     transition:stroke-width .15s,opacity .15s}
   .wnode{cursor:pointer}
-  .wnode circle{stroke:var(--glass-border);stroke-width:1.5;transition:r .15s}
+  .wnode circle{stroke:var(--border);stroke-width:1.5;transition:r .15s}
   .wnode text{font:600 11px var(--font-display);fill:var(--ink);paint-order:stroke;
-    stroke:var(--base);stroke-width:3px;stroke-linejoin:round}
-  .wnode:hover circle{stroke:var(--accent);stroke-width:2.5}
+    stroke:#0d0908;stroke-width:3px;stroke-linejoin:round}
+  .wnode:hover circle{stroke:var(--color-accent);stroke-width:2.5}
   .web-detail{padding:15px 22px;border-top:1px solid var(--hair);min-height:52px;
     font-size:13px;color:var(--muted)}
   .web-detail b{color:var(--ink)}
   .web-detail .tier{margin-right:8px}
-  .toggle{display:inline-flex;gap:0;border:1px solid var(--glass-border);border-radius:999px;
-    overflow:hidden;background:var(--glass-strong)}
-  .toggle button{padding:7px 15px;border-radius:0;background:transparent;color:var(--muted);
-    box-shadow:none;font:600 12px/1 var(--font-display)}
-  .toggle button[aria-pressed="true"]{background:linear-gradient(135deg,var(--accent-2),var(--accent));
-    color:var(--accent-ink)}
+  .toggle{display:inline-flex;gap:0;border:1px solid var(--border);overflow:hidden}
+  .toggle button{padding:7px 15px;height:auto;border-radius:0;background:transparent;
+    color:var(--muted);box-shadow:none;font:600 12px/1 var(--font-display)}
+  .toggle button:hover:not(:disabled){transform:none;box-shadow:none;color:var(--ink)}
+  .toggle button[aria-pressed="true"]{background:var(--color-primary);color:#fff}
 
   /* --- import (steps, drop zone, stats) --- */
   .steps{display:flex;flex-direction:column;gap:4px;margin-bottom:4px}
   .istep{display:grid;grid-template-columns:36px 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--hair)}
   .istep:first-child{border-top:0;padding-top:6px}
   .inum{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
-    border-radius:50%;font:700 13px/1 var(--font-display);color:var(--accent-ink);
-    background:linear-gradient(135deg,var(--accent-2),var(--accent));
-    box-shadow:0 4px 12px color-mix(in srgb,var(--accent) 34%,transparent)}
+    border-radius:50%;font:700 13px/1 var(--font-display);color:#fff;
+    background:var(--color-primary)}
   .istep b{font-size:14.5px}
   .istep p{color:var(--muted);font-size:13.5px;margin:6px 0 0;max-width:64ch}
-  .kbd{font:500 12.5px var(--mono);color:var(--ink);background:var(--glass-strong);
-    border:1px solid var(--glass-border);border-radius:7px;padding:2px 7px;white-space:nowrap}
-  .drop{margin-top:16px;padding:22px;border-radius:16px;background:var(--glass);
-    border:1.5px dashed color-mix(in srgb,var(--accent) 30%,transparent);
+  .kbd{font:500 12.5px var(--mono);color:var(--ink);background:var(--color-surface-2);
+    border:1px solid var(--border);padding:2px 7px;white-space:nowrap}
+  .drop{margin-top:16px;padding:22px;background:var(--color-surface-2);
+    border:1.5px dashed rgba(236,48,19,.35);
     display:flex;align-items:center;gap:14px;flex-wrap:wrap;
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:border-color .2s,background .2s}
-  .drop.over{border-color:var(--accent);background:var(--accent-soft)}
+    transition:border-color .2s,background .2s}
+  .drop.over{border-color:var(--color-primary);background:var(--accent-soft)}
   .dropnote{color:var(--muted);font-size:13px}
-  .stat{display:flex;gap:30px;flex-wrap:wrap;padding:20px 22px;margin-top:16px;border-radius:16px;
-    border:1px solid var(--glass-border);background:var(--glass);box-shadow:var(--shadow-md);
-    backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%)}
+  .stat{display:flex;gap:30px;flex-wrap:wrap;padding:20px 22px;margin-top:16px;
+    border:1px solid var(--border);background:var(--surface)}
   .stat div{display:flex;flex-direction:column;gap:4px}
   .stat .k{font:600 10.5px/1 var(--font-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .stat .v{font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
   .stat .v.good{color:var(--ok)}
 
-  footer{margin-top:48px;padding-top:24px;border-top:1px solid var(--hair);
-    color:var(--muted);font-size:12.5px;line-height:1.8}
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--border);
+    color:var(--faint);font-size:12.5px;line-height:1.8}
+  footer .tier{margin-right:2px}
+
   @media(max-width:640px){
     .wrap{padding:34px 16px 72px}h1{font-size:34px}
     .row{flex-direction:column}.row button{width:100%}
-    .tabs{grid-template-columns:repeat(2,1fr)}
   }
-  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
+    body::before{animation:none}
+  }
 </style>
 </head>
 <body>
@@ -371,16 +355,20 @@
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
   <div id="settings" class="settings-panel">
-    <div style="margin-bottom:6px"><b>Live search.</b> The bundled graph works with no setup. Add a Serper API key below to also reach people not yet in the graph.</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <b>Live search</b>
+      <button class="help" onclick="toggleHelp(this)" aria-label="About live search">?</button>
+    </div>
+    <div class="help-body"><p>The bundled graph works with no setup. Add a Serper API key below to also reach people not yet in the graph.</p></div>
     <div class="row">
       <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
       <button onclick="saveKey()">Save</button>
     </div>
-    <label style="display:block;margin-top:10px;cursor:pointer">
-      <input type="checkbox" id="deepSearch" onchange="saveDeep()">
-      <b>Deep search</b> makes live search aggressive: it mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
+    <label style="display:flex;gap:10px;align-items:center;margin-top:14px;cursor:pointer;font-size:14px;color:var(--muted)">
+      <input type="checkbox" id="deepSearch" onchange="saveDeep()" style="flex:none;min-width:0;padding:0">
+      <span><b style="color:var(--color-primary-hover)">Deep search</b> makes live search aggressive: it mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).</span>
     </label>
-    <div id="quotaWrap" style="margin-top:12px;display:none">
+    <div id="quotaWrap" style="margin-top:14px;display:none">
       <div class="prophd" id="quotaHd">SERPER QUOTA</div>
       <div style="display:flex;align-items:center">
         <div class="progbar"><div class="progfill" id="quotaFill" style="transform:scaleX(0)"></div></div>
@@ -389,22 +377,25 @@
       <div class="progmsg" id="quotaMsg" style="white-space:normal"></div>
     </div>
     <div class="keyblock">
-      <div style="margin-bottom:6px"><b>Claude API key.</b> Optional. Lets
-        <span class="mono" id="claudeModel">claude-haiku-4-5</span> read the article text
+      <div style="display:flex;align-items:center;gap:10px">
+        <b>Claude API key</b><span style="font-size:11px;color:var(--faint)">optional</span>
+        <button class="help amber" onclick="toggleHelp(this)" aria-label="About Claude key">?</button>
+      </div>
+      <div class="help-body"><p>Lets <span class="mono" id="claudeModel">claude-haiku-4-5</span> read the article text
         behind a weak co-mention and say what kind of tie it sounds like, then spend one
         targeted lookup checking whether a roster actually lists both people.
-        <b>It never creates a link</b> — only the roster can do that, so a path is never
-        built on the model's opinion.</div>
-      <div class="row">
+        <b style="color:var(--ink)">It never creates a link</b> — only the roster can do that, so a path is never
+        built on the model's opinion.</p></div>
+      <div class="row" style="margin-top:14px">
         <input id="claudeKey" type="password" placeholder="sk-ant-…" autocomplete="off">
-        <button onclick="saveClaudeKey()">Save</button>
+        <button class="amber" onclick="saveClaudeKey()">Save</button>
       </div>
-      <div class="sub" style="margin-top:6px">Held for this browser session only, on the
+      <div class="sub" style="margin-top:8px;margin-bottom:0">Held for this browser session only, on the
         server — never sent back to this page, and never written to disk. It is dropped
         when the server restarts or after 12 idle hours.</div>
-      <div id="claudeMsg" class="sub" style="margin-top:6px"></div>
+      <div id="claudeMsg" class="sub" style="margin-top:6px;margin-bottom:0"></div>
     </div>
-    <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
+    <div id="settingsMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
   </div>
 
   <div id="import" class="settings-panel">
@@ -414,19 +405,19 @@
       because the export itself asserts the connection exists.</div>
     <div class="row">
       <input id="csvFile" type="file" accept=".csv,text/csv">
-      <button id="csvGo" onclick="uploadCsv()">Upload</button>
+      <button id="csvGo" class="amber" onclick="uploadCsv()">Upload</button>
     </div>
-    <div id="importMsg" class="sub" style="margin-top:8px"></div>
+    <div id="importMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
 
     <div id="pickWrap" style="display:none">
-      <div style="margin-top:12px;font-size:12px">Importing alone only links these people
-        to Drew. <b>Enriching</b> pulls their own structured sources — rosters, filings,
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
+        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources — rosters, filings,
         podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
         takes a while, so pick only who matters.</div>
       <div class="picks" id="pickList"></div>
       <div class="pickbar">
-        <label style="cursor:pointer;font-size:12px">
-          <input type="checkbox" id="pickAll" onchange="selectAllPicks()"> Select all
+        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
+          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
         </label>
         <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
       </div>
@@ -434,18 +425,18 @@
     </div>
   </div>
 
-  <div class="tabs" role="tablist">
+  <nav class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
     <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import LinkedIn</button>
-  </div>
+  </nav>
 
   <div class="row" id="search-row">
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
     <button id="go" onclick="run()">Find path</button>
   </div>
-  <div class="row" id="ctx-row">
-    <input id="ctx" placeholder="Which one? (optional). e.g. biotech founder, or their company / firm" autocomplete="off" style="width:100%">
+  <div class="row" id="ctx-row" style="margin-top:10px">
+    <input id="ctx" placeholder="Which one? (optional). e.g. biotech founder, or their company / firm" autocomplete="off">
   </div>
 
   <!-- Import is the one tab that takes a file, not a name. -->
@@ -667,7 +658,7 @@ function webDetail(el){
   box.innerHTML =
     `<span class="tier t${d.tier}">tier ${d.tier}</span>`
     + `<b>${esc(d.prev)}</b> → <b>${esc(d.label)}</b> · ${esc(d.why)}`
-    + (d.ev ? `<div class="ev">“${esc(d.ev)}”</div>` : '')
+    + (d.ev ? `<div class="ev">"${esc(d.ev)}"</div>` : '')
     + (d.src ? `<div class="src"><a href="${esc(d.src)}" target="_blank" rel="noopener">${esc(d.src)}</a></div>` : '');
 }
 
@@ -721,11 +712,11 @@ function buildWeb(d){
       if (isTarget) seen.t = 1;
       const [x, y] = pos[i];
       const rad = isTarget ? 22 : isFinder ? 14 : 10;
-      const fill = isTarget ? 'var(--accent)'
+      const fill = isTarget ? 'var(--color-primary)'
                  : isFinder ? 'var(--accent-soft)'
-                 : n.is_warm ? 'var(--warm)' : 'var(--glass-strong)';
-      const stroke = isTarget ? 'var(--accent)'
-                   : isFinder ? 'var(--accent)'
+                 : n.is_warm ? 'var(--warm)' : 'var(--color-surface-2)';
+      const stroke = isTarget ? 'var(--color-primary)'
+                   : isFinder ? 'var(--color-primary)'
                    : n.is_warm ? 'var(--warm)' : tierColor(n.warmth_tier);
       // label placement: outward, side chosen by which half of the web
       let tx, ty, anchor;
@@ -738,7 +729,7 @@ function buildWeb(d){
                  : `data-label="${esc(n.label)}" data-prev="${esc(prev)}" data-tier="${n.warmth_tier || 5}" `
                    + `data-why="${esc(n.why || '')}" data-ev="${esc(n.evidence_snippet || '')}" data-src="${esc(n.source_url || '')}"`;
       const finderHalo = isFinder
-        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--accent)" stroke-opacity=".35"/>` : '';
+        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
       const star = (n.is_warm && !isTarget && !isFinder) ? '★ ' : '';
       nodes += `<g class="wnode" ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
              + finderHalo
@@ -762,7 +753,7 @@ function renderPaths(d){
             <span class="tier t${n.warmth_tier}">tier ${n.warmth_tier}</span>
             <span>${esc(n.why)}</span>
           </div>
-          ${n.evidence_snippet ? `<div class="ev">“${esc(n.evidence_snippet)}”</div>` : ''}
+          ${n.evidence_snippet ? `<div class="ev">"${esc(n.evidence_snippet)}"</div>` : ''}
           ${n.source_url ? `<div class="src"><a href="${esc(n.source_url)}" target="_blank" rel="noopener">${esc(n.source_url)}</a></div>` : ''}
         </div>` : '';
       return `${link}
@@ -802,7 +793,7 @@ function hopBlock(h){
         <span class="tier t${h.warmth_tier}">tier ${h.warmth_tier}</span>
         <span>${esc(h.why)}</span>
       </div>
-      ${h.evidence_snippet ? `<div class="ev">“${esc(h.evidence_snippet)}”</div>` : ''}
+      ${h.evidence_snippet ? `<div class="ev">"${esc(h.evidence_snippet)}"</div>` : ''}
       ${h.source_url ? `<div class="src"><a href="${esc(h.source_url)}" target="_blank" rel="noopener">${esc(h.source_url)}</a></div>` : ''}
     </div>
     <div class="person"><span class="dot"></span>${esc(h.label)}</div>`;
@@ -849,6 +840,28 @@ function toggleImport(){
   const p = document.getElementById('import');
   p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
 }
+// Inline "?" help toggles — expand/collapse the paragraph right after the
+// button, keyed off a shared class rather than an id per instance.
+function toggleHelp(btn){
+  const body = btn.parentElement.nextElementSibling;
+  if (body && body.classList.contains('help-body')) body.classList.toggle('open');
+}
+
+// Click ripple: any <button> gets a circular fade-out from the pointer, sized
+// to the button so it always reaches the far corner.
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('button');
+  if (!b) return;
+  const r = b.getBoundingClientRect();
+  const s = document.createElement('span');
+  s.className = 'ripple';
+  const size = Math.max(r.width, r.height) * 1.3;
+  s.style.width = s.style.height = size + 'px';
+  s.style.left = (e.clientX - r.left - size / 2) + 'px';
+  s.style.top  = (e.clientY - r.top  - size / 2) + 'px';
+  b.appendChild(s);
+  setTimeout(() => s.remove(), 600);
+}, true);
 
 let IMPORTED = [];   // rows from the last CSV upload, in file order
 
@@ -939,7 +952,7 @@ function streamEnrich(job, names, out, btn){
     `<div class="prog">
        <div class="prophd">[ ENRICHING ${names.length} ]</div>
        <div style="display:flex;align-items:center">
-         <div class="progbar"><div class="progfill" id="ef" style="width:0%"></div></div>
+         <div class="progbar"><div class="progfill" id="ef" style="transform:scaleX(0)"></div></div>
          <span class="progpct" id="ep">0%</span>
        </div>
        <div class="progmsg" id="em">starting…</div>
@@ -955,14 +968,14 @@ function streamEnrich(job, names, out, btn){
     const m = /^\[(\d+)\/(\d+)\]/.exec(line);
     if (m){
       const pct = Math.round(100 * (Number(m[1]) - 1) / Number(m[2]));
-      ef.style.width = pct + '%';
+      ef.style.transform = `scaleX(${pct / 100})`;
       ep.textContent = pct + '%';
     }
   });
   es.addEventListener('result', e => {
     es.close();
     const d = JSON.parse(e.data);
-    ef.style.width = '100%'; ep.textContent = '100%'; em.textContent = 'done';
+    ef.style.transform = 'scaleX(1)'; ep.textContent = '100%'; em.textContent = 'done';
     if (!d.found){
       out.innerHTML = `<div class="msg err">${esc(d.reason || 'Enrichment failed.')}</div>`;
       btn.disabled = false;
@@ -1048,7 +1061,7 @@ async function refreshQuota(){
       q.state === 'ok' ? 'SERPER QUOTA' : 'SERPER QUOTA — ' + q.state.toUpperCase();
   } catch(e){}
 }
-// --- LinkedIn CSV import ---------------------------------------------------
+// --- LinkedIn CSV import (drop-zone variant) --------------------------------
 async function uploadCsv(file){
   const out = document.getElementById('out');
   if (!file) return;

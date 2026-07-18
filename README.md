@@ -19,7 +19,42 @@ Bree Hanson ★
 Charles Hudson
 ```
 
-## Quickstart
+## ▶ Run the app
+
+The fastest way to see it: a native desktop window with the graph already loaded.
+No API key needed.
+
+**First time — set up the environment (once):**
+
+```bash
+# Windows (PowerShell)
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m spacy download en_core_web_sm
+
+# macOS / Linux
+python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+./.venv/bin/python -m spacy download en_core_web_sm
+```
+
+**Then launch it (this is the command to remember):**
+
+```bash
+# Windows
+.venv\Scripts\python.exe -m desktop.main
+
+# macOS / Linux
+./.venv/bin/python -m desktop.main
+```
+
+The window opens on **Connect** — type a name (e.g. *Sheel Mohnot*) and hit **Find path**.
+Use `-m desktop.main --server-only` instead to run it as a local web server and open the
+`http://127.0.0.1:<port>/static/index.html` URL it prints.
+
+> Must be `-m desktop.main` (module form). Running `python desktop/main.py` directly fails
+> with `ModuleNotFoundError: No module named 'app'`.
+
+## Quickstart (developer CLI)
 
 ```bash
 python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
