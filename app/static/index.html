@@ -352,10 +352,17 @@
   .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
     transition:stroke-width .15s,opacity .15s}
   .wnode{cursor:pointer}
-  .wnode circle{stroke:var(--border);stroke-width:1.5;transition:r .15s}
+  .wnode rect{stroke:var(--border);stroke-width:1.5;transition:width .15s,height .15s}
   .wnode text{font:600 11px var(--font-display);fill:var(--ink);paint-order:stroke;
     stroke:#0d0908;stroke-width:3px;stroke-linejoin:round}
-  .wnode:hover circle{stroke:var(--color-accent);stroke-width:2.5}
+  /* The monogram sitting INSIDE the tile needs contrast against whatever fill
+     color that tile has, not against the page background — a solid white
+     with no stroke-outline reads cleanly on every fill this graph uses
+     (primary red, warm orange, the near-transparent finder tile, the dark
+     surface tile), unlike the outline trick above which was tuned for text
+     sitting on the busy page background outside the node. */
+  .wnode .node-initials{fill:#fff;font-weight:800;letter-spacing:.01em}
+  .wnode:hover rect{stroke:var(--color-accent);stroke-width:2.5}
   .web-detail{padding:15px 22px;border-top:1px solid var(--hair);min-height:52px;
     font-size:13px;color:var(--muted)}
   .web-detail b{color:var(--ink)}
@@ -815,6 +822,15 @@ function buildWeb(d, opts){
   const clip = s => { s = String(s || ''); return s.length > 20 ? s.slice(0, 19) + '…' : s; };
   const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
   const tierColor = t => `var(--t${t || 5})`;
+  // "Fred Volinksy" -> FV, a single nonsense word -> its first letter — the
+  // monogram tile label, matching the reference's node tiles.
+  const monogram = s => {
+    const parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    return parts.length === 1
+      ? parts[0][0].toUpperCase()
+      : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
   let deco = '', edges = '', nodes = '';
 
@@ -833,29 +849,57 @@ function buildWeb(d, opts){
   // Timing for the draw-out: each route staggers in, each hop draws outward→
   // inward (you → target). Delays only apply when animated.
   const HOP = 0.5, ROUTE = 0.35;
-  const seen = {};   // target drawn once
+  const seen = {};   // target and (when R>1) finder each drawn once
   paths.forEach((p, r) => {
     const ang = angleOf(r);
     const L = p.path.length;
-    const pos = p.path.map((n, i) => pt(ringR((L - 1) - i), ang));
+    // Every route starts at the SAME person, so with more than one route the
+    // finder gets one fixed rim position (top) shared by all of them — each
+    // route's first edge originates from that shared point — rather than
+    // each route computing its own separate finder position at its own
+    // angle, which drew "Drew Glover" once per route. A lone route (R===1)
+    // keeps its original per-route placement unchanged.
+    const pos = p.path.map((n, i) =>
+      (i === 0 && R > 1) ? pt(Rmax, -Math.PI / 2) : pt(ringR((L - 1) - i), ang));
     const base = r * ROUTE;
-    // real strands: node i-1 -> i, coloured by node i's incoming tier
+    // real strands: node i-1 -> i, coloured by node i's incoming tier. A
+    // gentle quadratic-bezier bow (not a straight line) matches the
+    // reference's curved connectors; alternating the bow direction by route
+    // keeps routes visually separated where they'd otherwise overlap along
+    // the same radial spoke.
+    const curveSign = r % 2 === 0 ? 1 : -1;
     for (let i = 1; i < L; i++){
       const n = p.path[i];
       const a = pos[i - 1], b = pos[i];
       const dly = base + (i - 1) * HOP;
+      const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const segLen = Math.hypot(dx, dy) || 1;
+      const bow = Math.min(28, segLen * 0.16) * curveSign;
+      const ctrl = [mx + (-dy / segLen) * bow, my + (dx / segLen) * bow];
+      // A quadratic bezier's arc length has no closed form; this three-chord
+      // average is the standard cheap approximation — plenty accurate for a
+      // draw-on dash-length hint, which only needs to be "close".
+      const approxLen = (len(a, ctrl) + len(ctrl, b) + segLen) / 2;
       const anim = animated
-        ? ` draw" style="--len:${len(a, b).toFixed(1)};--d:${dly.toFixed(2)}s`
+        ? ` draw" style="--len:${approxLen.toFixed(1)};--d:${dly.toFixed(2)}s`
         : '"';
-      edges += `<line class="edge${anim}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" `
-             + `x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${tierColor(n.warmth_tier)}"/>`;
+      // Weak co-mention edges render dashed — a real signal (unconfirmed
+      // link, opt-in deep-search only), matching the reference's one dashed
+      // connector rather than decorating every edge alike.
+      const weak = n.relationship_from_prev === 'co_mention' ? ' stroke-dasharray="7 6"' : '';
+      edges += `<path class="edge${anim}"${weak} d="M ${a[0].toFixed(1)},${a[1].toFixed(1)} `
+             + `Q ${ctrl[0].toFixed(1)},${ctrl[1].toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}" `
+             + `stroke="${tierColor(n.warmth_tier)}"/>`;
     }
     // nodes
     p.path.forEach((n, i) => {
       const isTarget = i === L - 1;
       const isFinder = i === 0;
-      if (isTarget && seen.t) return;   // one central target
+      if (isTarget && seen.t) return;              // one central target
+      if (isFinder && R > 1 && seen.f) return;      // one shared finder, R>1 only
       if (isTarget) seen.t = 1;
+      if (isFinder) seen.f = 1;
       const [x, y] = pos[i];
       const rad = isTarget ? 24 : isFinder ? 14 : 10;
       const fill = isTarget ? 'var(--color-primary)'
@@ -879,12 +923,25 @@ function buildWeb(d, opts){
         + (animated ? ' pop' : '')
         + (isTarget ? ' glow-node' : '');
       const style = animated ? ` style="--d:${dly.toFixed(2)}s"` : '';
-      const finderHalo = isFinder
-        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
+      // Rounded-square tile, not a circle — the reference's node language is
+      // a monogram chip, not a dot. rx stays a fraction of the tile so it
+      // scales with the three node sizes (finder/bridge/target) instead of
+      // one fixed corner radius looking right on only one of them.
+      const side = rad * 2, rx = (rad * 0.32).toFixed(1);
+      const tileHalo = isFinder
+        ? `<rect x="${(x - rad - 5).toFixed(1)}" y="${(y - rad - 5).toFixed(1)}" `
+          + `width="${(side + 10).toFixed(1)}" height="${(side + 10).toFixed(1)}" rx="${rx}" `
+          + `fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
       const star = (n.is_warm && !isTarget && !isFinder) ? '★ ' : '';
+      const initials = esc(monogram(n.label));
+      const initialSize = Math.max(9, rad * 0.85).toFixed(1);
       nodes += `<g class="${cls}"${style} ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
-             + finderHalo
-             + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${fill}" stroke="${stroke}"/>`
+             + tileHalo
+             + `<rect x="${(x - rad).toFixed(1)}" y="${(y - rad).toFixed(1)}" `
+             + `width="${side.toFixed(1)}" height="${side.toFixed(1)}" rx="${rx}" `
+             + `fill="${fill}" stroke="${stroke}"/>`
+             + `<text class="node-initials" x="${x.toFixed(1)}" y="${(y + initialSize * 0.35).toFixed(1)}" `
+             + `text-anchor="middle" font-size="${initialSize}">${initials}</text>`
              + `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(star + clip(n.label))}</text>`
              + `</g>`;
     });
