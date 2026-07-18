@@ -3,12 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Warm Intro Pathfinder — Drew Glover</title>
-<!-- Archivo, per the Ember design system (design-system/warm-intro-pathfinder/MASTER.md).
-     Full weight range so display (800) and body (400) both come from one family. -->
+<title>Artemis — Warm Intro Pathfinder</title>
+<!-- Space Grotesk (display) + JetBrains Mono (labels/data) — a techier, more
+     engineered pairing than the old Archivo-everywhere set. Space Grotesk's
+     squared-off apertures and mono keep the console/schematic feel from the
+     circular-graph, cinematic-reveal look; JetBrains Mono covers anything
+     numeric or code-like (tiers, quota, keys). -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ── Design system: Ember UI ──────────────────────────────────────────
      Generated + persisted at design-system/warm-intro-pathfinder/MASTER.md.
@@ -32,8 +35,8 @@
     --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 4px 14px rgba(0,0,0,.45);
     --shadow-lg:0 14px 34px rgba(0,0,0,.55); --shadow-xl:0 24px 48px rgba(0,0,0,.6);
 
-    --font-display:"Archivo",system-ui,sans-serif;
-    --font-body:"Archivo",system-ui,sans-serif;
+    --font-display:"Space Grotesk",system-ui,sans-serif;
+    --font-body:"Space Grotesk",system-ui,sans-serif;
 
     /* App semantic aliases (referenced by CSS + the SVG-building JS) */
     --base:var(--color-bg); --surface:var(--color-surface);
@@ -49,7 +52,7 @@
        so "how warm is this hop" reads the same way in the palette as in the copy. */
     --t1:#ff3b1d; --t2:#e8542f; --t3:#e8a23a; --t4:#b97a2b; --t5:#63464a; --t6:#4a4148;
     --sans:var(--font-body);
-    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box}
   [hidden]{display:none !important}
@@ -60,10 +63,10 @@
      than a lit-up wash. Content panels stay dark for text contrast over it. */
   body{color:var(--ink);
     background:
-      radial-gradient(120% 80% at 50% -10%, #6e0a20 0%, transparent 48%),
-      radial-gradient(90% 70% at 12% 8%, #7a1f1230 0%, transparent 55%),
-      radial-gradient(90% 70% at 88% 4%, #5a123f30 0%, transparent 55%),
-      linear-gradient(180deg, #0c0407 0%, #170509 38%, #200509 68%, #2a060b 100%);
+      radial-gradient(120% 80% at 50% -10%, #4a0716 0%, transparent 46%),
+      radial-gradient(90% 70% at 12% 8%, #5a17151f 0%, transparent 55%),
+      radial-gradient(90% 70% at 88% 4%, #3f0d2e1f 0%, transparent 55%),
+      linear-gradient(180deg, #050203 0%, #0b0304 38%, #0e0304 68%, #140406 100%);
     background-attachment:fixed;
     font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
@@ -75,11 +78,11 @@
   body::before{
     content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
     background-image:
-      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.28) 68px,rgba(236,48,19,.28) 70px),
-      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.18) 46px,rgba(200,80,40,.18) 48px);
+      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.20) 68px,rgba(236,48,19,.20) 70px),
+      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.12) 46px,rgba(200,80,40,.12) 48px);
     transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
     -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
-    opacity:.4;
+    opacity:.35;
   }
   body::after{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
@@ -170,6 +173,20 @@
     background:linear-gradient(var(--color-accent),var(--color-primary))}
   .banner b{color:var(--ink);font-weight:600}
 
+  /* The old always-on explainer paragraph is now a single question button; the
+     explanation itself lives in the shared .help-body reveal below it. */
+  .what-btn{display:flex;align-items:center;gap:10px;width:fit-content;margin:18px 0 0;
+    padding:10px 16px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);font:600 12.5px/1 var(--font-display);letter-spacing:.01em;
+    border-radius:999px;cursor:pointer;height:auto;
+    transition:border-color .18s ease,color .18s ease}
+  .what-btn:hover:not(:disabled){transform:none;box-shadow:none;
+    border-color:var(--color-primary);color:var(--ink)}
+  .what-btn .help{pointer-events:none}
+  .what-btn[aria-expanded="true"] .help{background:var(--color-primary);color:#fff}
+  #what-body{margin:0 0 20px;padding:0 4px}
+  #what-body p{max-width:70ch}
+
   .route{margin:20px 0;border:1px solid var(--border);background:var(--surface);overflow:hidden}
   .route-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
@@ -201,7 +218,7 @@
      per session and never lands on disk. */
   .keyblock{margin-top:var(--space-md);padding-top:var(--space-md);
     border-top:1px solid var(--hair)}
-  .mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  .mono{font-family:var(--mono);
     font-size:.92em;color:var(--color-primary-hover)}
 
   /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
@@ -332,6 +349,8 @@
   footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--border);
     color:var(--faint);font-size:12.5px;line-height:1.8}
   footer .tier{margin-right:2px}
+  footer .t1,footer .t2,footer .t3,footer .t4,footer .t5,footer .t6{
+    font-size:9px;letter-spacing:1px;margin-right:1px}
 
   @media(max-width:640px){
     .wrap{padding:34px 16px 72px}h1{font-size:34px}
@@ -341,10 +360,10 @@
   .cinema{position:fixed;inset:0;z-index:60;display:none;place-items:center;
     padding:24px;overflow:auto;
     background:
-      radial-gradient(90% 70% at 50% 0%, #6e0a20 0%, transparent 46%),
-      radial-gradient(70% 60% at 12% 100%, #7a1f1245 0%, transparent 60%),
-      radial-gradient(70% 60% at 88% 100%, #5a123f45 0%, transparent 60%),
-      linear-gradient(180deg,#0c0407,#170509 55%,#20050c);
+      radial-gradient(90% 70% at 50% 0%, #4a0716 0%, transparent 46%),
+      radial-gradient(70% 60% at 12% 100%, #5a171530 0%, transparent 60%),
+      radial-gradient(70% 60% at 88% 100%, #3f0d2e30 0%, transparent 60%),
+      linear-gradient(180deg,#050203,#0b0304 55%,#140406);
     animation:cineIn .5s ease both}
   .cinema.show{display:grid}
   .cinema.closing{animation:cineOut .4s ease both}
@@ -387,7 +406,7 @@
 <body>
 <canvas id="bgfx" aria-hidden="true"></canvas>
 <div class="wrap">
-  <h1><span class="lede"><span class="accent">Warm</span> Intro<br>Pathfinder</span>
+  <h1><span class="lede"><span class="accent">Arte</span>mis</span>
     <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -524,14 +543,17 @@
     </div>
   </div>
 
-  <div class="banner" id="what-banner">
-    <b>What this shows.</b> Every hop comes from a source that <i>structurally asserts</i> the
-    relationship: a team roster, a podcast episode, an SEC filing, a Wikidata claim.
-    Two names appearing on the same page is <b>not</b> a relationship, and never creates a hop
-    by default. <b>Deep search</b> (in Settings) is the one explicit exception, adding weaker
-    "co-mention" links that always say so.
-    Paths are real but <b>unverified</b>: confirm before asking for the intro.
-    Coverage is the <b>VC/startup world</b>, not the general public.
+  <button class="what-btn" id="what-banner" onclick="toggleWhat(this)" aria-expanded="false"
+          aria-controls="what-body">
+    <span class="help" aria-hidden="true">?</span> What counts as a connection here
+  </button>
+  <div class="help-body" id="what-body">
+    <p>Every hop comes from a source that <i>structurally asserts</i> the relationship — a
+      team roster, a podcast episode, an SEC filing, a Wikidata claim — never two names
+      merely appearing on the same page. <b>Deep search</b> is the one opt-in exception,
+      adding weaker "co-mention" links that always say so. Paths are real but
+      <b>unverified</b>: confirm before asking for the intro. Coverage is the
+      <b>VC/startup world</b>, not the general public.</p>
   </div>
 
   <div id="out"></div>
@@ -551,13 +573,9 @@
   </div>
 
   <footer>
-    Warmth tiers: <span class="t1">1</span> demonstrated (podcast, co-founder, direct connection) ·
-    <span class="t2">2</span> same small firm / shared board ·
-    <span class="t3">3</span> investor–founder ·
-    <span class="t4">4</span> shared portfolio or employer ·
-    <span class="t5">5</span> weak affiliation ·
-    <span class="t6">6</span> co-mentioned only, not a confirmed relationship (Deep search).
-    <span class="star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 7.1-1.01z"/></svg></span> marks Drew's real first degree.
+    <span class="t1">●</span><span class="t2">●</span><span class="t3">●</span><span class="t4">●</span><span class="t5">●</span><span class="t6">●</span>
+    warmest → weakest ·
+    <span class="star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 7.1-1.01z"/></svg></span> = Drew's first degree
   </footer>
 </div>
 
@@ -1046,6 +1064,14 @@ function toggleImport(){
 function toggleHelp(btn){
   const body = btn.parentElement.nextElementSibling;
   if (body && body.classList.contains('help-body')) body.classList.toggle('open');
+}
+// "What counts as a connection here" — a question button rather than a paragraph
+// that is always on screen. Shares the .help-body reveal used elsewhere.
+function toggleWhat(btn){
+  const body = document.getElementById('what-body');
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open);
 }
 
 // Click ripple: any <button> gets a circular fade-out from the pointer, sized
