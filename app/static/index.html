@@ -167,9 +167,20 @@
   .gear svg{width:17px;height:17px;display:block}
   .gear:hover:not(:disabled){transform:translateY(-2px) rotate(35deg);
     border-color:var(--color-primary);color:var(--color-primary)}
-  .settings-panel{display:none;border:1px solid var(--border);border-top:none;
+  /* Same left accent stripe as .banner/.warmer-prompt — a settings panel is
+     the same "here's something worth your attention" register as those,
+     just persistently open rather than a one-off message. */
+  .settings-panel{display:none;position:relative;overflow:hidden;
+    border:1px solid var(--border);border-top:none;
     padding:26px 32px;margin:0 0 18px;background:var(--surface)}
+  .settings-panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--color-border)}
   .settings-panel .row{margin-top:14px}
+  /* Small caps-mono meta label — "optional", a route's RT-id, a history
+     entry's mode — one shared tag treatment instead of one-off inline styles
+     repeated per use. */
+  .tag{font:600 10px/1 var(--font-display);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
 
   /* An inline "?" help toggle expands a short paragraph under the label it
      belongs to. Deliberately not a tooltip: the routing/tier logic is worth
@@ -325,11 +336,17 @@
   .msg b{color:var(--ink)}
   .msg.err{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
   ul.nb{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
-  ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;
+  ul.nb li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;
     border:1px solid var(--border);background:var(--surface);font-size:14px;
     transition:background-color .15s ease}
-  ul.nb li:hover{background:var(--color-hair)}
-  ul.nb .via{color:var(--muted);font-size:12.5px}
+  ul.nb li:hover{background:var(--accent-soft)}
+  ul.nb .nb-who{display:flex;align-items:center;gap:10px;min-width:0}
+  /* Same status-dot language as the route cards and history rows — warm
+     (first-degree) gets the warm-tier color, everyone else the plain accent,
+     rather than introducing a third dot treatment for one more list. */
+  .nb-dot{width:7px;height:7px;border-radius:50%;background:var(--color-primary-hover);flex:none}
+  ul.nb li.nb-warm .nb-dot{background:var(--warm)}
+  ul.nb .via{color:var(--muted);font-size:12px;font-family:var(--mono);margin-top:3px}
 
   .spin{color:var(--muted);font:400 13.5px/1.6 var(--sans);padding:18px 20px;
     border:1px solid var(--border);background:var(--surface)}
@@ -528,7 +545,7 @@
     </div>
     <div class="keyblock">
       <div style="display:flex;align-items:center;gap:10px">
-        <b>Claude API key</b><span style="font-size:11px;color:var(--faint)">optional</span>
+        <b>Claude API key</b><span class="tag">optional</span>
         <button class="help amber" onclick="toggleHelp(this)" aria-label="About Claude key">?</button>
       </div>
       <div class="help-body"><p>Lets <span class="mono" id="claudeModel">claude-haiku-4-5</span> read the article text
@@ -1221,9 +1238,13 @@ function renderNeighborhood(d){
     return `<div class="msg err"><b>Nobody reachable for ${esc(d.person || 'them')}.</b><br>${deepHint}</div>`;
   }
   return `<ul class="nb">` + d.neighborhood.map(p => `
-    <li>
-      <span>${esc(p.label)} ${p.is_warm ? `<span class="star">${STAR}</span>` : ''}
-        <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
+    <li class="${p.is_warm ? 'nb-warm' : ''}">
+      <span class="nb-who">
+        <span class="nb-dot"></span>
+        <span>
+          <span>${esc(p.label)}</span> ${p.is_warm ? `<span class="star">${STAR}</span>` : ''}
+          <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
+        </span>
       </span>
       <span class="score">${p.warmth_score}</span>
     </li>`).join('') + `</ul>`;
