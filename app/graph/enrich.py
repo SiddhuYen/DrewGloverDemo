@@ -97,6 +97,13 @@ class Enricher:
         # human can override — see connect._homonym_notice and
         # POST /confirm-identity.
         self._identity_rejected = None
+        # Set by _identity_confirmed when it runs a real comparison (a
+        # name-matched Wikidata candidate exists) with NO user-supplied hint —
+        # the weakest configuration the guard runs in, since the only signal is
+        # an unguided web search that a more-famous namesake's own coverage can
+        # dominate. Not a verdict either way; a nudge to add context. See
+        # connect._homonym_needs_context.
+        self._identity_needs_context = None
 
     # --- one org's roster -> membership + (maybe) pairwise edges ----------
     def _absorb_org(self, db: Session, subject: Person, org_name: str,
@@ -146,18 +153,32 @@ class Enricher:
     def _web_background(self, name: str, hint: str) -> str:
         """A few web-snippet lines describing who this person actually is, used
         to disambiguate same-name homonyms. Cheap: one search, snippets only, no
-        page fetches. Works keyless (DuckDuckGo) as well as with Serper."""
+        page fetches. Works keyless (DuckDuckGo) as well as with Serper.
+
+        When a hint is given, results are FILTERED to the ones that actually
+        mention it, not just re-ranked by the search engine. A plain search for
+        a name that a more-famous person also holds is dominated by that
+        person's coverage — the hint being "considered" by the query string
+        does not fix that, since the famous person's pages routinely outrank
+        everything else regardless. Falls back to the unfiltered results if
+        nothing survives the filter (a hint that's a paraphrase or a company
+        alias, not a literal snippet match), so this degrades to the old
+        behaviour rather than returning nothing.
+        """
         query = f"{name} {hint}".strip()
         try:
-            results = _search_provider().search(query)[:4]
+            results = _search_provider().search(query)[:8]
         except Exception:
             return ""
-        lines = []
-        for r in results:
-            text = f"{r.title} — {r.snippet}".strip(" —")
-            if text:
-                lines.append(text)
-        return " | ".join(lines)[:800]
+        lines = [f"{r.title} — {r.snippet}".strip(" —") for r in results]
+        lines = [line for line in lines if line]
+        hint_words = [w.lower() for w in hint.split() if len(w) > 2]
+        if hint_words:
+            on_topic = [line for line in lines
+                       if any(w in line.lower() for w in hint_words)]
+            if on_topic:
+                lines = on_topic
+        return " | ".join(lines[:4])[:800]
 
     def _store_wikidata_identity(self, subject: Person, qid: str) -> None:
         """Persist the adopted entity's description on the node, so a later run
@@ -209,6 +230,9 @@ class Enricher:
         org_names = [o["org_name"] for o in self.wikidata.orgs_for_person(qid)][:5]
         if org_names:
             candidate = f"{candidate} — affiliated with {', '.join(org_names)}"
+        if not self._hint:
+            self._identity_needs_context = {
+                "qid": qid, "description": card.get("description") or qid}
         signal = f"{self._background_text} {self._hint}".strip()
         if not signal:
             return True                       # no context to dispute the match
@@ -780,6 +804,7 @@ class Enricher:
         self._verify_identity = is_target
         self._background_text = ""
         self._identity_rejected = None
+        self._identity_needs_context = None
         if is_target and config.IDENTITY_VERIFY_ENABLED and not subject.wikidata_qid:
             self._background_text = self._web_background(subject.canonical_name, self._hint)
             if self._background_text:
@@ -804,9 +829,12 @@ class Enricher:
             except Exception as exc:  # one dead provider must not sink the run
                 _note(progress, f"    {step.__name__} failed: {exc}")
 
-        if self._identity_rejected:
+        if self._identity_rejected or self._identity_needs_context:
             meta = dict(subject.meta or {})
-            meta["homonym_rejected"] = self._identity_rejected
+            if self._identity_rejected:
+                meta["homonym_rejected"] = self._identity_rejected
+            if self._identity_needs_context:
+                meta["homonym_needs_context"] = self._identity_needs_context
             subject.meta = meta
 
         # Record the richness achieved, so a thin (keyless) run is re-done once a
