@@ -493,15 +493,6 @@
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
     </button>
-    <button class="gear" id="importBtn" onclick="toggleImport()"
-            title="Import LinkedIn connections" aria-label="Import LinkedIn connections">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
-      </svg>
-    </button>
     <button class="gear" id="historyBtn" onclick="toggleHistory()"
             title="Searches this session" aria-label="Searches this session">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -557,33 +548,6 @@
     <div id="settingsMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
   </div>
 
-  <div id="import" class="settings-panel">
-    <div style="margin-bottom:8px"><b>LinkedIn connections</b> — upload your
-      <i>Connections.csv</i> export (LinkedIn → Settings → Get a copy of your data).
-      Every row becomes a <span class="t1">tier 1</span> first-degree link from Drew,
-      because the export itself asserts the connection exists.</div>
-    <div class="row">
-      <input id="csvFile" type="file" accept=".csv,text/csv">
-      <button id="csvGo" class="amber" onclick="uploadCsv()">Upload</button>
-    </div>
-    <div id="importMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
-
-    <div id="pickWrap" style="display:none">
-      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
-        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources — rosters, filings,
-        podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
-        takes a while, so pick only who matters.</div>
-      <div class="picks" id="pickList"></div>
-      <div class="pickbar">
-        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
-          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
-        </label>
-        <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
-      </div>
-      <div id="importProg"></div>
-    </div>
-  </div>
-
   <div id="history" class="settings-panel">
     <div style="margin-bottom:8px"><b>Searches this session</b>
       <span style="font-size:11px;color:var(--faint)">cleared on reload — not saved anywhere</span></div>
@@ -633,6 +597,23 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Populated by renderPicker() once a CSV import returns at least one
+         person — hidden until then, since there is nothing to pick yet. -->
+    <div id="pickWrap" style="display:none">
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
+        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources — rosters, filings,
+        podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
+        takes a while, so pick only who matters.</div>
+      <div class="picks" id="pickList"></div>
+      <div class="pickbar">
+        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
+          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
+        </label>
+        <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
+      </div>
+      <div id="importProg"></div>
     </div>
   </div>
 
@@ -1260,10 +1241,6 @@ function toggleSettings(){
   const isHidden = getComputedStyle(s).display === 'none';
   s.style.display = isHidden ? 'block' : 'none';
 }
-function toggleImport(){
-  const p = document.getElementById('import');
-  p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
-}
 function toggleHistory(){
   const p = document.getElementById('history');
   const opening = getComputedStyle(p).display === 'none';
@@ -1354,35 +1331,6 @@ document.addEventListener('click', e => {
 }, true);
 
 let IMPORTED = [];   // rows from the last CSV upload, in file order
-
-async function uploadCsv(){
-  const file = document.getElementById('csvFile').files[0];
-  const msg  = document.getElementById('importMsg');
-  const btn  = document.getElementById('csvGo');
-  if (!file){ msg.textContent = 'Choose a .csv file first.'; return; }
-  btn.disabled = true;
-  msg.textContent = 'Importing…';
-  try {
-    const body = new FormData();
-    body.append('file', file);
-    const res  = await fetch('/network/csv', {method: 'POST', body});
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-    if (data.error) throw new Error(data.error);
-    IMPORTED = data.people || [];
-    // Count the people, not the rows: an export can list one person twice.
-    const n = IMPORTED.length;
-    msg.innerHTML = `Imported <b>${n}</b> connection${n === 1 ? '' : 's'} · `
-      + `${data.edges} first-degree link${data.edges === 1 ? '' : 's'}`
-      + (data.skipped ? ` · ${data.skipped} row${data.skipped === 1 ? '' : 's'} skipped (no name)` : '');
-    document.getElementById('importProg').innerHTML = '';
-    renderPicker();
-  } catch(err){
-    msg.textContent = 'Import failed: ' + err.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
 
 const pickBoxes = () => [...document.querySelectorAll('.pickbox')];
 
@@ -1567,6 +1515,14 @@ async function uploadCsv(file){
     const d = await res.json();
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
     out.innerHTML = renderImport(d);
+    // Importing alone only links these people to Drew — enriching pulls their
+    // own structured sources so paths can run through them too. This is the
+    // one entry point for that now: the picker used to live behind a second,
+    // separate upload button that silently never fired (a same-named
+    // uploadCsv() defined further down this file overwrote this one, so
+    // clicking it did nothing) — folded in here instead of restoring that.
+    IMPORTED = d.people || [];
+    renderPicker();
   } catch(err){
     const msg = (err instanceof TypeError)
       ? '<b>Lost contact with the app.</b><br>Its window is probably closed.' : esc(err.message);
