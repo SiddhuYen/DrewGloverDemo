@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Artemis — Warm Intro Pathfinder</title>
-<!-- Space Grotesk (display) + JetBrains Mono (labels/data) — a techier, more
-     engineered pairing than the old Archivo-everywhere set. Space Grotesk's
-     squared-off apertures and mono keep the console/schematic feel from the
-     circular-graph, cinematic-reveal look; JetBrains Mono covers anything
-     numeric or code-like (tiers, quota, keys). -->
+<!-- JetBrains Mono, alone, everywhere — dropped the Space Grotesk/mono pairing
+     for a single dossier/terminal face. A display+body pairing reads as a
+     product; one unwavering monospace at every size (headline down to the
+     smallest stat label) reads as an instrument panel, which is the register
+     the case-board reference (bracket notation, ALL-CAPS labels, monogram
+     node tiles) is written in throughout. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   /* ── Design system: Ember UI ──────────────────────────────────────────
      Generated + persisted at design-system/warm-intro-pathfinder/MASTER.md.
@@ -24,10 +25,22 @@
     color-scheme: dark;
     --color-bg:#0a0807; --color-surface:#110c0a; --color-surface-2:#140a08;
     --color-ink:#efe8e5; --color-muted:#a89a94; --color-faint:#6b5a55;
-    --color-border:#3c2b25; --color-hair:#241a16;
-    --color-primary:#ec3013; --color-primary-hover:#ff3b1d;
+    /* Shifted from brown-leaning (#3c2b25 / #241a16) to clearly red-tinted —
+       the reference's panel/card borders read as a crisp red line even at
+       rest, not a muted neutral. */
+    --color-border:#4a1a20; --color-hair:#2c0f13;
+    /* Shifted from #ec3013 (orange-leaning) toward a more crimson red — the
+       case-board reference's accent sits closer to blood-red than ember-orange.
+       --color-accent (amber) is untouched: it still does the same job of
+       marking the secondary action apart from the primary one. */
+    --color-primary:#e0203a; --color-primary-hover:#ff2d55;
     --color-accent:#e8a23a; --color-accent-hover:#f4b653;
-    --color-destructive:#f87171; --color-ring:#ec3013;
+    --color-destructive:#f87171; --color-ring:#e0203a;
+    /* A semantic "this is live/engaged" signal, kept deliberately separate
+       from brand red — the reference's toolbar marks its active tool this way
+       rather than reusing the accent hue. Used sparingly (one active toggle
+       state), not as a second brand color. */
+    --color-active:#22c55e;
 
     --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px;
     --space-xl:32px; --space-2xl:48px; --space-3xl:64px;
@@ -35,14 +48,14 @@
     --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 4px 14px rgba(0,0,0,.45);
     --shadow-lg:0 14px 34px rgba(0,0,0,.55); --shadow-xl:0 24px 48px rgba(0,0,0,.6);
 
-    --font-display:"Space Grotesk",system-ui,sans-serif;
-    --font-body:"Space Grotesk",system-ui,sans-serif;
+    --font-display:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --font-body:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
 
     /* App semantic aliases (referenced by CSS + the SVG-building JS) */
     --base:var(--color-bg); --surface:var(--color-surface);
     --ink:var(--color-ink); --muted:var(--color-muted); --faint:var(--color-faint);
     --accent:var(--color-primary); --accent-2:var(--color-accent); --accent-ink:#ffffff;
-    --accent-soft:rgba(236,48,19,.16);
+    --accent-soft:rgba(224,32,58,.16);
     --cta:var(--color-accent); --cta-2:var(--color-accent-hover);
     --hair:var(--color-hair); --border:var(--color-border);
     --shadow:var(--shadow-lg);
@@ -72,17 +85,20 @@
     text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
   ::selection{background:rgba(255,45,85,.35)}
 
-  /* Random neon shapes live on this canvas (drawn in JS). */
+  /* Random neon shapes live on this canvas (drawn in JS) — still the old
+     ambient drift for now. Swapping this for a cursor-reactive dot field is
+     the next, separate pass (needs mouse-tracking JS, not just CSS). */
   #bgfx{position:fixed;inset:0;z-index:-2;pointer-events:none;width:100vw;height:100vh}
-  /* Retro synthwave grid receding to a horizon, plus a soft scanline sheen. */
+  /* Flat schematic dot-grid, uniform across the whole viewport — replaces the
+     earlier synthwave grid, which receded to a horizon at the bottom third.
+     The reference's floor is a calm, even grid over the entire page, not an
+     angled 3D perspective confined to one strip; a plain repeating dot tile
+     matches that directly with no transform/mask needed. */
   body::before{
-    content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
-    background-image:
-      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.20) 68px,rgba(236,48,19,.20) 70px),
-      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.12) 46px,rgba(200,80,40,.12) 48px);
-    transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
-    -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
-    opacity:.35;
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background-image:radial-gradient(rgba(224,32,58,.4) 1px, transparent 1.5px);
+    background-size:24px 24px;
+    opacity:.4;
   }
   body::after{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
@@ -93,8 +109,12 @@
 
   .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 40px 100px}
 
+  /* Wide, open tracking rather than tight — a monospace wordmark reads as
+     "dossier stencil" at a spaced tracking and as merely cramped at a tight
+     one, which is what the negative tracking here was doing before the
+     display face was Space Grotesk (where it was correct). */
   h1{font:800 clamp(38px,6vw,64px)/.95 var(--font-display);margin:0 0 12px;
-    letter-spacing:-.02em;text-transform:uppercase;text-wrap:balance;
+    letter-spacing:.04em;text-transform:uppercase;text-wrap:balance;
     display:flex;align-items:flex-start;gap:16px}
   h1 .lede{display:block}
   h1 .accent{color:var(--accent-primary,var(--color-primary))}
