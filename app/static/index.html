@@ -207,12 +207,36 @@
   #what-body{margin:0 0 20px;padding:0 4px}
   #what-body p{max-width:70ch}
 
-  .route{margin:20px 0;border:1px solid var(--border);background:var(--surface);overflow:hidden}
+  /* position:relative + the two pseudo-elements below give each route card
+     small corner accents, echoing the reference's dashed-corner "new board"
+     placeholder without literally dashing the whole border. */
+  .route{position:relative;margin:20px 0;border:1px solid var(--border);
+    background:var(--surface);overflow:hidden}
+  .route::before,.route::after{content:"";position:absolute;width:12px;height:12px;
+    pointer-events:none;border-color:var(--color-primary)}
+  .route::before{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid}
+  .route::after{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid}
+  .route-nogo::before,.route-nogo::after{border-color:var(--faint)}
   .route-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
-  .route-hd .n{font-weight:600}
   .score{color:var(--muted);font-variant-numeric:tabular-nums}
   .chain{padding:12px 22px 20px}
+  /* "● USABLE" / "● BLOCKED" — status-forward, matching the reference's
+     "● ACTIVE" card language. Blocked stays --faint rather than an alarm
+     color: this is "don't bother", not "something went wrong" (see
+     .route-nogo below), and the reference's own status dot is brand-red for
+     the affirmative state rather than a separate semantic color. */
+  .rt-status{display:flex;align-items:center;gap:8px;font:700 11px/1 var(--font-display);
+    letter-spacing:.1em;text-transform:uppercase;color:var(--color-primary-hover)}
+  .rt-status.blocked{color:var(--faint)}
+  .rt-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;
+    box-shadow:0 0 6px currentColor}
+  .rt-id{font:600 11px/1 var(--mono);letter-spacing:.06em;color:var(--faint)}
+  .route-stats{display:flex;gap:16px;flex-wrap:wrap;padding:12px 22px 16px;
+    border-top:1px solid var(--hair);font:600 10.5px/1 var(--font-display);
+    letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .route-stats b{color:var(--ink);font-size:12.5px;font-variant-numeric:tabular-nums;
+    margin-left:4px;letter-spacing:0}
   .person{display:flex;align-items:center;gap:10px;padding:8px 0;font-weight:600}
   .dot{width:10px;height:10px;border-radius:50%;background:var(--color-primary);flex:none;
     box-shadow:0 0 0 4px var(--accent-soft)}
@@ -1013,13 +1037,21 @@ function renderPaths(d){
         knows, so there is nobody here to ask. The hops below are real and
         sourced; it is the introduction that isn't available.
       </div>` : '';
+    const rtId = `RT-${String(i + 1).padStart(2, '0')}`;
     return `<div class="route${blockers.length ? ' route-nogo' : ''}">
       <div class="route-hd">
-        <span class="n">Route ${i + 1} — ${p.hops} hop${p.hops === 1 ? '' : 's'}</span>
-        <span class="score">warmth ${p.warmth_score}</span>
+        <span class="rt-status${blockers.length ? ' blocked' : ''}">
+          <span class="rt-dot"></span>${blockers.length ? 'Blocked' : 'Usable'}
+        </span>
+        <span class="rt-id">${rtId}</span>
       </div>
       ${warn}
       <div class="chain">${hops}</div>
+      <div class="route-stats">
+        <span>Hops <b>${p.hops}</b></span>
+        <span>Warmth <b>${p.warmth_score}</b></span>
+        <span>Bridges <b>${p.bridges.length}</b></span>
+      </div>
     </div>`;
   }).join('');
 }
