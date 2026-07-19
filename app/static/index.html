@@ -213,14 +213,6 @@
   .nogo{margin-left:8px;font-size:10.5px;text-transform:uppercase;
     letter-spacing:.06em;font-weight:700;color:var(--faint)}
 
-  /* Separates the Claude credential from the Serper one above it: they look
-     alike but behave differently — Serper persists process-wide, this is held
-     per session and never lands on disk. */
-  .keyblock{margin-top:var(--space-md);padding-top:var(--space-md);
-    border-top:1px solid var(--hair)}
-  .mono{font-family:var(--mono);
-    font-size:.92em;color:var(--color-primary-hover)}
-
   /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
   input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
   input[type=file]::file-selector-button{margin-right:10px;padding:7px 13px;
@@ -447,25 +439,6 @@
         <span class="progpct" id="quotaPct">0%</span>
       </div>
       <div class="progmsg" id="quotaMsg" style="white-space:normal"></div>
-    </div>
-    <div class="keyblock">
-      <div style="display:flex;align-items:center;gap:10px">
-        <b>Claude API key</b><span style="font-size:11px;color:var(--faint)">optional</span>
-        <button class="help amber" onclick="toggleHelp(this)" aria-label="About Claude key">?</button>
-      </div>
-      <div class="help-body"><p>Lets <span class="mono" id="claudeModel">claude-haiku-4-5</span> read the article text
-        behind a weak co-mention and say what kind of tie it sounds like, then spend one
-        targeted lookup checking whether a roster actually lists both people.
-        <b style="color:var(--ink)">It never creates a link</b> — only the roster can do that, so a path is never
-        built on the model's opinion.</p></div>
-      <div class="row" style="margin-top:14px">
-        <input id="claudeKey" type="password" placeholder="sk-ant-…" autocomplete="off">
-        <button class="amber" onclick="saveClaudeKey()">Save</button>
-      </div>
-      <div class="sub" style="margin-top:8px;margin-bottom:0">Held for this browser session only, on the
-        server — never sent back to this page, and never written to disk. It is dropped
-        when the server restarts or after 12 idle hours.</div>
-      <div id="claudeMsg" class="sub" style="margin-top:6px;margin-bottom:0"></div>
     </div>
     <div id="settingsMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
   </div>
@@ -1235,28 +1208,6 @@ async function saveKey(){
     refreshQuota();               // a fresh key resets the visible usage
   } catch(e){ msg.textContent = 'Could not save the key.'; }
 }
-// Deliberately POSTs to /claude-key rather than /settings: /settings persists to
-// a shared file and mutates process-wide config, which is exactly what must not
-// happen to a credential when more than one person can reach this page. The key
-// goes up and is never sent back down — the field is cleared on success so it
-// cannot be read out of the DOM afterwards.
-async function saveClaudeKey(){
-  const input = document.getElementById('claudeKey');
-  const msg = document.getElementById('claudeMsg');
-  const key = input.value.trim();
-  if (!key){ msg.textContent = 'Paste a key first.'; return; }
-  msg.textContent = 'Saving…';
-  try {
-    const res = await fetch('/claude-key', {method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({claude_key: key})});
-    if (!res.ok) throw new Error(await res.text());
-    const r = await res.json();
-    input.value = '';
-    msg.textContent = r.claude_configured
-      ? 'Key held for this session ✓' : 'Key cleared.';
-  } catch(e){ msg.textContent = 'Could not save the key.'; }
-}
 let DEEP_ON = false;   // mirrors the Deep Search toggle; drives the empty-state hint
 async function saveDeep(){
   const on = document.getElementById('deepSearch').checked;
@@ -1345,13 +1296,6 @@ drop.addEventListener('drop', e => uploadCsv(e.dataTransfer.files[0]));
     DEEP_ON = !!s.deep_search;
     document.getElementById('deepSearch').checked = !!s.deep_search;
     refreshQuota();
-    // The server reports only WHETHER a key is set, never the key, so this is
-    // the most the page can ever know about it.
-    if (s.claude_model) document.getElementById('claudeModel').textContent = s.claude_model;
-    if (s.claude_configured) {
-      document.getElementById('claudeKey').placeholder = 'key set for this session';
-      document.getElementById('claudeMsg').textContent = 'A key is set — paste another to replace it.';
-    }
     if (!s.serper_configured) {
       document.getElementById('settings').style.display = 'block';
     }
