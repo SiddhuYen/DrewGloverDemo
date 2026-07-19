@@ -92,11 +92,22 @@ UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
 # thing tier costs alone cannot: each hop is another person who has to agree to
 # pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one
 # tier-3 hop and two tier-1 hops beat it — the search would route through two
-# strangers rather than ask one investor directly. At 1.0 a direct tie wins
-# unless the detour is genuinely warmer, which is the "one introduction beats
-# three" rule the README already claims. Raise to bias harder toward short
-# chains; 0.0 restores the old ranking.
-HOP_SURCHARGE = float(os.environ.get("VCWI_HOP_SURCHARGE", "1.0"))
+# strangers rather than ask one investor directly.
+#
+# 1.0 was the first value tried and only just gets there: a direct tier-3 hop
+# (cost 3) and a 2-hop tier-1 relay (cost 2x1 = 2, +1 surcharge per hop = 4)
+# land EXACTLY tied at 4 either way, so which one "wins" is decided by
+# whichever the search happens to discover first, not by a real preference for
+# the shorter chain — fragile, and not the deliberate "one introduction beats
+# three" rule the README claims.
+#
+# 2.0 clears that tie with real margin (direct: 3+2=5, relay: 2x(1+2)=6) while
+# staying well under the point where a single WEAK hop would start beating a
+# genuinely warm 2-hop chain (that crossover is at 5.0, where a lone tier-5 hop
+# ties two tier-1 hops) — so short chains are preferred without warmth quality
+# stopping mattering. Raise further to bias harder toward short chains still;
+# 0.0 restores the old, unsurcharged ranking.
+HOP_SURCHARGE = float(os.environ.get("VCWI_HOP_SURCHARGE", "2.0"))
 
 # --- opt-in weak co-occurrence tier (the hybrid) ---------------------------
 # OFF by default: the graph stays Rule-0 pure. When enabled, enrichment mines
