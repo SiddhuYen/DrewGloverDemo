@@ -142,28 +142,9 @@ SSE_HEARTBEAT_S = float(os.environ.get("VCWI_SSE_HEARTBEAT_S", "15"))
 # shipped desktop build is bounded, not open-ended. No proxy in front of it
 # — traded a little security margin for zero hosting infrastructure, since
 # this ships to one trusted person. See DESKTOP.md.
-# The server's own key. On the web this is the FALLBACK, not the norm: visitors
-# bring their own via /settings, held per-session (session.py). Set this only
-# for a single-operator deployment or the CLI — every visitor shares it, and
-# your bill, when it is set.
+# Shared by every caller — the CLI, the web app, tests. One key, one bill,
+# set once by whoever deploys the app.
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
-
-# Whether the session cookie is marked Secure. "auto" (the default) decides per
-# request from the scheme, which is the only setting that is correct in both of
-# this app's deployments: a Secure cookie is never sent over plain HTTP, so
-# hard-coding it on silently breaks http://localhost and the desktop wrapper,
-# and hard-coding it off would ship the session id in the clear in production.
-# Force with 1/0 behind a TLS-terminating proxy that does not forward the
-# scheme (uvicorn needs --proxy-headers to see it).
-COOKIE_SECURE = os.environ.get("VCWI_COOKIE_SECURE", "auto").strip().lower()
-
-
-def cookie_secure_for(scheme: str) -> bool:
-    if COOKIE_SECURE in ("1", "true", "yes", "on"):
-        return True
-    if COOKIE_SECURE in ("0", "false", "no", "off"):
-        return False
-    return scheme == "https"
 
 # --- Claude relationship-strength classification (co_mention tier ONLY) ----
 # Claude labels what kind of tie a co-mention's article text implies
