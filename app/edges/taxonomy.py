@@ -171,11 +171,15 @@ def warmth_score(total_cost: float, hops: int = 0) -> float:
     config.HOP_SURCHARGE per hop. Summing bare tier costs made length too cheap
     to be the tiebreak the paragraph above claims: two tier-1 hops (2.0) beat
     one tier-3 hop (3.0), so a relay through two strangers outranked asking the
-    person who had invested in the target's company. Examples below are at the
-    default surcharge of 1.0:
+    person who had invested in the target's company. A surcharge of 1.0 was not
+    enough either — it only ties the direct tier-3 hop against the 2-hop tier-1
+    relay (4.0 either way), leaving the winner decided by search order rather
+    than a real preference for the shorter chain. Examples below are at the
+    default surcharge of 2.0, which clears that tie with a full point of
+    margin:
 
-        1 hop, tier 1  -> 0.333    2 hops, tier 1 -> 0.2
-        1 hop, tier 3  -> 0.2      5 hops, tier 1 -> 0.091
+        1 hop, tier 1  -> 0.25     2 hops, tier 1 -> 0.143
+        1 hop, tier 3  -> 0.167    5 hops, tier 1 -> 0.062
     """
     if hops <= 0 and total_cost <= 0:
         return 1.0

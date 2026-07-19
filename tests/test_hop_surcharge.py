@@ -32,8 +32,12 @@ def _hops(path):
 
 
 def test_direct_investor_tie_beats_a_two_hop_cofounder_relay():
-    # "drew -> target" directly (tier 3) vs "drew -> x -> y -> target"... no:
-    # the relay is two hops of the warmest tier there is.
+    # "drew -> target" directly (tier 3) vs a relay of two hops of the warmest
+    # tier there is. At the OLD default of 1.0 these land EXACTLY tied (4.0
+    # either way: 3+1 vs 2x(1+1)), so this test used to pass only because of
+    # which route the search happened to discover first — not because of a
+    # real preference for the shorter chain. See
+    # test_direct_investor_tie_has_a_real_cost_margin below for the fix.
     adj = _adj(
         ("drew", "target", "investor_of"),        # tier 3, 1 hop
         ("drew", "relay", "cofounder"),           # tier 1
@@ -41,6 +45,23 @@ def test_direct_investor_tie_beats_a_two_hop_cofounder_relay():
     )
     path = connect._best_path(adj, "drew", "target", max_hops=4)
     assert _hops(path) == ["drew", "target"], "relayed through a stranger instead"
+
+
+def test_direct_investor_tie_has_a_real_cost_margin_not_just_a_tie():
+    """The scenario above must not just happen to resolve in the direct
+    route's favor by search order — the direct route's cost must be STRICTLY
+    lower than the relay's, so the preference is real and doesn't depend on
+    which route the search discovers first.
+
+    At the surcharge of 1.0 this originally shipped with, the two costs were
+    EXACTLY equal (3+1 == 2x(1+1) == 4.0): "one introduction beats three" was
+    true of the README, not of the cost function. The default was raised to
+    2.0 specifically to fix this — direct (3+2=5) now costs strictly less
+    than the relay (2x(1+2)=6), with a full point of margin.
+    """
+    direct = taxonomy.edge_cost("investor_of") + config.HOP_SURCHARGE
+    relay = 2 * (taxonomy.edge_cost("cofounder") + config.HOP_SURCHARGE)
+    assert direct < relay, "direct and relay are tied (or the relay is cheaper)"
 
 
 def test_direct_investor_tie_beats_a_three_hop_cofounder_chain():
@@ -58,9 +79,9 @@ def test_a_genuinely_warmer_detour_still_wins():
     """The surcharge biases toward short paths; it must not flatten tiers into
     a plain hop count, or the search stops being about warmth at all."""
     adj = _adj(
-        ("drew", "target", "co_mention"),         # tier 6: 14.0 + 1.0 = 15.0
+        ("drew", "target", "co_mention"),         # tier 6: 14.0 + 2.0 = 16.0
         ("drew", "partner", "cofounder"),         # tier 1
-        ("partner", "target", "cofounder"),       # tier 1: total 4.0
+        ("partner", "target", "cofounder"),       # tier 1: total 2x(1+2) = 6.0
     )
     path = connect._best_path(adj, "drew", "target", max_hops=4)
     assert _hops(path) == ["drew", "partner", "target"]

@@ -12,23 +12,20 @@ This NEVER promotes an edge: relationship_type stays "co_mention" and Rule 0
 nudge (see builder.add_edge). A confidently-labeled "cofounder-sounding"
 co-mention is still capped well below the weakest real structural tie.
 
-The key comes from session.current_claude_key(): the visitor's own key when
-one has been entered, otherwise the server's CLAUDE_API_KEY. That fallback is
-what keeps the CLI and tests working, where there is no request context.
-Auto no-op (all "unknown"/0.0) when no key is configured or a request fails,
-so the pipeline degrades the same way it did without an LLM at all: metadata
-just doesn't get added, nothing else changes.
+Uses config.CLAUDE_API_KEY — a single key shared by every caller (the CLI, the
+web app, tests). Auto no-op (all "unknown"/0.0) when no key is configured or a
+request fails, so the pipeline degrades the same way it did without an LLM at
+all: metadata just doesn't get added, nothing else changes.
 """
 from __future__ import annotations
 
 import hashlib
-import threading
-from typing import Dict, List
+from typing import List, Optional
 
 import anthropic
 from pydantic import BaseModel
 
-from .. import config, session
+from .. import config
 from ..edges import taxonomy
 from . import cache
 
@@ -94,30 +91,18 @@ test-prep educator who share a name are DIFFERENT people. When the two
 backgrounds plainly conflict, answer "different"."""
 
 
-# Keyed by credential, not a single global: on the web each visitor brings their
-# own key (see session.py), and a one-client cache would hand the first
-# visitor's credential to everyone after them. Capped because the key space is
-# visitor-supplied; each entry owns an HTTP connection pool, so this is a cache,
-# not a registry.
-_MAX_CLIENTS = 64
-_clients: Dict[str, anthropic.Anthropic] = {}
-_client_lock = threading.Lock()
+_client: Optional[anthropic.Anthropic] = None
 
 
 def _get_client() -> anthropic.Anthropic:
-    key = session.current_claude_key()
-    with _client_lock:
-        client = _clients.get(key)
-        if client is None:
-            if len(_clients) >= _MAX_CLIENTS:
-                _clients.clear()
-            client = anthropic.Anthropic(api_key=key)
-            _clients[key] = client
-        return client
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=config.CLAUDE_API_KEY)
+    return _client
 
 
 def llm_available() -> bool:
-    return bool(session.current_claude_key())
+    return bool(config.CLAUDE_API_KEY)
 
 
 def is_active() -> bool:

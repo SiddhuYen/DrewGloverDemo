@@ -22,11 +22,10 @@ from sqlalchemy.orm import Session
 
 from . import config
 from .db import SessionLocal, get_db, init_db
-from .graph.connect import connect_people, discover
-from .graph.enrich import enrich_selected
+from .graph.connect import _lookup, connect_people, discover
+from .graph.enrich import enrich_selected, get_enricher
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
-from . import session
 from .models import Organization, Person, RelationshipEdge
 from .providers.serper import serper_status
 from .providers.stats import STATS
@@ -40,33 +39,6 @@ _write_lock = threading.Lock()
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
-
-
-@app.middleware("http")
-async def _bind_session(request, call_next):
-    """Resolve this request's session before anything reads a credential.
-
-    Issues an id on first contact so a visitor can POST a key immediately. The
-    cookie carries only the opaque id — the key stays in the server-side store
-    (session.py). HttpOnly keeps page scripts out of it; SameSite=Lax keeps a
-    third-party page from driving this API as the visitor.
-    """
-    sid = request.cookies.get(session.COOKIE_NAME)
-    fresh = not session.touch(sid)
-    if fresh:
-        sid = session.new_session()
-    token = session.bind(sid)
-    try:
-        response = await call_next(request)
-    finally:
-        session.reset(token)
-    if fresh:
-        response.set_cookie(
-            session.COOKIE_NAME, sid, httponly=True, samesite="lax",
-            max_age=session.SESSION_TTL_S,
-            secure=config.cookie_secure_for(request.url.scheme),
-        )
-    return response
 
 
 @app.get("/health")
@@ -84,23 +56,9 @@ def health(db: Session = Depends(get_db)) -> dict:
 def get_settings() -> dict:
     """Live-search config. Never returns either key itself."""
     return {"serper_configured": bool(config.SERPER_API_KEY),
-            "claude_configured": session.claude_configured(),
+            "claude_configured": bool(config.CLAUDE_API_KEY),
             "claude_model": config.CLAUDE_MODEL,
             "deep_search": config.DEEP_SEARCH, "serper": serper_status()}
-
-
-@app.post("/claude-key")
-def set_claude_key(claude_key: str = Body(..., embed=True)) -> dict:
-    """Hold this visitor's Anthropic key for their session only.
-
-    Deliberately not merged into /settings: that endpoint persists to a shared
-    file on disk and mutates process-wide config, which is exactly what a
-    credential must not do on a multi-visitor deployment. This one writes to
-    the per-session store and never echoes the key back.
-    """
-    if not session.set_claude_key(claude_key):
-        raise HTTPException(400, "no active session; enable cookies and retry")
-    return {"ok": True, "claude_configured": session.claude_configured()}
 
 
 @app.post("/settings")
@@ -130,6 +88,57 @@ def set_settings(serper_key: str = Body(None, embed=True),
             raise HTTPException(500, f"could not persist settings: {exc}")
     return {"ok": True, "serper_configured": bool(config.SERPER_API_KEY),
             "deep_search": config.DEEP_SEARCH}
+
+
+@app.post("/confirm-contact")
+def confirm_contact(name: str = Body(..., embed=True),
+                    db: Session = Depends(get_db)) -> dict:
+    """Mark someone as a real first-degree contact (is_warm=True).
+
+    This is the correction path for a fame_penalty false positive: a real
+    contact who isn't yet captured by any of the automated is_warm sources
+    (podcast, LinkedIn import, Fiat colleague, portfolio founder) gets banned
+    from bridge positions exactly like an actual stranger, and a warmer route
+    through them just doesn't appear (see connect._suggest_known_contact,
+    surfaced on /connect as "warmer_if_known"). A human confirming "yes, I
+    know them" is at least as strong an assertion as any of those sources.
+    Idempotent — confirming an already-warm contact is a no-op.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.is_warm = True
+        db.commit()
+        return {"ok": True, "name": person.canonical_name, "is_warm": True}
+
+
+@app.post("/confirm-identity")
+def confirm_identity(name: str = Body(..., embed=True),
+                     qid: str = Body(..., embed=True),
+                     db: Session = Depends(get_db)) -> dict:
+    """Override a homonym-guard rejection: the caller is asserting that a
+    name-matched Wikidata candidate the guard skipped IS actually this person.
+
+    Setting wikidata_qid directly bypasses enrich._identity_confirmed on the
+    next enrich_person call — the guard only runs when a candidate QID is being
+    adopted by NAME (see graph.enrich._from_wikidata), and a stored qid short-
+    circuits that resolution. `force=True` re-runs the full pipeline against
+    the now-trusted identity instead of leaving the earlier rejection's edges
+    (or lack of them) cached as "done". See connect._homonym_notice, which is
+    what surfaces the rejection this endpoint corrects.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.wikidata_qid = qid
+        meta = dict(person.meta or {})
+        meta.pop("homonym_rejected", None)
+        person.meta = meta
+        db.commit()
+        get_enricher().enrich_person(db, person.canonical_name, force=True)
+        return {"ok": True, "name": person.canonical_name, "wikidata_qid": qid}
 
 
 @app.post("/seed")

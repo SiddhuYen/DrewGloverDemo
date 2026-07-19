@@ -88,15 +88,41 @@ WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 # this re-ranks rather than censors. 0.0 disables it.
 UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
 
+# How many Wikidata sitelinks (language Wikipedia pages) someone needs before
+# fame_penalty treats them as famous-enough-to-be-implausible, rather than just
+# "has a QID at all". A thin stub — a locally-known founder with one or two
+# language pages — clears Wikidata's notability bar exactly like Samuel L.
+# Jackson does, but only one of them will actually decline to relay a
+# stranger's intro. Starting value, not a calibrated one — tune once this runs
+# against real queries, same as MEGA_HUB_DEGREE and HOP_SURCHARGE were.
+#
+# 0 sitelinks is NOT "measured and obscure" — it means "not yet measured"
+# (e.g. a QID adopted before this field existed) and fame_penalty fails
+# TOWARD caution in that case, treating it the same as clearing the
+# threshold. Otherwise every already-enriched celebrity in the bundled graph
+# would silently lose protection until re-enriched.
+FAME_SITELINK_THRESHOLD = int(os.environ.get("VCWI_FAME_SITELINK_THRESHOLD", "8"))
+
 # Flat cost added to every hop, on top of that hop's tier cost. Encodes the
 # thing tier costs alone cannot: each hop is another person who has to agree to
 # pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one
 # tier-3 hop and two tier-1 hops beat it — the search would route through two
-# strangers rather than ask one investor directly. At 1.0 a direct tie wins
-# unless the detour is genuinely warmer, which is the "one introduction beats
-# three" rule the README already claims. Raise to bias harder toward short
-# chains; 0.0 restores the old ranking.
-HOP_SURCHARGE = float(os.environ.get("VCWI_HOP_SURCHARGE", "1.0"))
+# strangers rather than ask one investor directly.
+#
+# 1.0 was the first value tried and only just gets there: a direct tier-3 hop
+# (cost 3) and a 2-hop tier-1 relay (cost 2x1 = 2, +1 surcharge per hop = 4)
+# land EXACTLY tied at 4 either way, so which one "wins" is decided by
+# whichever the search happens to discover first, not by a real preference for
+# the shorter chain — fragile, and not the deliberate "one introduction beats
+# three" rule the README claims.
+#
+# 2.0 clears that tie with real margin (direct: 3+2=5, relay: 2x(1+2)=6) while
+# staying well under the point where a single WEAK hop would start beating a
+# genuinely warm 2-hop chain (that crossover is at 5.0, where a lone tier-5 hop
+# ties two tier-1 hops) — so short chains are preferred without warmth quality
+# stopping mattering. Raise further to bias harder toward short chains still;
+# 0.0 restores the old, unsurcharged ranking.
+HOP_SURCHARGE = float(os.environ.get("VCWI_HOP_SURCHARGE", "2.0"))
 
 # --- opt-in weak co-occurrence tier (the hybrid) ---------------------------
 # OFF by default: the graph stays Rule-0 pure. When enabled, enrichment mines
@@ -131,28 +157,9 @@ SSE_HEARTBEAT_S = float(os.environ.get("VCWI_SSE_HEARTBEAT_S", "15"))
 # shipped desktop build is bounded, not open-ended. No proxy in front of it
 # — traded a little security margin for zero hosting infrastructure, since
 # this ships to one trusted person. See DESKTOP.md.
-# The server's own key. On the web this is the FALLBACK, not the norm: visitors
-# bring their own via /settings, held per-session (session.py). Set this only
-# for a single-operator deployment or the CLI — every visitor shares it, and
-# your bill, when it is set.
+# Shared by every caller — the CLI, the web app, tests. One key, one bill,
+# set once by whoever deploys the app.
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "").strip()
-
-# Whether the session cookie is marked Secure. "auto" (the default) decides per
-# request from the scheme, which is the only setting that is correct in both of
-# this app's deployments: a Secure cookie is never sent over plain HTTP, so
-# hard-coding it on silently breaks http://localhost and the desktop wrapper,
-# and hard-coding it off would ship the session id in the clear in production.
-# Force with 1/0 behind a TLS-terminating proxy that does not forward the
-# scheme (uvicorn needs --proxy-headers to see it).
-COOKIE_SECURE = os.environ.get("VCWI_COOKIE_SECURE", "auto").strip().lower()
-
-
-def cookie_secure_for(scheme: str) -> bool:
-    if COOKIE_SECURE in ("1", "true", "yes", "on"):
-        return True
-    if COOKIE_SECURE in ("0", "false", "no", "off"):
-        return False
-    return scheme == "https"
 
 # --- Claude relationship-strength classification (co_mention tier ONLY) ----
 # Claude labels what kind of tie a co-mention's article text implies
@@ -219,14 +226,20 @@ def hop_limit(explicit: int = 0) -> float:
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
 # How many routes to show when EVERY chain that exists needs a famous stranger
-# to relay the intro. Deliberately far below CONNECT_MAX_PATHS: connect() only
-# reaches this fallback when there is no usable route at all, and in that state
-# the useful answer is the one real chain plus the reason it will not work.
-# Three of them is the same dead end told three ways — which is exactly what the
-# search used to return, because banning the bridges of one celebrity route just
-# routes you through the next celebrity. Never used while a usable route exists.
+# to relay the intro. Below CONNECT_MAX_PATHS: connect() only reaches this
+# fallback when there is no usable route at all, and in that state the useful
+# answer is the real chain(s) plus the reason they will not work.
+#
+# Was capped at 1 on the reasoning that three of them is the same dead end
+# told three ways. That held when every unusable route was ranked by tier
+# cost alone, with no way to tell "needs a moderately-known operator" apart
+# from "needs an actual household name" — but sitelink magnitude (see
+# fame_penalty / _serialize's worst_blocker_fame) now makes that a real
+# distinction, so more than one dead end can be a genuinely different answer:
+# the least-implausible one is worth seeing even when it is not warmest by
+# tier cost. Never used while a usable route exists.
 CONNECT_MAX_UNUSABLE_PATHS = int(
-    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "1"))
+    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "3"))
 # How many routes Yen's may GENERATE while looking for CONNECT_MAX_PATHS worth
 # showing. Far above it on purpose: the cheapest alternates are mostly detours
 # around the best route ("Drew -> Atlas Berry -> Bryce Johnson" when Drew knows

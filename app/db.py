@@ -46,6 +46,7 @@ def _migrate(bind) -> None:
     won't ALTER an existing table). Each is a guarded no-op when applied."""
     add_columns = [
         ("people", "wikidata_qid", "TEXT"),
+        ("people", "wikidata_sitelinks", "INTEGER DEFAULT 0"),
         ("people", "is_warm", "INTEGER DEFAULT 0"),
         ("people", "enriched", "INTEGER DEFAULT 0"),
         ("organizations", "member_count", "INTEGER DEFAULT 0"),

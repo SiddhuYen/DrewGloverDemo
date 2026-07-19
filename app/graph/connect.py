@@ -66,9 +66,21 @@ def _edge_cost(edge: RelationshipEdge) -> float:
 def fame_penalty(person: Person) -> float:
     """Routing surcharge for someone famous we do not actually know.
 
-    Reads the STORED qid only — never bridge.is_notable(), which falls back to a
-    live Wikipedia lookup. This runs once per person in the graph on every query,
-    so a network call here would be thousands of them.
+    Reads STORED fields only — never bridge.is_notable(), which falls back to a
+    live Wikipedia lookup, and never a live sitelink fetch. This runs once per
+    person in the graph on every query, so a network call here would be
+    thousands of them.
+
+    Gated on sitelink MAGNITUDE (config.FAME_SITELINK_THRESHOLD), not just the
+    binary fact of having a QID: a thin Wikidata stub for a locally-known
+    founder clears Wikidata's notability bar exactly like Samuel L. Jackson
+    does, but only one of them is actually implausible as an intro bridge.
+
+    0 sitelinks means "not yet measured" (a QID adopted before this field
+    existed, or the column's default before the next enrichment) — that fails
+    TOWARD caution, same as clearing the threshold, not toward permissiveness.
+    Otherwise an already-enriched celebrity in the bundled graph would
+    silently lose protection until re-enriched.
 
     Someone Drew genuinely knows is reachable regardless of fame, which is why
     is_warm is checked first: Harry Stebbings carries a QID and is also Drew's
@@ -76,7 +88,10 @@ def fame_penalty(person: Person) -> float:
     """
     if person.is_warm:
         return 0.0
-    if person.wikidata_qid:
+    if not person.wikidata_qid:
+        return 0.0
+    sitelinks = getattr(person, "wikidata_sitelinks", 0) or 0
+    if sitelinks == 0 or sitelinks >= config.FAME_SITELINK_THRESHOLD:
         return config.UNREACHABLE_FAME_PENALTY
     return 0.0
 
@@ -393,6 +408,7 @@ def _routes(adj, start: str, target: str, max_hops: int, k: int,
 
 def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
     nodes, costs, bridges, unreachable = [], [], [], []
+    worst_blocker_fame = 0
     for i, (pid, edge) in enumerate(path):
         person = person_by_id.get(pid)
         # A famous stranger standing MID-path is the thing that makes a route
@@ -422,6 +438,8 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
             bridges.append(node["label"])
             if blocked:
                 unreachable.append(node["label"])
+                sitelinks = getattr(person, "wikidata_sitelinks", 0) or 0
+                worst_blocker_fame = max(worst_blocker_fame, sitelinks)
         nodes.append(node)
 
     hops = len(path) - 1
@@ -436,6 +454,12 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
         # name to land. Empty for the ordinary case.
         "unreachable_bridges": unreachable,
         "usable": not unreachable,
+        # Highest sitelink count among this route's blocked bridges — 0 for any
+        # usable route, since only a blocked bridge ever sets it. Lets a listing
+        # of otherwise-unusable routes tell "needs a moderately-known operator"
+        # apart from "needs an actual household name" instead of collapsing them
+        # into the same "usable: false" (see connect_people's sort key).
+        "worst_blocker_fame": worst_blocker_fame,
         "path": nodes,
     }
 
@@ -443,6 +467,37 @@ def _serialize(path: List[Hop], person_by_id, src_by_id) -> dict:
 def _lookup(db: Session, name: str) -> Optional[Person]:
     return db.execute(select(Person).where(
         Person.norm_name == person_norm_key(name))).scalar_one_or_none()
+
+
+def _homonym_notice(person: Optional[Person]) -> Optional[dict]:
+    """A pending homonym-guard rejection on `person`, if any.
+
+    enrich._identity_confirmed can reject a name-matched Wikidata candidate for
+    the search target, and — since the person is then marked fully enriched —
+    that rejection is otherwise unrecoverable: nothing ever asks Wikidata about
+    this name again. Surfacing it lets a caller say "actually, that IS them" via
+    POST /confirm-identity instead of the rejection being silently permanent.
+    """
+    if person is None:
+        return None
+    rejected = (person.meta or {}).get("homonym_rejected")
+    if not rejected:
+        return None
+    return {"name": person.canonical_name, **rejected}
+
+
+def _homonym_needs_context(person: Optional[Person]) -> Optional[dict]:
+    """A note that `person`'s identity was checked against a name-matched
+    Wikidata candidate with NO user-supplied context at all — the weakest
+    configuration enrich._identity_confirmed runs in, since its only signal is
+    then an unguided web search that a more-famous namesake's own coverage can
+    dominate. Not a verdict either way (the search may still have gotten it
+    right); a nudge that a `context` hint on the next search would make the
+    check more reliable.
+    """
+    if person is None:
+        return None
+    return (person.meta or {}).get("homonym_needs_context")
 
 
 def unroutable_bridge_ids(person_by_id: Dict[str, Person]) -> Set[str]:
@@ -456,6 +511,40 @@ def unroutable_bridge_ids(person_by_id: Dict[str, Person]) -> Set[str]:
     this a route at all" — and the answer does not drift with path length.
     """
     return {pid for pid, person in person_by_id.items() if fame_penalty(person)}
+
+
+def _suggest_known_contact(adj, start: str, target: str, node_penalty,
+                           person_by_id, best_usable_cost: float):
+    """None, unless dropping the fame ban entirely would find a route CHEAPER
+    than the best usable one already found.
+
+    fame_penalty can false-positive: a real contact who isn't yet marked
+    is_warm (a college friend, someone met at a conference — nothing that
+    populates is_warm today) gets banned exactly like an actual stranger,
+    and the better route through them just silently doesn't appear. This
+    makes that failure visible and correctable instead of silent.
+
+    Banning only removes options, so the unbanned best cost can never exceed
+    the banned one — if it's strictly cheaper, that improvement can only come
+    from a node the ban excluded, which is why `blocked_names` is expected to
+    be non-empty whenever we get past the cost check; the check stays as
+    defense in depth rather than an assumption load-bearing on its own.
+    """
+    unbanned = _best_path(adj, start, target, config.hop_limit(), set(), node_penalty)
+    if unbanned is None:
+        return None
+    cost = _route_cost(unbanned, node_penalty)
+    if cost >= best_usable_cost:
+        return None
+    blocked_names = [
+        person_by_id[pid].canonical_name
+        for pid in _bridges(unbanned)
+        if pid in person_by_id and fame_penalty(person_by_id[pid])
+    ]
+    if not blocked_names:
+        return None
+    return {"blocked_bridges": blocked_names,
+           "would_improve_cost_by": round(best_usable_cost - cost, 2)}
 
 
 def _plausible_first(adj, a: Person, b: Person, person_by_id, node_penalty):
@@ -472,20 +561,26 @@ def _plausible_first(adj, a: Person, b: Person, person_by_id, node_penalty):
     hard: showing the one real chain and labelling why it will not work is
     useful, and showing three of them is just noise wearing the same label. The
     cap is why a usable route is never crowded out by variations on a dead end.
+
+    Returns (routes, suggestion) — see _suggest_known_contact for the second.
     """
     blocked = unroutable_bridge_ids(person_by_id) - {a.id, b.id}
     routes = _routes(adj, a.id, b.id, config.hop_limit(),
                      config.CONNECT_MAX_PATHS, node_penalty, blocked)
     if routes:
-        return routes
-    return _routes(adj, a.id, b.id, config.hop_limit(),
-                   config.CONNECT_MAX_UNUSABLE_PATHS, node_penalty)
+        suggestion = _suggest_known_contact(
+            adj, a.id, b.id, node_penalty, person_by_id,
+            _route_cost(routes[0], node_penalty))
+        return routes, suggestion
+    fallback = _routes(adj, a.id, b.id, config.hop_limit(),
+                       config.CONNECT_MAX_UNUSABLE_PATHS, node_penalty)
+    return fallback, None
 
 
 def _try_paths(db: Session, a: Person, b: Person, include_weak: bool = False):
     adj, person_by_id, src_by_id, node_penalty = _adjacency(db, include_weak)
-    routes = _plausible_first(adj, a, b, person_by_id, node_penalty)
-    return routes, person_by_id, src_by_id
+    routes, suggestion = _plausible_first(adj, a, b, person_by_id, node_penalty)
+    return routes, person_by_id, src_by_id, suggestion
 
 
 def connect_people(db: Session, name_a: str, name_b: str,
@@ -513,12 +608,13 @@ def connect_people(db: Session, name_a: str, name_b: str,
 
     routes: List[List[Hop]] = []
     person_by_id = src_by_id = {}
+    suggestion = None
 
     # Stage 0 — the graph may already hold a route (pre-crawled backbone).
     if a is not None and b is not None:
         if progress:
             progress("[0] searching the existing graph…")
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 1 — pull structured sources for the endpoints only.
     if not routes:
@@ -544,7 +640,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                               f"source places them in the VC/startup network."}
         if a.id == b.id:
             return {"connected": False, "reason": "those are the same person"}
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 2 — widen until the two sides meet, or the budget is spent.
     #
@@ -560,7 +656,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             progress(f"[2] expanding {name_a} (depth {depth})…")
         enricher.enrich_neighborhood(db, name_a, depth=depth, progress=progress,
                                      deadline=deadline)
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
         if not routes:
             drew_reach = set(_reachable_ids(db, a.id))
@@ -571,7 +667,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
                 db, name_b, depth=config.CONNECT_TARGET_DEPTH, progress=progress,
                 opposite_component=drew_reach, deadline=deadline, hint=hint,
                 is_target=True)
-            routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak)
+            routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
 
     # Stage 3 — context escalation. No structural path exists, but the caller
     # supplied a context for the target and a web-search key is configured. Spend
@@ -584,7 +680,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             progress(f"[3] no structural path — web-searching {name_b} "
                      f"with your context…")
         enricher.enrich_target_comention(db, name_b, hint=hint, progress=progress)
-        routes, person_by_id, src_by_id = _try_paths(db, a, b, include_weak=True)
+        routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak=True)
 
     if not routes:
         # With no hop limit, the only way to fail is genuine disconnection: no
@@ -610,10 +706,15 @@ def connect_people(db: Session, name_a: str, name_b: str,
         }
 
     paths = [_serialize(r, person_by_id, src_by_id) for r in routes]
-    # Usable first, THEN warmth. A route that needs a celebrity to relay is not
-    # a better answer than a colder one you can actually walk, however warm its
-    # hops score — and `best` below is what the UI leads with.
-    paths.sort(key=lambda p: (not p["usable"], -p["warmth_score"], p["hops"]))
+    # Usable first, THEN fame magnitude, THEN warmth. A route that needs a
+    # celebrity to relay is not a better answer than a colder one you can
+    # actually walk, however warm its hops score — and `best` below is what the
+    # UI leads with. worst_blocker_fame is 0 for every usable route, so this
+    # tiebreaker is a no-op within that group; it only ever reorders the
+    # unusable fallback, where it ranks the route needing the LEAST-famous
+    # required stranger first rather than by cost alone.
+    paths.sort(key=lambda p: (not p["usable"], p["worst_blocker_fame"],
+                              -p["warmth_score"], p["hops"]))
     best = paths[0]
     return {
         "connected": True,
@@ -624,6 +725,18 @@ def connect_people(db: Session, name_a: str, name_b: str,
         "bridges": best["bridges"],
         "path": best["path"],
         "paths": paths,
+        # None unless dropping the fame ban would find a route BETTER than the
+        # one being shown — see _suggest_known_contact. Names the blocked
+        # bridge so the UI can ask "do you actually know them?" and, if so,
+        # POST /confirm-contact to fix it going forward instead of the better
+        # route just silently never appearing.
+        "warmer_if_known": suggestion,
+        # None unless the homonym guard rejected a name-matched Wikidata
+        # identity for the target this pass — see _homonym_notice.
+        "identity_uncertain": _homonym_notice(b),
+        # None unless that check ran with no `context` hint at all — see
+        # _homonym_needs_context.
+        "identity_needs_context": _homonym_needs_context(b),
         "warnings": [
             "Paths are built from structurally-asserted relationships and are "
             "unverified — confirm before requesting an intro.",
@@ -707,4 +820,6 @@ def discover(db: Session, name: str, limit: int = 20, depth: int = None,
             break
 
     return {"found": True, "person": root.canonical_name,
-            "neighborhood": people, "count": len(people)}
+            "neighborhood": people, "count": len(people),
+            "identity_uncertain": _homonym_notice(root),
+            "identity_needs_context": _homonym_needs_context(root)}
