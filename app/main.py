@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from . import config
 from .db import SessionLocal, get_db, init_db
-from .graph.connect import connect_people, discover
+from .graph.connect import _lookup, connect_people, discover
 from .graph.enrich import enrich_selected
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
@@ -88,6 +88,29 @@ def set_settings(serper_key: str = Body(None, embed=True),
             raise HTTPException(500, f"could not persist settings: {exc}")
     return {"ok": True, "serper_configured": bool(config.SERPER_API_KEY),
             "deep_search": config.DEEP_SEARCH}
+
+
+@app.post("/confirm-contact")
+def confirm_contact(name: str = Body(..., embed=True),
+                    db: Session = Depends(get_db)) -> dict:
+    """Mark someone as a real first-degree contact (is_warm=True).
+
+    This is the correction path for a fame_penalty false positive: a real
+    contact who isn't yet captured by any of the automated is_warm sources
+    (podcast, LinkedIn import, Fiat colleague, portfolio founder) gets banned
+    from bridge positions exactly like an actual stranger, and a warmer route
+    through them just doesn't appear (see connect._suggest_known_contact,
+    surfaced on /connect as "warmer_if_known"). A human confirming "yes, I
+    know them" is at least as strong an assertion as any of those sources.
+    Idempotent — confirming an already-warm contact is a no-op.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.is_warm = True
+        db.commit()
+        return {"ok": True, "name": person.canonical_name, "is_warm": True}
 
 
 @app.post("/seed")

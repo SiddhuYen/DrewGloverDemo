@@ -88,6 +88,21 @@ WARMTH_TIER_COST = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.5, 5: 7.0, 6: 14.0}
 # this re-ranks rather than censors. 0.0 disables it.
 UNREACHABLE_FAME_PENALTY = float(os.environ.get("VCWI_FAME_PENALTY", "6.0"))
 
+# How many Wikidata sitelinks (language Wikipedia pages) someone needs before
+# fame_penalty treats them as famous-enough-to-be-implausible, rather than just
+# "has a QID at all". A thin stub — a locally-known founder with one or two
+# language pages — clears Wikidata's notability bar exactly like Samuel L.
+# Jackson does, but only one of them will actually decline to relay a
+# stranger's intro. Starting value, not a calibrated one — tune once this runs
+# against real queries, same as MEGA_HUB_DEGREE and HOP_SURCHARGE were.
+#
+# 0 sitelinks is NOT "measured and obscure" — it means "not yet measured"
+# (e.g. a QID adopted before this field existed) and fame_penalty fails
+# TOWARD caution in that case, treating it the same as clearing the
+# threshold. Otherwise every already-enriched celebrity in the bundled graph
+# would silently lose protection until re-enriched.
+FAME_SITELINK_THRESHOLD = int(os.environ.get("VCWI_FAME_SITELINK_THRESHOLD", "8"))
+
 # Flat cost added to every hop, on top of that hop's tier cost. Encodes the
 # thing tier costs alone cannot: each hop is another person who has to agree to
 # pass the intro along. At 0.0 (the pre-web behaviour) three tier-1 hops tie one
@@ -211,14 +226,20 @@ def hop_limit(explicit: int = 0) -> float:
     return float(limit) if limit and limit > 0 else float("inf")
 CONNECT_MAX_PATHS = int(os.environ.get("VCWI_CONNECT_MAX_PATHS", "3"))
 # How many routes to show when EVERY chain that exists needs a famous stranger
-# to relay the intro. Deliberately far below CONNECT_MAX_PATHS: connect() only
-# reaches this fallback when there is no usable route at all, and in that state
-# the useful answer is the one real chain plus the reason it will not work.
-# Three of them is the same dead end told three ways — which is exactly what the
-# search used to return, because banning the bridges of one celebrity route just
-# routes you through the next celebrity. Never used while a usable route exists.
+# to relay the intro. Below CONNECT_MAX_PATHS: connect() only reaches this
+# fallback when there is no usable route at all, and in that state the useful
+# answer is the real chain(s) plus the reason they will not work.
+#
+# Was capped at 1 on the reasoning that three of them is the same dead end
+# told three ways. That held when every unusable route was ranked by tier
+# cost alone, with no way to tell "needs a moderately-known operator" apart
+# from "needs an actual household name" — but sitelink magnitude (see
+# fame_penalty / _serialize's worst_blocker_fame) now makes that a real
+# distinction, so more than one dead end can be a genuinely different answer:
+# the least-implausible one is worth seeing even when it is not warmest by
+# tier cost. Never used while a usable route exists.
 CONNECT_MAX_UNUSABLE_PATHS = int(
-    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "1"))
+    os.environ.get("VCWI_CONNECT_MAX_UNUSABLE_PATHS", "3"))
 # How many routes Yen's may GENERATE while looking for CONNECT_MAX_PATHS worth
 # showing. Far above it on purpose: the cheapest alternates are mostly detours
 # around the best route ("Drew -> Atlas Berry -> Bryce Johnson" when Drew knows
