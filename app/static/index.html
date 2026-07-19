@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Artemis — Warm Intro Pathfinder</title>
-<!-- Space Grotesk (display) + JetBrains Mono (labels/data) — a techier, more
-     engineered pairing than the old Archivo-everywhere set. Space Grotesk's
-     squared-off apertures and mono keep the console/schematic feel from the
-     circular-graph, cinematic-reveal look; JetBrains Mono covers anything
-     numeric or code-like (tiers, quota, keys). -->
+<title>Artemis: Warm Intro Pathfinder</title>
+<!-- Rajdhani (display) + Share Tech Mono (body/labels) — the actual pairing
+     from the case-board reference's own source, not an approximation of it.
+     Rajdhani's squared, technical letterforms carry the headline; Share Tech
+     Mono does everything else. JetBrains Mono stays as a fallback only. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   /* ── Design system: Ember UI ──────────────────────────────────────────
      Generated + persisted at design-system/warm-intro-pathfinder/MASTER.md.
@@ -22,12 +21,32 @@
      app's JS keeps working; only the visual language is new. */
   :root{
     color-scheme: dark;
-    --color-bg:#0a0807; --color-surface:#110c0a; --color-surface-2:#140a08;
-    --color-ink:#efe8e5; --color-muted:#a89a94; --color-faint:#6b5a55;
-    --color-border:#3c2b25; --color-hair:#241a16;
-    --color-primary:#ec3013; --color-primary-hover:#ff3b1d;
-    --color-accent:#e8a23a; --color-accent-hover:#f4b653;
-    --color-destructive:#f87171; --color-ring:#ec3013;
+    /* Everything below derives from this ONE hue — the reference's actual
+       token system (extracted from its source, not approximated from a
+       screenshot) is entirely monochromatic: one red-orange hue, varying
+       only in lightness/chroma/opacity. There is no second "amber" accent
+       hue — secondary actions (.amber below) are distinguished by an
+       outline/ghost treatment within this same hue instead. */
+    --ah: 22;
+    --color-primary:       oklch(0.635 0.205 var(--ah));
+    --color-primary-hover: oklch(0.72  0.205 var(--ah));
+    --color-glow:  oklch(0.66  0.21  var(--ah) / 0.55);
+    --color-wash:  oklch(0.40  0.11  var(--ah) / 0.10);
+    --color-bg:        oklch(0.13  0.012 var(--ah));
+    --color-surface:   oklch(0.185 0.016 var(--ah));
+    --color-surface-2: oklch(0.155 0.014 var(--ah));
+    --color-ink:   oklch(0.93 0.02  var(--ah));
+    --color-muted: oklch(0.58 0.045 var(--ah));
+    --color-faint: oklch(0.44 0.04  var(--ah));
+    --color-border: oklch(0.635 0.205 var(--ah) / 0.30);
+    --color-hair:   oklch(0.635 0.205 var(--ah) / 0.14);
+    --color-accent:var(--color-primary); --color-accent-hover:var(--color-primary-hover);
+    --color-destructive:#f87171; --color-ring:var(--color-primary);
+    /* A semantic "this is live/engaged" signal, kept deliberately separate
+       from brand red — the reference's own toolbar marks its active
+       "Connect" tool this way rather than reusing the accent hue at all,
+       which is why it's the one non-derived color in this whole system. */
+    --color-active:#22c55e;
 
     --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px;
     --space-xl:32px; --space-2xl:48px; --space-3xl:64px;
@@ -35,24 +54,31 @@
     --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 4px 14px rgba(0,0,0,.45);
     --shadow-lg:0 14px 34px rgba(0,0,0,.55); --shadow-xl:0 24px 48px rgba(0,0,0,.6);
 
-    --font-display:"Space Grotesk",system-ui,sans-serif;
-    --font-body:"Space Grotesk",system-ui,sans-serif;
+    --font-display:"Rajdhani","Share Tech Mono",sans-serif;
+    --font-body:"Share Tech Mono","JetBrains Mono",monospace;
 
     /* App semantic aliases (referenced by CSS + the SVG-building JS) */
     --base:var(--color-bg); --surface:var(--color-surface);
     --ink:var(--color-ink); --muted:var(--color-muted); --faint:var(--color-faint);
     --accent:var(--color-primary); --accent-2:var(--color-accent); --accent-ink:#ffffff;
-    --accent-soft:rgba(236,48,19,.16);
+    --accent-soft:var(--color-wash);
     --cta:var(--color-accent); --cta-2:var(--color-accent-hover);
     --hair:var(--color-hair); --border:var(--color-border);
     --shadow:var(--shadow-lg);
-    --star:var(--color-accent); --warm:#fb923c; --ok:#34d399; --bad:var(--color-destructive);
+    /* --star stays pointed at --warm, not the accent: the ★ marks "someone
+       you actually know", the same semantic --warm already carries for
+       first-degree dots/nodes elsewhere — a real distinction worth its own
+       color, unlike the old amber accent this token system just removed. */
+    --star:var(--warm); --warm:#fb923c; --ok:#34d399; --bad:var(--color-destructive);
     --hot:var(--color-primary);
-    /* Warmth tiers — an ember gradient from hottest (tier 1) to coldest (tier 6),
-       so "how warm is this hop" reads the same way in the palette as in the copy. */
-    --t1:#ff3b1d; --t2:#e8542f; --t3:#e8a23a; --t4:#b97a2b; --t5:#63464a; --t6:#4a4148;
+    /* Warmth tiers, recomputed in the same single hue instead of drifting
+       into the amber family — hottest (tier 1) is the brightest, most
+       saturated point on the hue; coldest (tier 6) fades toward --faint. */
+    --t1:oklch(0.72 0.205 var(--ah)); --t2:oklch(0.635 0.19 var(--ah));
+    --t3:oklch(0.58 0.15  var(--ah)); --t4:oklch(0.52 0.10 var(--ah));
+    --t5:oklch(0.44 0.06  var(--ah)); --t6:oklch(0.40 0.03 var(--ah));
     --sans:var(--font-body);
-    --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --mono:"Share Tech Mono","JetBrains Mono",ui-monospace,monospace;
   }
   *{box-sizing:border-box}
   [hidden]{display:none !important}
@@ -63,6 +89,9 @@
      than a lit-up wash. Content panels stay dark for text contrast over it. */
   body{color:var(--ink);
     background:
+      /* Vignette — darkens toward the edges so the page reads as a lit
+         instrument panel rather than a flat rectangle of color. */
+      radial-gradient(120% 100% at 50% 50%, transparent 55%, oklch(0.06 0.02 var(--ah) / 0.85) 100%),
       radial-gradient(120% 80% at 50% -10%, #4a0716 0%, transparent 46%),
       radial-gradient(90% 70% at 12% 8%, #5a17151f 0%, transparent 55%),
       radial-gradient(90% 70% at 88% 4%, #3f0d2e1f 0%, transparent 55%),
@@ -72,17 +101,16 @@
     text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
   ::selection{background:rgba(255,45,85,.35)}
 
-  /* Random neon shapes live on this canvas (drawn in JS). */
-  #bgfx{position:fixed;inset:0;z-index:-2;pointer-events:none;width:100vw;height:100vh}
-  /* Retro synthwave grid receding to a horizon, plus a soft scanline sheen. */
+  /* Flat schematic dot-grid, uniform across the whole viewport — replaces the
+     earlier synthwave grid, which receded to a horizon at the bottom third.
+     The reference's floor is a calm, even grid over the entire page, not an
+     angled 3D perspective confined to one strip; a plain repeating dot tile
+     matches that directly with no transform/mask needed. */
   body::before{
-    content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
-    background-image:
-      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.20) 68px,rgba(236,48,19,.20) 70px),
-      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.12) 46px,rgba(200,80,40,.12) 48px);
-    transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
-    -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
-    opacity:.35;
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background-image:radial-gradient(rgba(224,32,58,.4) 1px, transparent 1.5px);
+    background-size:24px 24px;
+    opacity:.4;
   }
   body::after{
     content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
@@ -93,12 +121,25 @@
 
   .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 40px 100px}
 
-  h1{font:800 clamp(38px,6vw,64px)/.95 var(--font-display);margin:0 0 12px;
-    letter-spacing:-.02em;text-transform:uppercase;text-wrap:balance;
-    display:flex;align-items:flex-start;gap:16px}
-  h1 .lede{display:block}
-  h1 .accent{color:var(--accent-primary,var(--color-primary))}
-  .sub{color:var(--muted);margin:0 0 30px;font-size:15px;max-width:60ch}
+  /* Matches the reference's .hv-hud/.hv-brand exactly: a bottom-border rule
+     with a short glowing accent segment, the wordmark as one solid color
+     (not the two-tone split I had before), 38px/.16em tracking with a glow,
+     and a small-caps tagline at .36em tracking underneath. */
+  .hv-hud{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
+    padding-bottom:18px;border-bottom:1px solid var(--color-border);position:relative}
+  .hv-hud::after{content:"";position:absolute;left:0;bottom:-1px;height:1px;width:120px;
+    background:var(--color-primary);box-shadow:0 0 8px var(--color-glow)}
+  .hv-brand{display:flex;align-items:center;gap:16px}
+  .hv-mark{filter:drop-shadow(0 0 9px var(--color-glow));flex:none;color:var(--color-primary)}
+  .hv-word{display:flex;flex-direction:column;gap:2px}
+  .hv-word h1{font-family:var(--font-display);font-weight:700;font-size:38px;line-height:.9;
+    letter-spacing:.16em;margin:0;color:var(--color-primary-hover);
+    text-shadow:0 0 18px var(--color-glow),0 0 2px var(--color-primary);
+    padding-left:.16em;text-transform:uppercase}
+  .hv-sub{font-size:10px;letter-spacing:.36em;color:var(--color-muted);
+    padding-left:.2em;white-space:nowrap;text-transform:uppercase}
+  .hv-hud-right{display:flex;align-items:center;gap:16px}
+  .sub{color:var(--muted);margin:18px 0 30px;font-size:15px;max-width:60ch}
   .sub b{color:var(--ink);font-weight:600}
 
   .tabs{display:flex;gap:0;margin-bottom:18px;flex-wrap:wrap;
@@ -118,28 +159,33 @@
   input::placeholder{color:var(--faint)}
   input:hover{border-color:#5a3f38}
   input:focus{outline:none;border-color:var(--color-accent);
-    box-shadow:0 0 0 3px rgba(232,162,58,.18)}
+    box-shadow:0 0 0 3px oklch(0.635 0.205 var(--ah) / .18)}
 
-  /* Buttons — a shared kinetic base (ripple on click, lift on hover, press-down
-     on active) with two accent variants: primary (ember red) for the main
-     action per screen, amber for the secondary one. */
-  button{position:relative;overflow:hidden;padding:0 28px;height:52px;border:0;
-    border-radius:0;color:#fff;cursor:pointer;background:var(--color-primary);
-    font:700 14px/1 var(--font-display);letter-spacing:.02em;
-    transition:transform .15s ease,box-shadow .18s ease,filter .15s ease}
-  button:hover:not(:disabled){transform:translateY(-2px);
-    box-shadow:0 6px 22px rgba(236,48,19,.45)}
-  button:active:not(:disabled){transform:translateY(1px) scale(.96)}
-  button:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
-  button.amber{background:var(--color-accent);color:#1a1006}
-  button.amber:hover:not(:disabled){box-shadow:0 6px 22px rgba(232,162,58,.45)}
+  /* Matches the reference's .hv-btn exactly: 36px (not 52px), a bordered
+     gradient-wash fill (not a solid one), wide .16em tracking (not .02em),
+     and an always-on text-shadow glow rather than one that only appears on
+     hover. No hover-lift/press-scale either — theirs only changes
+     background/color/shadow, never transform. */
+  button{position:relative;overflow:hidden;display:inline-flex;align-items:center;
+    justify-content:center;gap:9px;white-space:nowrap;height:36px;padding:0 16px;
+    border:1px solid var(--color-primary);border-radius:0;cursor:pointer;
+    background:linear-gradient(var(--color-wash),transparent);
+    color:var(--color-primary-hover);font:600 12px/1 var(--font-display);
+    letter-spacing:.16em;text-shadow:0 0 8px var(--color-glow);
+    transition:background-color .16s ease,color .16s ease,box-shadow .16s ease,border-color .16s ease}
+  button:hover:not(:disabled){background:var(--color-primary);color:var(--color-bg);
+    text-shadow:none;box-shadow:0 0 18px var(--color-glow)}
+  button:disabled{opacity:.45;cursor:default;box-shadow:none}
+  /* .hv-btn.ghost: transparent + muted at rest, filling in toward the same
+     accent hue on hover — matches literally, not just in spirit (no second
+     "amber" hue exists anywhere in the reference's own token system). */
+  button.amber{background:transparent;border-color:var(--color-border);
+    color:var(--color-muted);text-shadow:none}
+  button.amber:hover:not(:disabled){border-color:var(--color-primary);
+    color:var(--color-primary-hover);background:var(--color-wash);box-shadow:none}
   :focus-visible{outline:2px solid var(--color-ring);outline-offset:2px}
   a{color:var(--color-primary-hover)}
-  a:hover{color:#ff6a4a;text-decoration:underline}
-
-  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);
-    transform:scale(0);animation:rippleOut .6s ease-out forwards;pointer-events:none}
-  @keyframes rippleOut{to{transform:scale(2.6);opacity:0}}
+  a:hover{color:var(--color-primary);text-decoration:underline}
 
   .gear{flex:none;margin-left:auto;width:44px;height:44px;padding:0;height:44px;
     display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;
@@ -147,9 +193,20 @@
   .gear svg{width:17px;height:17px;display:block}
   .gear:hover:not(:disabled){transform:translateY(-2px) rotate(35deg);
     border-color:var(--color-primary);color:var(--color-primary)}
-  .settings-panel{display:none;border:1px solid var(--border);border-top:none;
+  /* Same left accent stripe as .banner/.warmer-prompt — a settings panel is
+     the same "here's something worth your attention" register as those,
+     just persistently open rather than a one-off message. */
+  .settings-panel{display:none;position:relative;overflow:hidden;
+    border:1px solid var(--border);border-top:none;
     padding:26px 32px;margin:0 0 18px;background:var(--surface)}
+  .settings-panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--color-border)}
   .settings-panel .row{margin-top:14px}
+  /* Small caps-mono meta label — "optional", a route's RT-id, a history
+     entry's mode — one shared tag treatment instead of one-off inline styles
+     repeated per use. */
+  .tag{font:600 10px/1 var(--font-display);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
 
   /* An inline "?" help toggle expands a short paragraph under the label it
      belongs to. Deliberately not a tooltip: the routing/tier logic is worth
@@ -159,8 +216,6 @@
     padding:0;display:inline-grid;place-items:center;height:22px;
     transition:transform .18s ease,background-color .18s ease,color .18s ease}
   .help:hover{background:var(--color-primary);color:#fff;transform:rotate(90deg) scale(1.08)}
-  .help.amber{border-color:var(--color-accent);color:var(--color-accent)}
-  .help.amber:hover{background:var(--color-accent);color:#1a1006}
   .help-body{overflow:hidden;max-height:0;opacity:0;
     transition:max-height .35s ease,opacity .3s ease,margin .35s ease}
   .help-body.open{max-height:260px;opacity:1;margin-top:8px}
@@ -172,6 +227,20 @@
   .banner::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
     background:linear-gradient(var(--color-accent),var(--color-primary))}
   .banner b{color:var(--ink);font-weight:600}
+
+  /* fame_penalty can false-positive on a real contact who isn't yet marked
+     is_warm — this is the correction surface for that (see connect.py's
+     _suggest_known_contact / "warmer_if_known"). Amber, not primary red: it
+     is an optional self-correction, the same register as the amber Save
+     buttons elsewhere, not the main action on the page. */
+  .warmer-prompt{margin:16px 0;padding:14px 18px;border:1px solid var(--color-accent);
+    background:var(--surface);position:relative;overflow:hidden}
+  .warmer-prompt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:var(--color-accent)}
+  .warmer-q{display:block;font-weight:700;color:var(--ink);font-size:14px}
+  .warmer-sub{display:block;color:var(--muted);font-size:12.5px;margin-top:4px}
+  .warmer-btns{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .warmer-btns button{padding:0 18px;height:38px;font-size:12.5px}
 
   /* The old always-on explainer paragraph is now a single question button; the
      explanation itself lives in the shared .help-body reveal below it. */
@@ -187,12 +256,36 @@
   #what-body{margin:0 0 20px;padding:0 4px}
   #what-body p{max-width:70ch}
 
-  .route{margin:20px 0;border:1px solid var(--border);background:var(--surface);overflow:hidden}
+  /* position:relative + the two pseudo-elements below give each route card
+     small corner accents, echoing the reference's dashed-corner "new board"
+     placeholder without literally dashing the whole border. */
+  .route{position:relative;margin:20px 0;border:1px solid var(--border);
+    background:var(--surface);overflow:hidden}
+  .route::before,.route::after{content:"";position:absolute;width:12px;height:12px;
+    pointer-events:none;border-color:var(--color-primary)}
+  .route::before{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid}
+  .route::after{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid}
+  .route-nogo::before,.route-nogo::after{border-color:var(--faint)}
   .route-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
-  .route-hd .n{font-weight:600}
   .score{color:var(--muted);font-variant-numeric:tabular-nums}
   .chain{padding:12px 22px 20px}
+  /* "● USABLE" / "● BLOCKED" — status-forward, matching the reference's
+     "● ACTIVE" card language. Blocked stays --faint rather than an alarm
+     color: this is "don't bother", not "something went wrong" (see
+     .route-nogo below), and the reference's own status dot is brand-red for
+     the affirmative state rather than a separate semantic color. */
+  .rt-status{display:flex;align-items:center;gap:8px;font:700 11px/1 var(--font-display);
+    letter-spacing:.1em;text-transform:uppercase;color:var(--color-primary-hover)}
+  .rt-status.blocked{color:var(--faint)}
+  .rt-dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;
+    box-shadow:0 0 6px currentColor}
+  .rt-id{font:600 11px/1 var(--mono);letter-spacing:.06em;color:var(--faint)}
+  .route-stats{display:flex;gap:16px;flex-wrap:wrap;padding:12px 22px 16px;
+    border-top:1px solid var(--hair);font:600 10.5px/1 var(--font-display);
+    letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .route-stats b{color:var(--ink);font-size:12.5px;font-variant-numeric:tabular-nums;
+    margin-left:4px;letter-spacing:0}
   .person{display:flex;align-items:center;gap:10px;padding:8px 0;font-weight:600}
   .dot{width:10px;height:10px;border-radius:50%;background:var(--color-primary);flex:none;
     box-shadow:0 0 0 4px var(--accent-soft)}
@@ -213,10 +306,24 @@
   .nogo{margin-left:8px;font-size:10.5px;text-transform:uppercase;
     letter-spacing:.06em;font-weight:700;color:var(--faint)}
 
+  /* --- session search history --------------------------------------------- */
+  #historyList{display:flex;flex-direction:column;max-height:280px;overflow-y:auto}
+  .hist-row{display:flex;align-items:center;gap:10px;padding:9px 4px;cursor:pointer;
+    border-bottom:1px solid var(--hair);font-size:12.5px;transition:background-color .15s ease}
+  .hist-row:last-child{border-bottom:0}
+  .hist-row:hover{background:var(--accent-soft)}
+  .hist-dot{width:6px;height:6px;border-radius:50%;background:var(--color-primary-hover);flex:none}
+  .hist-row.hist-miss .hist-dot{background:var(--faint)}
+  .hist-q{flex:1;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-mode{font:600 10px/1 var(--font-display);letter-spacing:.08em;
+    text-transform:uppercase;color:var(--faint)}
+  .hist-ago{color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums;
+    min-width:52px;text-align:right}
+
   /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
   input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
   input[type=file]::file-selector-button{margin-right:10px;padding:7px 13px;
-    background:var(--color-accent);border:0;color:#1a1006;cursor:pointer;
+    background:var(--color-accent);border:0;color:#fff;cursor:pointer;
     font:600 11.5px/1.2 var(--font-body);letter-spacing:.02em}
   input[type=file]::file-selector-button:hover{background:var(--color-accent-hover)}
   .picks{max-height:300px;overflow-y:auto;margin-top:10px;
@@ -245,11 +352,17 @@
   .msg b{color:var(--ink)}
   .msg.err{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
   ul.nb{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
-  ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;
+  ul.nb li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;
     border:1px solid var(--border);background:var(--surface);font-size:14px;
     transition:background-color .15s ease}
-  ul.nb li:hover{background:var(--color-hair)}
-  ul.nb .via{color:var(--muted);font-size:12.5px}
+  ul.nb li:hover{background:var(--accent-soft)}
+  ul.nb .nb-who{display:flex;align-items:center;gap:10px;min-width:0}
+  /* Same status-dot language as the route cards and history rows — warm
+     (first-degree) gets the warm-tier color, everyone else the plain accent,
+     rather than introducing a third dot treatment for one more list. */
+  .nb-dot{width:7px;height:7px;border-radius:50%;background:var(--color-primary-hover);flex:none}
+  ul.nb li.nb-warm .nb-dot{background:var(--warm)}
+  ul.nb .via{color:var(--muted);font-size:12px;font-family:var(--mono);margin-top:3px}
 
   .spin{color:var(--muted);font:400 13.5px/1.6 var(--sans);padding:18px 20px;
     border:1px solid var(--border);background:var(--surface)}
@@ -282,28 +395,50 @@
     text-transform:uppercase;margin-bottom:12px;font-family:var(--font-display);
     position:relative;z-index:1}
 
-  /* --- spider web (Connect) --- */
+  /* --- connection graph (Connect) -----------------------------------------
+     A real node-and-connection canvas, not an SVG-only diagram: each person
+     is a positioned DOM element (.rnode) you can drag and resize, connected
+     by a separate SVG overlay (.rconn-svg) drawn underneath. Auto-laid-out
+     from the found path(s) on render — nothing is manually added or wired,
+     but once drawn, repositioning/resizing works the same as a hand-built
+     board would. */
   .web{margin:20px 0;border:1px solid var(--border);overflow:hidden;
     background:var(--surface);position:relative}
   .web-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
     padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
   .web-hd .n{font-weight:600}
-  /* The graph itself, by class — NOT `.web svg`. The routes list is also inside
-     .web, so a descendant rule caught every icon nested in it: `.web svg` and
-     `.star svg` have identical specificity, so the later one won and blew the
-     13px first-degree star up to 311px. Targeting the graph directly means
-     adding an icon anywhere under .web can't inherit a full-width stretch. */
-  .web svg.webgraph{display:block;width:100%;height:auto;background:#160a0c}
-  .strand{fill:none;stroke:rgba(255,60,90,.14);stroke-width:1}
-  .ring{fill:none;stroke:rgba(255,45,85,.42);stroke-width:1.5}
-  .ringf{fill:none;stroke:rgba(255,120,60,.14);stroke-width:1}
-  .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
-    transition:stroke-width .15s,opacity .15s}
-  .wnode{cursor:pointer}
-  .wnode circle{stroke:var(--border);stroke-width:1.5;transition:r .15s}
-  .wnode text{font:600 11px var(--font-display);fill:var(--ink);paint-order:stroke;
-    stroke:#0d0908;stroke-width:3px;stroke-linejoin:round}
-  .wnode:hover circle{stroke:var(--color-accent);stroke-width:2.5}
+  .rcanvas-wrap{position:relative;height:420px;overflow:hidden;
+    background:#160a0c;cursor:grab}
+  .rcanvas-wrap.panning{cursor:grabbing}
+  .rcanvas{position:absolute;width:3000px;height:2000px;transform-origin:0 0}
+  .rconn-svg{position:absolute;inset:0;width:3000px;height:2000px;overflow:visible;
+    pointer-events:none}
+  .rconn-hit{cursor:pointer;pointer-events:stroke}
+  .rnode{position:absolute;display:flex;flex-direction:column;align-items:center;
+    transform:translate(-50%,-50%);cursor:grab;user-select:none}
+  .rnode:active{cursor:grabbing}
+  /* Square tile, no border-radius at all — the reference's .avatar-box has
+     none; circular was my own earlier guess, not what their code does.
+     Literal hex values below (not our token system) to match exactly. */
+  .ravatar{position:relative;border:2px solid #3a1010;overflow:hidden;
+    background:#0a0404;display:grid;place-items:center;
+    transition:border-color .15s,box-shadow .15s}
+  .rnode:hover .ravatar{border-color:#e53e3e;
+    box-shadow:0 0 0 2px rgba(229,62,62,.2),0 0 18px rgba(229,62,62,.2)}
+  /* Fixed size regardless of the tile's own resize — .avatar-initials never
+     scales its own font-size in the reference even though the tile and the
+     name label do, so initials get relatively smaller on a bigger tile. */
+  .rinitials{font:800 1.4rem/1 'JetBrains Mono',monospace;color:#fff;
+    pointer-events:none}
+  .rnode.blocked .ravatar{opacity:.6;border-style:dashed}
+  .rname{margin-top:7px;font:700 .77rem/1.3 'JetBrains Mono',monospace;text-align:center;
+    color:#ddd0d0;max-width:114px;text-shadow:0 1px 6px rgba(0,0,0,.9);pointer-events:none}
+  .rrole{font:400 .62rem/1.3 'JetBrains Mono',monospace;
+    color:#5a2020;text-align:center;margin-top:2px;max-width:114px;pointer-events:none}
+  .rresize{position:absolute;bottom:-4px;right:-4px;width:13px;height:13px;
+    background:#0a0404;border:2px solid #e53e3e;border-radius:3px;
+    cursor:nwse-resize;opacity:0;transition:opacity .15s}
+  .rnode:hover .rresize{opacity:1}
   .web-detail{padding:15px 22px;border-top:1px solid var(--hair);min-height:52px;
     font-size:13px;color:var(--muted)}
   .web-detail b{color:var(--ink)}
@@ -313,6 +448,22 @@
     color:var(--muted);box-shadow:none;font:600 12px/1 var(--font-display)}
   .toggle button:hover:not(:disabled){transform:none;box-shadow:none;color:var(--ink)}
   .toggle button[aria-pressed="true"]{background:var(--color-primary);color:#fff}
+  .web-hd-ctl{display:flex;align-items:center;gap:10px}
+  /* Same visual family as .toggle (bordered button group), scaled down —
+     these are secondary controls next to the Web/Routes switch, not a
+     second thing competing for the same attention. */
+  .zoomctl{display:inline-flex;align-items:center;gap:0;border:1px solid var(--border);
+    overflow:hidden;font:600 11px/1 var(--font-display)}
+  .zoomctl button{padding:0;width:26px;height:26px;height:auto;border-radius:0;
+    background:transparent;color:var(--muted);box-shadow:none;font:700 14px/1 var(--font-display);
+    display:grid;place-items:center}
+  .zoomctl button:hover:not(:disabled){transform:none;box-shadow:none;color:var(--ink);
+    background:var(--color-hair)}
+  .zoompct{padding:0 8px;color:var(--faint);font-variant-numeric:tabular-nums;
+    border-left:1px solid var(--border);border-right:1px solid var(--border);
+    min-width:38px;text-align:center}
+  .zoomctl .fitbtn{width:auto;padding:0 10px;font:600 10px/1 var(--font-display);
+    letter-spacing:.04em;text-transform:uppercase}
 
   /* --- import (steps, drop zone, stats) --- */
   .steps{display:flex;flex-direction:column;gap:4px;margin-bottom:4px}
@@ -348,74 +499,78 @@
     .wrap{padding:34px 16px 72px}h1{font-size:34px}
     .row{flex-direction:column}.row button{width:100%}
   }
-  /* --- cinematic reveal overlay (fullscreen draw-out of the connection) --- */
-  .cinema{position:fixed;inset:0;z-index:60;display:none;place-items:center;
-    padding:24px;overflow:auto;
-    background:
-      radial-gradient(90% 70% at 50% 0%, #4a0716 0%, transparent 46%),
-      radial-gradient(70% 60% at 12% 100%, #5a171530 0%, transparent 60%),
-      radial-gradient(70% 60% at 88% 100%, #3f0d2e30 0%, transparent 60%),
-      linear-gradient(180deg,#050203,#0b0304 55%,#140406);
-    animation:cineIn .5s ease both}
-  .cinema.show{display:grid}
-  .cinema.closing{animation:cineOut .4s ease both}
-  @keyframes cineIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
-  @keyframes cineOut{to{opacity:0;transform:scale(.98)}}
-  .cinema-inner{width:min(1000px,96vw);position:relative}
-  .cinema-hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
-    margin-bottom:6px}
-  .cinema-hd .kick{font:700 11px/1 var(--font-display);letter-spacing:.34em;
-    text-transform:uppercase;color:#ffd0d8}
-  .cinema-hd h2{font:800 clamp(24px,4vw,40px)/1 var(--font-display);margin:6px 0 0;
-    text-transform:uppercase;letter-spacing:-.01em;color:#fff;
-    text-shadow:0 0 18px rgba(255,45,85,.7)}
-  .cinema-close{position:absolute;top:-6px;right:0;width:42px;height:42px;padding:0;
-    display:grid;place-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.35);
-    border-radius:50%;color:#fff;font-size:20px;line-height:1}
-  .cinema-close:hover{box-shadow:0 0 20px rgba(255,45,85,.6);transform:none}
-  .cinema svg.webgraph{width:100%;height:auto;background:transparent;
-    filter:drop-shadow(0 0 22px rgba(255,45,85,.28))}
-  .cinema-tip{text-align:center;color:#ffd0d8;font-size:13px;margin-top:10px;opacity:.85}
-
-  /* Draw-out animation primitives, shared by the cinema graph. */
-  .draw{stroke-dasharray:var(--len,600);stroke-dashoffset:var(--len,600);
-    animation:draw .9s ease forwards;animation-delay:var(--d,0s)}
-  @keyframes draw{to{stroke-dashoffset:0}}
-  .pop{opacity:0;transform-box:fill-box;transform-origin:center;
-    animation:pop .5s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:var(--d,0s)}
-  @keyframes pop{0%{opacity:0;transform:scale(.2)}70%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
-  .glow-node{animation:glowPulse 2.2s ease-in-out infinite;animation-delay:var(--d,0s)}
-  @keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,45,85,.5))}
-    50%{filter:drop-shadow(0 0 16px rgba(255,45,85,.95))}}
+  /* --- fullscreen graph expand --------------------------------------------
+     Uses the native Fullscreen API directly on .rcanvas-wrap, so the SAME
+     element (same pan/zoom/drag state, same nodes) just grows to fill the
+     screen — no separate fullscreen copy to keep in sync. */
+  .rexpand{position:absolute;top:8px;right:8px;z-index:2;width:30px;height:30px;
+    padding:0;display:grid;place-items:center;background:rgba(10,4,4,.55);
+    border:1px solid var(--color-border)}
+  .rexpand:hover{border-color:var(--color-primary)}
+  .rexpand svg{width:15px;height:15px}
+  .rcanvas-wrap:fullscreen{height:100vh}
+  .rcanvas-wrap:-webkit-full-screen{height:100vh}
+  /* The cursor-reactive dot canvas — deliberately scoped to live INSIDE this
+     wrap and only drawn while fullscreen (see initGraphDotFX): the reference
+     only ever applies this effect to its interactive canvas, never to the
+     whole page, which is what the earlier page-wide #bgfx version got wrong. */
+  .rdotfx{position:absolute;inset:0;z-index:0;pointer-events:none;display:none}
+  .rcanvas-wrap:fullscreen .rdotfx{display:block}
+  .rcanvas-wrap:-webkit-full-screen .rdotfx{display:block}
 
   @media(prefers-reduced-motion:reduce){
     *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
-    body::after,#bgfx{animation:none}
-    .draw{stroke-dashoffset:0}.pop{opacity:1;transform:none}
+    body::after{animation:none}
   }
 </style>
 </head>
 <body>
-<canvas id="bgfx" aria-hidden="true"></canvas>
 <div class="wrap">
-  <h1><span class="lede"><span class="accent">Arte</span>mis</span>
-    <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-      </svg>
-    </button>
-    <button class="gear" id="importBtn" onclick="toggleImport()"
-            title="Import LinkedIn connections" aria-label="Import LinkedIn connections">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
-      </svg>
-    </button>
-  </h1>
+  <header class="hv-hud">
+    <div class="hv-brand">
+      <!-- Pantheon/temple mark, lifted verbatim from the reference (plain
+           geometry, no logic) — fill="currentColor" inherits .hv-mark's color. -->
+      <div class="hv-mark">
+        <svg viewBox="0 0 100 88" style="width:46px;height:40px;display:block" fill="currentColor" aria-label="Artemis">
+          <polygon points="50,3 93,29 7,29"/>
+          <polygon points="50,12 80,29 20,29" fill="var(--color-bg)" opacity="0.55"/>
+          <circle cx="50" cy="24" r="2.4" fill="var(--color-bg)" opacity="0.7"/>
+          <rect x="9" y="31" width="82" height="7"/>
+          <rect x="14" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="27" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="40" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="53" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="66" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="79" y="40" width="7" height="30" rx="0.5"/>
+          <rect x="11" y="39" width="78" height="2.5"/>
+          <rect x="11" y="69" width="78" height="2.5"/>
+          <rect x="6" y="72" width="88" height="5"/>
+          <rect x="1" y="78" width="98" height="6"/>
+        </svg>
+      </div>
+      <div class="hv-word">
+        <h1>Artemis</h1>
+        <div class="hv-sub">// Warm Intro Pathfinder</div>
+      </div>
+    </div>
+    <div class="hv-hud-right">
+      <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <button class="gear" id="historyBtn" onclick="toggleHistory()"
+              title="Searches this session" aria-label="Searches this session">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <polyline points="12 7 12 12 16 14"></polyline>
+        </svg>
+      </button>
+    </div>
+  </header>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
   <div id="settings" class="settings-panel">
@@ -443,31 +598,10 @@
     <div id="settingsMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
   </div>
 
-  <div id="import" class="settings-panel">
-    <div style="margin-bottom:8px"><b>LinkedIn connections</b> — upload your
-      <i>Connections.csv</i> export (LinkedIn → Settings → Get a copy of your data).
-      Every row becomes a <span class="t1">tier 1</span> first-degree link from Drew,
-      because the export itself asserts the connection exists.</div>
-    <div class="row">
-      <input id="csvFile" type="file" accept=".csv,text/csv">
-      <button id="csvGo" class="amber" onclick="uploadCsv()">Upload</button>
-    </div>
-    <div id="importMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
-
-    <div id="pickWrap" style="display:none">
-      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
-        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources — rosters, filings,
-        podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
-        takes a while, so pick only who matters.</div>
-      <div class="picks" id="pickList"></div>
-      <div class="pickbar">
-        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
-          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
-        </label>
-        <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
-      </div>
-      <div id="importProg"></div>
-    </div>
+  <div id="history" class="settings-panel">
+    <div style="margin-bottom:8px"><b>Searches this session</b>
+      <span style="font-size:11px;color:var(--faint)">cleared on reload, not saved anywhere</span></div>
+    <div id="historyList"></div>
   </div>
 
   <nav class="tabs" role="tablist">
@@ -514,6 +648,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Populated by renderPicker() once a CSV import returns at least one
+         person — hidden until then, since there is nothing to pick yet. -->
+    <div id="pickWrap" style="display:none">
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
+        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources
+        (rosters, filings, podcasts) so paths can run <i>through</i> them. It costs a live lookup each and
+        takes a while, so pick only who matters.</div>
+      <div class="picks" id="pickList"></div>
+      <div class="pickbar">
+        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
+          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
+        </label>
+        <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
+      </div>
+      <div id="importProg"></div>
+    </div>
   </div>
 
   <button class="what-btn" id="what-banner" onclick="toggleWhat(this)" aria-expanded="false"
@@ -521,8 +672,8 @@
     <span class="help" aria-hidden="true">?</span> What counts as a connection here
   </button>
   <div class="help-body" id="what-body">
-    <p>Every hop comes from a source that <i>structurally asserts</i> the relationship — a
-      team roster, a podcast episode, an SEC filing, a Wikidata claim — never two names
+    <p>Every hop comes from a source that <i>structurally asserts</i> the relationship
+      (a team roster, a podcast episode, an SEC filing, a Wikidata claim), never two names
       merely appearing on the same page. <b>Deep search</b> is the one opt-in exception,
       adding weaker "co-mention" links that always say so. Paths are real but
       <b>unverified</b>: confirm before asking for the intro. Coverage is the
@@ -530,20 +681,6 @@
   </div>
 
   <div id="out"></div>
-
-  <div class="cinema" id="cinema" role="dialog" aria-modal="true" aria-label="Connection reveal">
-    <div class="cinema-inner">
-      <button class="cinema-close" onclick="closeCinema()" aria-label="Close">×</button>
-      <div class="cinema-hd">
-        <div>
-          <div class="kick">Warm path found</div>
-          <h2 id="cinema-title">Connection</h2>
-        </div>
-      </div>
-      <div id="cinema-graph"></div>
-      <div class="cinema-tip">Press Esc or click anywhere to continue</div>
-    </div>
-  </div>
 
   <footer>
     <span class="t1">●</span><span class="t2">●</span><span class="t3">●</span><span class="t4">●</span><span class="t5">●</span><span class="t6">●</span>
@@ -554,6 +691,15 @@
 
 <script>
 let MODE = 'connect';
+
+// Every completed Connect/Discover query this tab has run, most recent
+// first — client-side only, on purpose: this app has no accounts, so there
+// is no "whose history" to scope a persistent version to, and the existing
+// server-side settings file already covers the one thing that DOES need to
+// survive a restart (the Serper key). Capped so a long session doesn't grow
+// this without bound.
+let SEARCH_HISTORY = [];
+const HISTORY_CAP = 20;
 
 const MODES = {
   connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
@@ -636,14 +782,13 @@ function runStream(q, out, btn){
     es.close();
     pf.style.transform = 'scaleX(1)'; pp.textContent = '100%'; pm.textContent = 'done';
     const data = JSON.parse(e.data);
+    recordSearch(MODE, q, data);
     setTimeout(() => {
       if (MODE === 'discover' && !data.found)
         out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
       else {
         out.innerHTML = RENDER[MODE](data);
-        // Cinematic fullscreen reveal for a found connection; the inline result
-        // is already in place underneath for when the reveal is dismissed.
-        if (MODE === 'connect' && data.connected) playCinema(data);
+        if (MODE === 'connect' && data.connected) initBoardInteraction('view-web');
       }
       btn.disabled = false;
       refreshQuota();               // a live search likely spent Serper credits
@@ -651,7 +796,7 @@ function runStream(q, out, btn){
   });
   es.onerror = () => {
     es.close();
-    out.innerHTML = '<div class="msg err">Connection lost mid-search — please try again.</div>';
+    out.innerHTML = '<div class="msg err">Connection lost mid-search. Please try again.</div>';
     btn.disabled = false;
   };
 }
@@ -672,7 +817,9 @@ async function run(){
     const res  = await fetch(ENDPOINT[MODE](q));
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    recordSearch(MODE, q, data);
     out.innerHTML = RENDER[MODE](data);
+    if (MODE === 'connect' && data.connected) initBoardInteraction('view-web');
   } catch (err) {
     out.innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
   } finally {
@@ -681,22 +828,76 @@ async function run(){
   }
 }
 
-// The Connect view: a spider web with the TARGET at the centre and every route
-// branching out to you (the finder) on the rim. The cited-routes list is kept a
-// click away, because the evidence is the whole point of the tool.
+// A route can be blocked on a real contact the tool just doesn't know is
+// warm yet (a college friend, someone met at a conference). Surfaces that as
+// a correctable prompt instead of the warmer route silently never appearing
+// — see connect.py's _suggest_known_contact. Absent on any backend that
+// doesn't send `warmer_if_known` yet, so this degrades to nothing rather
+// than erroring.
+function renderWarmerPrompt(w){
+  const names = ((w && w.blocked_bridges) || []).map(esc);
+  if (!names.length) return '';
+  // Name goes in a data attribute, read back from `this` in the handler —
+  // NOT embedded as a JS string literal in the onclick source. A name like
+  // "O'Brien" HTML-escapes to "O&#39;Brien", but the browser decodes
+  // attribute entities BEFORE parsing the onclick JS, so an embedded literal
+  // would still land as an unescaped quote and break the string. Matches how
+  // every other dynamic-name handler in this file already does it (e.g. the
+  // CSV picker's checkboxes read .value rather than taking a JS argument).
+  const btns = names.map(n => `<button class="amber" data-name="${n}" onclick="confirmContact(this)">`
+    + `Yes, I know ${n}</button>`).join('');
+  return `<div class="warmer-prompt">
+      <span class="warmer-q">Do you actually know ${names.join(' or ')}?</span>
+      <span class="warmer-sub">A route through them would be warmer. Confirming saves
+        ${w.would_improve_cost_by} on cost the next time you search.</span>
+      <span class="warmer-btns">${btns}</span>
+    </div>`;
+}
+
+async function confirmContact(btn){
+  const name = btn.dataset.name;
+  const prompt = btn.closest('.warmer-prompt');
+  btn.disabled = true;
+  btn.textContent = 'Confirming…';
+  try {
+    const res = await fetch('/confirm-contact', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name})});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    prompt.innerHTML = `<span class="warmer-q">✓ ${esc(data.name)} confirmed. `
+      + `Search again to see the warmer route.</span>`;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Try again';
+  }
+}
+
+// The Connect view: an auto-drawn connection graph, not a hand-built board —
+// every route the search finds becomes nodes and connections the instant the
+// result comes back. Positions and sizes can still be dragged/resized
+// afterward exactly like a manually-built board would; nothing has to be
+// added or manually wired to get the graph on screen in the first place.
 function renderConnect(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
   const target = d.paths[0].path[d.paths[0].path.length - 1].label;
-  return `<div class="web">
+  return `${renderWarmerPrompt(d.warmer_if_known)}<div class="web">
       <div class="web-hd">
-        <span class="n">Reaching <b>${esc(target)}</b> — ${d.paths.length} route${d.paths.length === 1 ? '' : 's'}</span>
-        <span class="toggle">
-          <button aria-pressed="true"  onclick="toggleView('web')">Web</button>
-          <button aria-pressed="false" onclick="toggleView('list')">Routes</button>
+        <span class="n">Reaching <b>${esc(target)}</b>: ${d.paths.length} route${d.paths.length === 1 ? '' : 's'}</span>
+        <span class="web-hd-ctl">
+          <span class="zoomctl">
+            <button onclick="webZoomOut()" aria-label="Zoom out">&minus;</button>
+            <span class="zoompct" id="zoomPct">100%</span>
+            <button onclick="webZoomIn()" aria-label="Zoom in">+</button>
+            <button class="fitbtn" onclick="webZoomFit()" aria-label="Fit view">Fit</button>
+          </span>
+          <span class="toggle">
+            <button aria-pressed="true"  onclick="toggleView('web')">Web</button>
+            <button aria-pressed="false" onclick="toggleView('list')">Routes</button>
+          </span>
         </span>
       </div>
-      <div id="view-web">${buildWeb(d)}
-        <div class="web-detail" id="web-detail">Hover a person to see the source that connects them.</div>
+      <div id="view-web">${buildBoardGraph(d, 'view-web')}
+        <div class="web-detail" id="web-detail">Hover a person to see the source that connects them, or drag to pan/reposition and scroll to zoom.</div>
       </div>
       <div id="view-list" hidden>${renderPaths(d)}</div>
     </div>`;
@@ -711,229 +912,413 @@ function toggleView(which){
   btns[1].setAttribute('aria-pressed', !web);
 }
 
-function webDetail(el){
-  const d = el.dataset;
-  const box = document.getElementById('web-detail');
-  if (!box) return;
-  if (d.role === 'target'){ box.innerHTML = `<b>${esc(d.label)}</b> — the person you want to reach.`; return; }
-  if (d.role === 'finder'){ box.innerHTML = `<b>${esc(d.label)}</b> — you. Every route starts here.`; return; }
-  box.innerHTML =
-    `<span class="tier t${d.tier}">tier ${d.tier}</span>`
-    + `<b>${esc(d.prev)}</b> → <b>${esc(d.label)}</b> · ${esc(d.why)}`
-    + (d.ev ? `<div class="ev">"${esc(d.ev)}"</div>` : '')
-    + (d.src ? `<div class="src"><a href="${esc(d.src)}" target="_blank" rel="noopener">${esc(d.src)}</a></div>` : '');
+// "Fred Volinksy" -> FV, a single word -> its first letter.
+function monogramOf(s){
+  const parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  return parts.length === 1
+    ? parts[0][0].toUpperCase()
+    : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-// A CIRCULAR connection graph: the TARGET glows at the centre of a neon ring,
-// and every route is a spoke running from YOU (on the outer circle) inward to
-// the target. `opts.animated` makes the strokes draw out from you to the target
-// and the nodes pop in sequence — the cinematic reveal. The geometry is shared
-// so the inline view and the fullscreen cinema render the same graph.
-function buildWeb(d, opts){
-  opts = opts || {};
-  const animated = !!opts.animated;
-  const W = 760, H = 560, cx = 380, cy = 280, Rmax = 210;
-  const paths = d.paths;
-  const R = paths.length;
-  const maxHops = Math.max(1, ...paths.map(p => p.hops));
-  const ringR = k => (k / maxHops) * Rmax;
-  // Spread routes around the FULL circle; a lone route sits on the left so it
-  // reads left-to-right (you → target).
-  const angleOf = r => R === 1 ? Math.PI : (-Math.PI / 2 + (2 * Math.PI * r) / R);
-  const pt = (radius, ang) => [cx + radius * Math.cos(ang), cy + radius * Math.sin(ang)];
-  const clip = s => { s = String(s || ''); return s.length > 20 ? s.slice(0, 19) + '…' : s; };
-  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
-  const tierColor = t => `var(--t${t || 5})`;
+// Every route shares the same finder and (almost always) the same target, so
+// people are deduped by label across ALL routes rather than drawing "Drew
+// Glover" once per route. Builds a TREE for layout purposes only — a node
+// reached by more than one route is positioned once, by whichever route
+// reaches it first, but every real connection into or out of it still gets
+// drawn (see conns below, which is independent of the tree).
+function layoutRouteGraph(d){
+  const finderId = d.paths[0].path[0].label;
+  const nodes = new Map();
+  const childrenOf = new Map();
+  const assigned = new Set([finderId]);
+  const conns = [];
+  const seenConn = new Set();
 
-  let deco = '', edges = '', nodes = '';
-
-  // Concentric neon rings — the circular frame. Boldest on the outside.
-  for (let k = 1; k <= maxHops; k++){
-    const rr = ringR(k).toFixed(1);
-    const cls = k === maxHops ? 'ring' : 'ringf';
-    deco += `<circle class="${cls}" cx="${cx}" cy="${cy}" r="${rr}"/>`;
-  }
-  // Faint radial guides to each route's spoke.
-  for (let r = 0; r < R; r++){
-    const [ex, ey] = pt(Rmax, angleOf(r));
-    deco += `<line class="strand" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
-  }
-
-  // Timing for the draw-out: each route staggers in, each hop draws outward→
-  // inward (you → target). Delays only apply when animated.
-  const HOP = 0.5, ROUTE = 0.35;
-  const seen = {};   // target drawn once
-  paths.forEach((p, r) => {
-    const ang = angleOf(r);
+  d.paths.forEach(p => {
     const L = p.path.length;
-    const pos = p.path.map((n, i) => pt(ringR((L - 1) - i), ang));
-    const base = r * ROUTE;
-    // real strands: node i-1 -> i, coloured by node i's incoming tier
-    for (let i = 1; i < L; i++){
-      const n = p.path[i];
-      const a = pos[i - 1], b = pos[i];
-      const dly = base + (i - 1) * HOP;
-      const anim = animated
-        ? ` draw" style="--len:${len(a, b).toFixed(1)};--d:${dly.toFixed(2)}s`
-        : '"';
-      edges += `<line class="edge${anim}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" `
-             + `x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${tierColor(n.warmth_tier)}"/>`;
-    }
-    // nodes
     p.path.forEach((n, i) => {
-      const isTarget = i === L - 1;
-      const isFinder = i === 0;
-      if (isTarget && seen.t) return;   // one central target
-      if (isTarget) seen.t = 1;
-      const [x, y] = pos[i];
-      const rad = isTarget ? 24 : isFinder ? 14 : 10;
-      const fill = isTarget ? 'var(--color-primary)'
-                 : isFinder ? 'var(--accent-soft)'
-                 : n.is_warm ? 'var(--warm)' : 'var(--color-surface-2)';
-      const stroke = isTarget ? 'var(--color-primary)'
-                   : isFinder ? 'var(--color-primary)'
-                   : n.is_warm ? 'var(--warm)' : tierColor(n.warmth_tier);
-      let tx, ty, anchor;
-      if (isTarget){ tx = x; ty = y + rad + 18; anchor = 'middle'; }
-      else if (x >= cx){ tx = x + rad + 6; ty = y + 4; anchor = 'start'; }
-      else { tx = x - rad - 6; ty = y + 4; anchor = 'end'; }
-      const prev = i > 0 ? p.path[i - 1].label : '';
-      const data = isTarget ? `data-role="target" data-label="${esc(n.label)}"`
-                 : isFinder ? `data-role="finder" data-label="${esc(n.label)}"`
-                 : `data-label="${esc(n.label)}" data-prev="${esc(prev)}" data-tier="${n.warmth_tier || 5}" `
-                   + `data-why="${esc(n.why || '')}" data-ev="${esc(n.evidence_snippet || '')}" data-src="${esc(n.source_url || '')}"`;
-      // node pops in just as its incoming edge finishes drawing
-      const dly = isTarget ? base + (L - 1) * HOP : base + i * HOP;
-      const cls = 'wnode'
-        + (animated ? ' pop' : '')
-        + (isTarget ? ' glow-node' : '');
-      const style = animated ? ` style="--d:${dly.toFixed(2)}s"` : '';
-      const finderHalo = isFinder
-        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
-      const star = (n.is_warm && !isTarget && !isFinder) ? '★ ' : '';
-      nodes += `<g class="${cls}"${style} ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
-             + finderHalo
-             + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${fill}" stroke="${stroke}"/>`
-             + `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(star + clip(n.label))}</text>`
-             + `</g>`;
+      let node = nodes.get(n.label);
+      if (!node){
+        node = { id: n.label, label: n.label, is_warm: false, isFinder: false,
+                 isTarget: false, blocked: false, x: 0, y: 0 };
+        nodes.set(n.label, node);
+      }
+      node.is_warm = node.is_warm || !!n.is_warm;
+      node.isFinder = node.isFinder || i === 0;
+      node.isTarget = node.isTarget || i === L - 1;
+      node.blocked = node.blocked || !!n.unreachable;
+      if (i > 0){
+        const from = p.path[i - 1].label, to = n.label;
+        const key = from + ' ' + to;
+        if (!seenConn.has(key)){
+          seenConn.add(key);
+          conns.push({ from, to, tier: n.warmth_tier || 5, why: n.why || '',
+                       weak: n.relationship_from_prev === 'co_mention',
+                       ev: n.evidence_snippet || '', src: n.source_url || '' });
+        }
+        if (!assigned.has(to)){
+          assigned.add(to);
+          if (!childrenOf.has(from)) childrenOf.set(from, []);
+          childrenOf.get(from).push(to);
+        }
+      }
     });
   });
 
-  return `<svg class="webgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Connection web to ${esc(d.paths[0].path.slice(-1)[0].label)}">`
-    + deco + edges + nodes + `</svg>`;
+  // Tree spacing, adapted from the reference's layoutNewPeople(): count each
+  // node's leaves, then place children centred under their parent, spaced
+  // by however many leaves their own subtrees need.
+  const HGAP = 170, VGAP = 140;
+  const leafCount = new Map();
+  function countLeaves(id){
+    const kids = childrenOf.get(id) || [];
+    const n = kids.length ? kids.reduce((s, c) => s + countLeaves(c), 0) : 1;
+    leafCount.set(id, n);
+    return n;
+  }
+  countLeaves(finderId);
+  function place(id, centerX, y){
+    const node = nodes.get(id);
+    node.x = Math.round(centerX); node.y = Math.round(y);
+    const kids = childrenOf.get(id) || [];
+    if (!kids.length) return;
+    let x = centerX - (leafCount.get(id) - 1) * HGAP / 2;
+    kids.forEach(c => {
+      place(c, x + (leafCount.get(c) - 1) * HGAP / 2, y + VGAP);
+      x += leafCount.get(c) * HGAP;
+    });
+  }
+  place(finderId, 0, 0);
+
+  return { nodes: [...nodes.values()], conns };
 }
 
-// The total run-time of the draw-out animation, so we know when the reveal is
-// "done" and can let the user settle into the interactive view.
-function cinemaDuration(d){
-  const R = d.paths.length;
-  const maxHops = Math.max(1, ...d.paths.map(p => p.hops));
-  return (R - 1) * 0.35 + maxHops * 0.5 + 1.0;   // last stagger + last hop + tail
+function _rNodeFill(n){
+  if (n.isTarget) return 'var(--color-primary)';
+  if (n.isFinder) return 'var(--color-primary-hover)';
+  if (n.blocked)  return 'var(--faint)';
+  if (n.is_warm)  return 'var(--warm)';
+  return 'var(--color-surface-2)';
 }
 
-// --- cinematic reveal ------------------------------------------------------
-let _cinemaTimer = null;
-function playCinema(d){
-  const cin = document.getElementById('cinema');
-  const graph = document.getElementById('cinema-graph');
-  const title = document.getElementById('cinema-title');
-  if (!cin || !graph) return;
-  const target = d.paths[0].path[d.paths[0].path.length - 1].label;
-  const n = d.paths.length;
-  title.textContent = `You → ${target}`;
-  graph.innerHTML = buildWeb(d, {animated: true});
-  cin.classList.remove('closing');
-  cin.classList.add('show');
-  document.body.style.overflow = 'hidden';
-  // Soften the "press Esc" tip until the draw has actually finished.
-  const tip = cin.querySelector('.cinema-tip');
-  if (tip){
-    tip.style.opacity = '0';
-    clearTimeout(_cinemaTimer);
-    _cinemaTimer = setTimeout(() => { tip.style.opacity = '.85'; },
-                              Math.min(cinemaDuration(d), 6) * 1000);
+// World-space origin the tree is centred on inside the (larger) canvas —
+// arbitrary, just needs enough margin on every side for the tree to grow
+// into as it's dragged/resized.
+const _R_CX = 1400, _R_CY = 260;
+
+function _rConnsMarkup(board){
+  let html = `<defs><filter id="rGlow" x="-50%" y="-50%" width="200%" height="200%">`
+    + `<feGaussianBlur stdDeviation="3" result="b"/>`
+    + `<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+  board.conns.forEach((c, i) => {
+    const a = board.nodeById.get(c.from), b = board.nodeById.get(c.to);
+    if (!a || !b) return;
+    const x1 = _R_CX + a.x, y1 = _R_CY + a.y, x2 = _R_CX + b.x, y2 = _R_CY + b.y;
+    const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, off = Math.min(60, len * .2);
+    const mx = (x1 + x2) / 2 - (dy / len) * off, my = (y1 + y2) / 2 + (dx / len) * off;
+    const path = `M${x1.toFixed(1)},${y1.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+    // Grey specifically the OUTGOING edge from a blocked node — that's the
+    // actual broken handoff (a famous stranger being asked to relay
+    // forward). The incoming edge keeps its real tier color: however weak,
+    // that connection genuinely exists and isn't what's broken here. Tier
+    // color means "how well-documented is this relationship"; blocked means
+    // "won't personally relay" — conflating them would make a perfectly
+    // solid relationship (e.g. a real podcast co-appearance) read as weak
+    // just because the person who has it happens to be a famous stranger.
+    const color = a.blocked ? 'var(--faint)' : `var(--t${c.tier})`;
+    const dash = c.weak ? ' stroke-dasharray="7 6"' : '';
+    // Glow layer, then the crisp visible line, then a fat invisible hit-area
+    // so the actual click/hover target is bigger than the 2.5px stroke.
+    html += `<path d="${path}" stroke="${color}" stroke-width="7" opacity=".18" fill="none" filter="url(#rGlow)"/>`
+          + `<path d="${path}" stroke="${color}" stroke-width="2.5" fill="none" stroke-linecap="round"${dash}/>`
+          + `<path class="rconn-hit" data-idx="${i}" d="${path}" stroke="transparent" stroke-width="22" fill="none" `
+          + `onclick="rConnDetail(${i})" onmouseenter="rConnDetail(${i})"/>`;
+  });
+  return html;
+}
+
+function _rDetailHTML(c){
+  return `<span class="tier t${c.tier}">tier ${c.tier}</span>`
+    + `<b>${esc(c.from)}</b> → <b>${esc(c.to)}</b> · ${esc(c.why)}`
+    + (c.ev ? `<div class="ev">"${esc(c.ev)}"</div>` : '')
+    + (c.src ? `<div class="src"><a href="${esc(c.src)}" target="_blank" rel="noopener">${esc(c.src)}</a></div>` : '');
+}
+
+function rNodeDetail(el){
+  const box = document.getElementById('web-detail');
+  if (!box || !_rBoard) return;
+  const id = el.closest('.rnode').dataset.id;
+  const n = _rBoard.nodeById.get(id);
+  if (!n) return;
+  if (n.isTarget){ box.innerHTML = `<b>${esc(n.label)}</b>: the person you want to reach.`; return; }
+  if (n.isFinder){ box.innerHTML = `<b>${esc(n.label)}</b>: you. Every route starts here.`; return; }
+  const c = _rBoard.conns.find(c => c.to === id) || _rBoard.conns.find(c => c.from === id);
+  box.innerHTML = c ? _rDetailHTML(c) : `<b>${esc(n.label)}</b>`;
+}
+
+function rConnDetail(idx){
+  const box = document.getElementById('web-detail');
+  const c = box && _rBoard && _rBoard.conns[idx];
+  if (box && c) box.innerHTML = _rDetailHTML(c);
+}
+
+// Per-render state for whichever board is currently interactive (the inline
+// #view-web — the only board that's ever interactive, now that there's no
+// separate cinema copy. Pan/zoom/node positions all live here so
+// drag/resize/pan can mutate them and redraw without re-running layout.
+let _rBoard = null;
+
+function buildBoardGraph(d, rootId){
+  const { nodes, conns } = layoutRouteGraph(d);
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  const board = { rootId, nodes, conns, nodeById, zoom: 1, panX: 0, panY: 0, applyTransform: null };
+  _rBoard = board;
+
+  const nodeHTML = nodes.map(n => {
+    const size = n.isTarget ? 64 : n.isFinder ? 56 : 46;
+    const roleLine = n.isFinder ? '<div class="rrole">you</div>'
+      : n.isTarget ? '<div class="rrole">target</div>'
+      : n.blocked  ? '<div class="rrole">won’t relay</div>' : '';
+    // Only target/finder get a special border color inline; everyone else
+    // falls through to .ravatar's own default (#3a1010) rather than
+    // repeating it here.
+    const borderStyle = (n.isTarget || n.isFinder) ? ' border-color:var(--color-primary)' : '';
+    return `<div class="rnode${n.blocked ? ' blocked' : ''}" data-id="${esc(n.id)}"
+        style="left:${_R_CX + n.x}px;top:${_R_CY + n.y}px">
+      <div class="ravatar" style="width:${size}px;height:${size}px;background:${_rNodeFill(n)};${borderStyle}"
+          onmouseenter="rNodeDetail(this)" onclick="rNodeDetail(this)">
+        <span class="rinitials">${esc(monogramOf(n.label))}</span>
+        <div class="rresize"></div>
+      </div>
+      <div class="rname">${n.is_warm && !n.isTarget && !n.isFinder ? '★ ' : ''}${esc(n.label)}</div>
+      ${roleLine}
+    </div>`;
+  }).join('');
+
+  return `<div class="rcanvas-wrap" id="${rootId}-wrap">
+      <button class="rexpand" onclick="toggleGraphFullscreen()" aria-label="Expand to fullscreen" title="Expand to fullscreen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+          <path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg>
+      </button>
+      <canvas class="rdotfx"></canvas>
+      <div class="rcanvas" id="${rootId}-canvas">
+        <svg class="rconn-svg">${_rConnsMarkup(board)}</svg>
+        ${nodeHTML}
+      </div>
+    </div>`;
+}
+
+// Panning is module-level (one pair of window listeners, ever) rather than
+// re-registered per render — re-registering on every search would leak one
+// more stale window listener per query, since each render's own closure
+// would otherwise never get cleaned up.
+let _rPan = { active: false, lastX: 0, lastY: 0 };
+window.addEventListener('mousemove', e => {
+  if (!_rPan.active || !_rBoard || !_rBoard.applyTransform) return;
+  _rBoard.panX += e.clientX - _rPan.lastX;
+  _rBoard.panY += e.clientY - _rPan.lastY;
+  _rPan.lastX = e.clientX; _rPan.lastY = e.clientY;
+  _rBoard.applyTransform();
+});
+window.addEventListener('mouseup', () => {
+  _rPan.active = false;
+  document.querySelectorAll('.rcanvas-wrap.panning').forEach(w => w.classList.remove('panning'));
+});
+
+function initBoardInteraction(rootId){
+  if (!_rBoard || _rBoard.rootId !== rootId) return;
+  const wrap = document.getElementById(rootId + '-wrap');
+  const canvas = document.getElementById(rootId + '-canvas');
+  if (!wrap || !canvas) return;
+
+  initGraphDotFX(wrap);   // hooks only — doesn't start until fullscreen
+
+  _rBoard.applyTransform = () => {
+    canvas.style.transform = `translate(${_rBoard.panX}px,${_rBoard.panY}px) scale(${_rBoard.zoom})`;
+    const pct = document.getElementById('zoomPct');
+    if (pct) pct.textContent = Math.round(_rBoard.zoom * 100) + '%';
+  };
+
+  // Centre the tree in the wrap on first paint — otherwise it starts pinned
+  // to the canvas's own (0,0) corner, mostly off-screen.
+  const rect = wrap.getBoundingClientRect();
+  _rBoard.panX = rect.width / 2 - _R_CX;
+  _rBoard.panY = 60;
+  _rBoard.applyTransform();
+
+  wrap.onwheel = e => {
+    e.preventDefault();
+    const r = wrap.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top;
+    const next = Math.min(3, Math.max(0.3, _rBoard.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)));
+    _rBoard.panX = mx - (mx - _rBoard.panX) * (next / _rBoard.zoom);
+    _rBoard.panY = my - (my - _rBoard.panY) * (next / _rBoard.zoom);
+    _rBoard.zoom = next;
+    _rBoard.applyTransform();
+  };
+  wrap.onmousedown = e => {
+    if (e.target.closest('.rnode')) return;   // node drag handles its own mousedown
+    _rPan.active = true; _rPan.lastX = e.clientX; _rPan.lastY = e.clientY;
+    wrap.classList.add('panning');
+  };
+
+  canvas.querySelectorAll('.rnode').forEach(el => {
+    const id = el.dataset.id;
+    el.addEventListener('mousedown', e => {
+      if (e.target.closest('.rresize')) return;
+      e.stopPropagation();   // don't also start a canvas pan
+      const node = _rBoard.nodeById.get(id);
+      const sx = e.clientX, sy = e.clientY, ox = node.x, oy = node.y;
+      const onMove = ev => {
+        node.x = ox + (ev.clientX - sx) / _rBoard.zoom;
+        node.y = oy + (ev.clientY - sy) / _rBoard.zoom;
+        el.style.left = (_R_CX + node.x) + 'px';
+        el.style.top  = (_R_CY + node.y) + 'px';
+        const svg = canvas.querySelector('.rconn-svg');
+        if (svg) svg.innerHTML = _rConnsMarkup(_rBoard);
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+    const handle = el.querySelector('.rresize');
+    if (!handle) return;
+    handle.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      const avatar = el.querySelector('.ravatar');
+      const rname = el.querySelector('.rname'), rrole = el.querySelector('.rrole');
+      const startSize = avatar.offsetWidth, sx = e.clientX, sy = e.clientY;
+      const onMove = ev => {
+        const size = Math.max(24, Math.min(120,
+          startSize + ((ev.clientX - sx) + (ev.clientY - sy)) / (2 * _rBoard.zoom)));
+        avatar.style.width = size + 'px'; avatar.style.height = size + 'px';
+        // Matches the reference exactly: the tile and the name/role labels
+        // scale with resize, but .avatar-initials never does — it stays a
+        // fixed 1.4rem regardless (see .rinitials), so initials aren't
+        // touched here.
+        const ratio = size / startSize;
+        rname.style.fontSize = (0.77 * ratio).toFixed(2) + 'rem';
+        rrole.style.fontSize = (0.62 * ratio).toFixed(2) + 'rem';
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  });
+}
+function webZoomIn(){
+  if (!_rBoard || !_rBoard.applyTransform) return;
+  _rBoard.zoom = Math.min(3, _rBoard.zoom * 1.25); _rBoard.applyTransform();
+}
+function webZoomOut(){
+  if (!_rBoard || !_rBoard.applyTransform) return;
+  _rBoard.zoom = Math.max(0.3, _rBoard.zoom / 1.25); _rBoard.applyTransform();
+}
+function webZoomFit(){
+  if (!_rBoard || !_rBoard.applyTransform) return;
+  const wrap = document.getElementById(_rBoard.rootId + '-wrap');
+  if (!wrap) return;
+  const rect = wrap.getBoundingClientRect();
+  _rBoard.zoom = 1;
+  _rBoard.panX = rect.width / 2 - _R_CX;
+  _rBoard.panY = 60;
+  _rBoard.applyTransform();
+}
+
+// --- fullscreen graph expand ------------------------------------------------
+// Replaces the old auto-popping cinema reveal: click the expand icon on the
+// graph itself and IT grows to fill the screen via the native Fullscreen
+// API, rather than a separate modal auto-opening on every search. Same
+// element, same pan/zoom/drag state throughout — nothing to keep in sync.
+function toggleGraphFullscreen(){
+  const wrap = document.getElementById('view-web-wrap');
+  if (!wrap) return;
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl){
+    (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+  } else {
+    (wrap.requestFullscreen || wrap.webkitRequestFullscreen).call(wrap);
   }
 }
-function closeCinema(){
-  const cin = document.getElementById('cinema');
-  if (!cin || !cin.classList.contains('show')) return;
-  cin.classList.add('closing');
-  setTimeout(() => {
-    cin.classList.remove('show', 'closing');
-    document.body.style.overflow = '';
-  }, 380);
-}
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(); });
-// Click the backdrop (not a node) to dismiss.
-(function(){
-  const cin = document.getElementById('cinema');
-  if (cin) cin.addEventListener('click', e => {
-    if (e.target === cin || e.target.closest('.cinema-inner') === null) closeCinema();
-  });
-})();
-
-// --- neon / retro-red background shapes (canvas) ---------------------------
-(function bgfx(){
-  const cv = document.getElementById('bgfx');
-  if (!cv) return;
-  const ctx = cv.getContext('2d');
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const COLORS = ['#ff2d55', '#ff5e3a', '#ff2ea8', '#ff8a3d', '#ff165d'];
-  const KINDS = ['circle', 'triangle', 'square', 'cross', 'diamond'];
-  let shapes = [], w = 0, h = 0, raf = 0;
+// The cursor-reactive dot field lives ONLY inside the graph, and only while
+// it's actually fullscreen — the reference never applies this effect to the
+// whole page, only to its one interactive canvas.
+function initGraphDotFX(wrap){
+  const canvas = wrap.querySelector('.rdotfx');
+  if (!canvas || canvas._fxReady) return;
+  canvas._fxReady = true;
+  const ctx = canvas.getContext('2d');
+  const STEP = 24, RADIUS = 180;
+  let mx = -9999, my = -9999;
 
   function resize(){
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    w = window.innerWidth; h = window.innerHeight;
-    cv.width = w * dpr; cv.height = h * dpr;
+    canvas.width = wrap.clientWidth * dpr;
+    canvas.height = wrap.clientHeight * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    draw();
   }
-  function seed(){
-    const count = Math.round(Math.min(34, Math.max(16, w * h / 46000)));
-    shapes = Array.from({length: count}, () => ({
-      x: Math.random() * w, y: Math.random() * h,
-      s: 10 + Math.random() * 46,
-      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.006,
-      vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
-      kind: KINDS[(Math.random() * KINDS.length) | 0],
-      color: COLORS[(Math.random() * COLORS.length) | 0],
-      a: 0.14 + Math.random() * 0.28,
-      fill: Math.random() < 0.25,
-    }));
-  }
-  function shape(sp){
-    ctx.save();
-    ctx.translate(sp.x, sp.y); ctx.rotate(sp.rot);
-    ctx.globalAlpha = sp.a;
-    ctx.strokeStyle = sp.color; ctx.fillStyle = sp.color;
-    ctx.lineWidth = 2; ctx.shadowColor = sp.color; ctx.shadowBlur = 18;
-    const r = sp.s / 2;
-    ctx.beginPath();
-    if (sp.kind === 'circle'){ ctx.arc(0, 0, r, 0, Math.PI * 2); }
-    else if (sp.kind === 'square'){ ctx.rect(-r, -r, sp.s, sp.s); }
-    else if (sp.kind === 'diamond'){ ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
-    else if (sp.kind === 'triangle'){ ctx.moveTo(0, -r); ctx.lineTo(r, r); ctx.lineTo(-r, r); ctx.closePath(); }
-    else if (sp.kind === 'cross'){ ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); }
-    sp.fill && sp.kind !== 'cross' ? ctx.fill() : ctx.stroke();
-    ctx.restore();
-  }
-  function frame(){
+  function draw(){
+    const w = wrap.clientWidth, h = wrap.clientHeight;
     ctx.clearRect(0, 0, w, h);
-    for (const sp of shapes){
-      sp.x += sp.vx; sp.y += sp.vy; sp.rot += sp.vr;
-      const m = sp.s;
-      if (sp.x < -m) sp.x = w + m; if (sp.x > w + m) sp.x = -m;
-      if (sp.y < -m) sp.y = h + m; if (sp.y > h + m) sp.y = -m;
-      shape(sp);
+    ctx.fillStyle = 'rgba(224,32,58,.16)';
+    for (let y = 0; y <= h; y += STEP)
+      for (let x = 0; x <= w; x += STEP){ ctx.beginPath(); ctx.arc(x, y, .75, 0, Math.PI * 2); ctx.fill(); }
+    if (mx < -RADIUS || mx > w + RADIUS || my < -RADIUS || my > h + RADIUS) return;
+    const c0 = Math.max(0, Math.floor((mx - RADIUS) / STEP)), c1 = Math.ceil((mx + RADIUS) / STEP);
+    const r0 = Math.max(0, Math.floor((my - RADIUS) / STEP)), r1 = Math.ceil((my + RADIUS) / STEP);
+    ctx.fillStyle = '#e0203a'; ctx.shadowColor = '#e0203a';
+    for (let row = r0; row <= r1; row++){
+      const y = row * STEP;
+      for (let col = c0; col <= c1; col++){
+        const x = col * STEP;
+        const dist = Math.hypot(x - mx, y - my);
+        if (dist >= RADIUS) continue;
+        const t = 1 - dist / RADIUS;
+        ctx.globalAlpha = .85 * t; ctx.shadowBlur = 10 * t;
+        ctx.beginPath(); ctx.arc(x, y, .75 + 1.85 * t, 0, Math.PI * 2); ctx.fill();
+      }
     }
-    raf = requestAnimationFrame(frame);
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
   }
-  function start(){ resize(); seed(); cancelAnimationFrame(raf);
-    if (reduce){ ctx.clearRect(0, 0, w, h); shapes.forEach(shape); }
-    else frame(); }
-  window.addEventListener('resize', () => { resize(); seed(); if (reduce){ ctx.clearRect(0,0,w,h); shapes.forEach(shape); } });
-  start();
-})();
+  const onMove = e => { const r = wrap.getBoundingClientRect();
+    mx = e.clientX - r.left; my = e.clientY - r.top; draw(); };
+  const onLeave = () => { mx = my = -9999; draw(); };
+
+  wrap._dotfxStart = () => { resize();
+    wrap.addEventListener('mousemove', onMove);
+    wrap.addEventListener('mouseleave', onLeave);
+    window.addEventListener('resize', resize); };
+  wrap._dotfxStop = () => {
+    wrap.removeEventListener('mousemove', onMove);
+    wrap.removeEventListener('mouseleave', onLeave);
+    window.removeEventListener('resize', resize);
+    ctx.clearRect(0, 0, canvas.width, canvas.height); };
+}
+document.addEventListener('fullscreenchange', () => {
+  const wrap = document.getElementById('view-web-wrap');
+  if (!wrap) return;
+  const isFs = document.fullscreenElement === wrap;
+  if (isFs && wrap._dotfxStart) wrap._dotfxStart();
+  else if (!isFs && wrap._dotfxStop) wrap._dotfxStop();
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  const wrap = document.getElementById('view-web-wrap');
+  if (!wrap) return;
+  const isFs = document.webkitFullscreenElement === wrap;
+  if (isFs && wrap._dotfxStart) wrap._dotfxStart();
+  else if (!isFs && wrap._dotfxStop) wrap._dotfxStop();
+});
 
 function renderPaths(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
@@ -963,17 +1348,25 @@ function renderPaths(d){
     const asker = esc((p.path && p.path[0] && p.path[0].label) || 'you');
     const warn = blockers.length ? `<div class="nogo-banner">
         <b>Not a usable intro.</b> This route needs ${blockers.join(' and ')}
-        to pass the introduction along — famous, and not someone ${asker}
+        to pass the introduction along. They're famous, and not someone ${asker}
         knows, so there is nobody here to ask. The hops below are real and
         sourced; it is the introduction that isn't available.
       </div>` : '';
+    const rtId = `RT-${String(i + 1).padStart(2, '0')}`;
     return `<div class="route${blockers.length ? ' route-nogo' : ''}">
       <div class="route-hd">
-        <span class="n">Route ${i + 1} — ${p.hops} hop${p.hops === 1 ? '' : 's'}</span>
-        <span class="score">warmth ${p.warmth_score}</span>
+        <span class="rt-status${blockers.length ? ' blocked' : ''}">
+          <span class="rt-dot"></span>${blockers.length ? 'Blocked' : 'Usable'}
+        </span>
+        <span class="rt-id">${rtId}</span>
       </div>
       ${warn}
       <div class="chain">${hops}</div>
+      <div class="route-stats">
+        <span>Hops <b>${p.hops}</b></span>
+        <span>Warmth <b>${p.warmth_score}</b></span>
+        <span>Bridges <b>${p.bridges.length}</b></span>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1008,9 +1401,13 @@ function renderNeighborhood(d){
     return `<div class="msg err"><b>Nobody reachable for ${esc(d.person || 'them')}.</b><br>${deepHint}</div>`;
   }
   return `<ul class="nb">` + d.neighborhood.map(p => `
-    <li>
-      <span>${esc(p.label)} ${p.is_warm ? `<span class="star">${STAR}</span>` : ''}
-        <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
+    <li class="${p.is_warm ? 'nb-warm' : ''}">
+      <span class="nb-who">
+        <span class="nb-dot"></span>
+        <span>
+          <span>${esc(p.label)}</span> ${p.is_warm ? `<span class="star">${STAR}</span>` : ''}
+          <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
+        </span>
       </span>
       <span class="score">${p.warmth_score}</span>
     </li>`).join('') + `</ul>`;
@@ -1028,9 +1425,63 @@ function toggleSettings(){
   const isHidden = getComputedStyle(s).display === 'none';
   s.style.display = isHidden ? 'block' : 'none';
 }
-function toggleImport(){
-  const p = document.getElementById('import');
-  p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
+function toggleHistory(){
+  const p = document.getElementById('history');
+  const opening = getComputedStyle(p).display === 'none';
+  p.style.display = opening ? 'block' : 'none';
+  if (opening) renderHistory();
+}
+
+// Records every completed query (found or not — a dead end is still worth
+// recalling) so re-opening it never costs a second network round trip.
+function recordSearch(mode, query, data){
+  SEARCH_HISTORY.unshift({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    mode, query, ts: Date.now(), data,
+  });
+  SEARCH_HISTORY.length = Math.min(SEARCH_HISTORY.length, HISTORY_CAP);
+}
+
+function timeAgo(ts){
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 5) return 'just now';
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.round(m / 60)}h ago`;
+}
+
+function renderHistory(){
+  const list = document.getElementById('historyList');
+  if (!list) return;
+  if (!SEARCH_HISTORY.length){
+    list.innerHTML = '<div class="sub" style="margin:0">No searches yet this session.</div>';
+    return;
+  }
+  list.innerHTML = SEARCH_HISTORY.map(entry => {
+    const ok = entry.mode === 'discover' ? entry.data.found : entry.data.connected;
+    return `<div class="hist-row${ok ? '' : ' hist-miss'}" onclick="recallSearch('${entry.id}')">
+        <span class="hist-dot"></span>
+        <span class="hist-q">${esc(entry.query || '(blank)')}</span>
+        <span class="hist-mode">${entry.mode}</span>
+        <span class="hist-ago">${timeAgo(entry.ts)}</span>
+      </div>`;
+  }).join('');
+}
+
+// Replays a cached result straight from SEARCH_HISTORY — no request, exactly
+// what was shown at the time, including a route that no longer exists if the
+// graph has since changed.
+function recallSearch(id){
+  const entry = SEARCH_HISTORY.find(e => e.id === id);
+  if (!entry) return;
+  mode(entry.mode);
+  document.getElementById('q').value = entry.query;
+  const out = document.getElementById('out');
+  out.innerHTML = (entry.mode === 'discover' && !entry.data.found)
+    ? `<div class="msg err">${esc(entry.data.reason || 'Not found.')}</div>`
+    : RENDER[entry.mode](entry.data);
+  toggleHistory();
 }
 // Inline "?" help toggles — expand/collapse the paragraph right after the
 // button, keyed off a shared class rather than an id per instance.
@@ -1047,52 +1498,7 @@ function toggleWhat(btn){
   btn.setAttribute('aria-expanded', open);
 }
 
-// Click ripple: any <button> gets a circular fade-out from the pointer, sized
-// to the button so it always reaches the far corner.
-document.addEventListener('click', e => {
-  const b = e.target.closest && e.target.closest('button');
-  if (!b) return;
-  const r = b.getBoundingClientRect();
-  const s = document.createElement('span');
-  s.className = 'ripple';
-  const size = Math.max(r.width, r.height) * 1.3;
-  s.style.width = s.style.height = size + 'px';
-  s.style.left = (e.clientX - r.left - size / 2) + 'px';
-  s.style.top  = (e.clientY - r.top  - size / 2) + 'px';
-  b.appendChild(s);
-  setTimeout(() => s.remove(), 600);
-}, true);
-
 let IMPORTED = [];   // rows from the last CSV upload, in file order
-
-async function uploadCsv(){
-  const file = document.getElementById('csvFile').files[0];
-  const msg  = document.getElementById('importMsg');
-  const btn  = document.getElementById('csvGo');
-  if (!file){ msg.textContent = 'Choose a .csv file first.'; return; }
-  btn.disabled = true;
-  msg.textContent = 'Importing…';
-  try {
-    const body = new FormData();
-    body.append('file', file);
-    const res  = await fetch('/network/csv', {method: 'POST', body});
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-    if (data.error) throw new Error(data.error);
-    IMPORTED = data.people || [];
-    // Count the people, not the rows: an export can list one person twice.
-    const n = IMPORTED.length;
-    msg.innerHTML = `Imported <b>${n}</b> connection${n === 1 ? '' : 's'} · `
-      + `${data.edges} first-degree link${data.edges === 1 ? '' : 's'}`
-      + (data.skipped ? ` · ${data.skipped} row${data.skipped === 1 ? '' : 's'} skipped (no name)` : '');
-    document.getElementById('importProg').innerHTML = '';
-    renderPicker();
-  } catch(err){
-    msg.textContent = 'Import failed: ' + err.message;
-  } finally {
-    btn.disabled = false;
-  }
-}
 
 const pickBoxes = () => [...document.querySelectorAll('.pickbox')];
 
@@ -1183,7 +1589,7 @@ function streamEnrich(job, names, out, btn){
     }
     out.innerHTML = `<div class="msg">Enriched <b>${d.enriched}</b> of ${d.total}`
       + (d.failed ? ` · ${d.failed} had no findable sources` : '')
-      + `. Their links are in the graph now — try <b>Connect</b>.</div>`;
+      + `. Their links are in the graph now. Try <b>Connect</b>.</div>`;
     const done = new Set(names);
     IMPORTED.forEach(p => { if (done.has(p.name)) p.enriched = true; });
     renderPicker();          // clears the selection and re-tags who is done
@@ -1191,7 +1597,7 @@ function streamEnrich(job, names, out, btn){
   });
   es.onerror = () => {
     es.close();
-    out.innerHTML = '<div class="msg err">Connection lost mid-enrichment — some people may have been enriched. Re-select anyone still untagged.</div>';
+    out.innerHTML = '<div class="msg err">Connection lost mid-enrichment. Some people may have been enriched. Re-select anyone still untagged.</div>';
     btn.disabled = false;
   };
 }
@@ -1213,7 +1619,7 @@ async function saveDeep(){
   const on = document.getElementById('deepSearch').checked;
   DEEP_ON = on;
   const msg = document.getElementById('settingsMsg');
-  msg.textContent = on ? 'Deep search ON — slower, denser, more quota.' : 'Deep search off.';
+  msg.textContent = on ? 'Deep search ON: slower, denser, more quota.' : 'Deep search off.';
   try {
     await fetch('/settings', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({deep_search: on})});
@@ -1231,12 +1637,12 @@ async function refreshQuota(){
     document.getElementById('quotaPct').textContent = pct + '%';
     let msg = `${q.used.toLocaleString()} / ${q.quota.toLocaleString()} searches used this month · ${q.remaining.toLocaleString()} left`;
     if (q.state === 'exhausted')
-      msg = '⚠ Quota used up — searches fall back to DuckDuckGo (weaker). Paste a new key above or wait for the monthly reset.';
+      msg = '⚠ Quota used up. Searches fall back to DuckDuckGo (weaker). Paste a new key above or wait for the monthly reset.';
     else if (q.state === 'invalid_key')
       msg = '⚠ Key rejected (invalid or expired). Paste a new Serper key above.';
     document.getElementById('quotaMsg').textContent = msg;
     document.getElementById('quotaHd').textContent =
-      q.state === 'ok' ? 'SERPER QUOTA' : 'SERPER QUOTA — ' + q.state.toUpperCase();
+      q.state === 'ok' ? 'SERPER QUOTA' : 'SERPER QUOTA: ' + q.state.toUpperCase();
   } catch(e){}
 }
 // --- LinkedIn CSV import (drop-zone variant) --------------------------------
@@ -1255,6 +1661,14 @@ async function uploadCsv(file){
     const d = await res.json();
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
     out.innerHTML = renderImport(d);
+    // Importing alone only links these people to Drew — enriching pulls their
+    // own structured sources so paths can run through them too. This is the
+    // one entry point for that now: the picker used to live behind a second,
+    // separate upload button that silently never fired (a same-named
+    // uploadCsv() defined further down this file overwrote this one, so
+    // clicking it did nothing) — folded in here instead of restoring that.
+    IMPORTED = d.people || [];
+    renderPicker();
   } catch(err){
     const msg = (err instanceof TypeError)
       ? '<b>Lost contact with the app.</b><br>Its window is probably closed.' : esc(err.message);
