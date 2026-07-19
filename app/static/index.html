@@ -3,160 +3,444 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Warm Intro Pathfinder — Drew Glover</title>
+<title>Artemis — Warm Intro Pathfinder</title>
+<!-- Space Grotesk (display) + JetBrains Mono (labels/data) — a techier, more
+     engineered pairing than the old Archivo-everywhere set. Space Grotesk's
+     squared-off apertures and mono keep the console/schematic feel from the
+     circular-graph, cinematic-reveal look; JetBrains Mono covers anything
+     numeric or code-like (tiers, quota, keys). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  /* ── Design system: Ember UI ──────────────────────────────────────────
+     Generated + persisted at design-system/warm-intro-pathfinder/MASTER.md.
+     Ember = a dark, near-black ground with a live ember-red / amber accent
+     pair, Archivo throughout, and small kinetic details (button ripple,
+     hover-rotate icons, expanding help text) rather than one big ambient
+     animation. Class names/IDs are unchanged from the prior system so the
+     app's JS keeps working; only the visual language is new. */
   :root{
-    --black:#000; --white:#fff; --red:#e00000;
-    --bg:var(--black); --panel:var(--black); --line:var(--white);
-    --ink:var(--white); --muted:var(--white); --accent:var(--red);
-    --warm:var(--red); --ok:var(--white); --bad:var(--red);
-    --t1:var(--red); --t2:var(--white); --t3:var(--red);
-    --t4:var(--white); --t5:var(--red);
+    color-scheme: dark;
+    --color-bg:#0a0807; --color-surface:#110c0a; --color-surface-2:#140a08;
+    --color-ink:#efe8e5; --color-muted:#a89a94; --color-faint:#6b5a55;
+    --color-border:#3c2b25; --color-hair:#241a16;
+    --color-primary:#ec3013; --color-primary-hover:#ff3b1d;
+    --color-accent:#e8a23a; --color-accent-hover:#f4b653;
+    --color-destructive:#f87171; --color-ring:#ec3013;
+
+    --space-xs:4px; --space-sm:8px; --space-md:16px; --space-lg:24px;
+    --space-xl:32px; --space-2xl:48px; --space-3xl:64px;
+
+    --shadow-sm:0 1px 2px rgba(0,0,0,.35); --shadow-md:0 4px 14px rgba(0,0,0,.45);
+    --shadow-lg:0 14px 34px rgba(0,0,0,.55); --shadow-xl:0 24px 48px rgba(0,0,0,.6);
+
+    --font-display:"Space Grotesk",system-ui,sans-serif;
+    --font-body:"Space Grotesk",system-ui,sans-serif;
+
+    /* App semantic aliases (referenced by CSS + the SVG-building JS) */
+    --base:var(--color-bg); --surface:var(--color-surface);
+    --ink:var(--color-ink); --muted:var(--color-muted); --faint:var(--color-faint);
+    --accent:var(--color-primary); --accent-2:var(--color-accent); --accent-ink:#ffffff;
+    --accent-soft:rgba(236,48,19,.16);
+    --cta:var(--color-accent); --cta-2:var(--color-accent-hover);
+    --hair:var(--color-hair); --border:var(--color-border);
+    --shadow:var(--shadow-lg);
+    --star:var(--color-accent); --warm:#fb923c; --ok:#34d399; --bad:var(--color-destructive);
+    --hot:var(--color-primary);
+    /* Warmth tiers — an ember gradient from hottest (tier 1) to coldest (tier 6),
+       so "how warm is this hop" reads the same way in the palette as in the copy. */
+    --t1:#ff3b1d; --t2:#e8542f; --t3:#e8a23a; --t4:#b97a2b; --t5:#63464a; --t6:#4a4148;
+    --sans:var(--font-body);
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
   }
-  *{box-sizing:border-box;border-radius:0!important}
-  html{background:var(--black)}
-  body{margin:0;background-color:var(--bg);color:var(--ink);
-    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
-    background-size:16px 16px;
-    font:14px/1.6 "Courier New",Courier,monospace;image-rendering:pixelated}
-  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
-    background:repeating-linear-gradient(0deg,transparent 0,transparent 3px,
-      rgba(255,255,255,.025) 3px,rgba(255,255,255,.025) 4px)}
-  ::selection{background:var(--red);color:var(--white)}
-  .wrap{max-width:960px;margin:0 auto;padding:38px 22px 80px}
-  h1{font-size:27px;line-height:1.2;margin:0 0 8px;letter-spacing:.07em;
-    text-transform:uppercase;text-shadow:3px 3px 0 var(--red)}
-  h1::before{content:"> ";color:var(--red)}
-  .sub{color:var(--white);margin:0 0 28px;font-size:13px;opacity:.78}
-  .sub b{color:var(--red)}
-  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
-  .tab{padding:10px 12px;border:2px solid var(--white);background:var(--black);
-    color:var(--white);cursor:pointer;font:700 12px/1.2 "Courier New",monospace;
-    letter-spacing:.08em;text-transform:uppercase;box-shadow:3px 3px 0 var(--white)}
-  .tab:hover,.tab[aria-selected="true"]{color:var(--white);background:var(--red);
-    border-color:var(--red);box-shadow:3px 3px 0 var(--white)}
-  .row{display:flex;gap:8px}
-  input{min-width:0;flex:1;padding:12px 13px;background:var(--black);
-    border:2px solid var(--white);color:var(--white);font:700 14px/1.2 "Courier New",monospace;
-    box-shadow:3px 3px 0 var(--white)}
-  input::placeholder{color:var(--white);opacity:.55}
-  input:focus{outline:3px solid var(--red);outline-offset:2px;border-color:var(--white)}
-  button{padding:12px 20px;background:var(--red);border:2px solid var(--red);
-    color:var(--white);font:700 13px/1.2 "Courier New",monospace;letter-spacing:.04em;
-    text-transform:uppercase;cursor:pointer;box-shadow:3px 3px 0 var(--white)}
-  button:hover{background:var(--white);border-color:var(--white);color:var(--black);
-    box-shadow:3px 3px 0 var(--red)}
-  button:disabled{opacity:.45;cursor:default}
-  .gear{float:right;padding:0!important;background:var(--black)!important;
-    border:2px solid var(--white)!important;color:var(--white)!important;
-    width:34px;height:34px;font-size:17px!important;box-shadow:3px 3px 0 var(--red)!important}
-  .settings-panel{display:none;border:2px solid var(--white);padding:14px;margin:14px 0;
-    background:var(--black);box-shadow:4px 4px 0 var(--red)}
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  /* Neon / retro-red field: a DARK crimson-black ground with the same geometry
+     as before (synthwave horizon grid, scanline sheen, drifting neon canvas
+     shapes) — just far less bright, so the glow reads as neon-on-black rather
+     than a lit-up wash. Content panels stay dark for text contrast over it. */
+  body{color:var(--ink);
+    background:
+      radial-gradient(120% 80% at 50% -10%, #4a0716 0%, transparent 46%),
+      radial-gradient(90% 70% at 12% 8%, #5a17151f 0%, transparent 55%),
+      radial-gradient(90% 70% at 88% 4%, #3f0d2e1f 0%, transparent 55%),
+      linear-gradient(180deg, #050203 0%, #0b0304 38%, #0e0304 68%, #140406 100%);
+    background-attachment:fixed;
+    font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;min-height:100vh;position:relative;overflow-x:hidden}
+  ::selection{background:rgba(255,45,85,.35)}
+
+  /* Random neon shapes live on this canvas (drawn in JS). */
+  #bgfx{position:fixed;inset:0;z-index:-2;pointer-events:none;width:100vw;height:100vh}
+  /* Retro synthwave grid receding to a horizon, plus a soft scanline sheen. */
+  body::before{
+    content:"";position:fixed;left:-20%;right:-20%;bottom:0;height:52vh;z-index:-2;pointer-events:none;
+    background-image:
+      repeating-linear-gradient(90deg,transparent 0,transparent 68px,rgba(236,48,19,.20) 68px,rgba(236,48,19,.20) 70px),
+      repeating-linear-gradient(0deg,transparent 0,transparent 46px,rgba(200,80,40,.12) 46px,rgba(200,80,40,.12) 48px);
+    transform:perspective(340px) rotateX(62deg);transform-origin:bottom center;
+    -webkit-mask-image:linear-gradient(transparent,#000 70%);mask-image:linear-gradient(transparent,#000 70%);
+    opacity:.35;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0,rgba(0,0,0,.14) 1px,transparent 1px,transparent 3px);
+    animation:scan 8s linear infinite;opacity:.35;
+  }
+  @keyframes scan{0%{background-position:0 0}100%{background-position:0 120px}}
+
+  .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:44px 40px 100px}
+
+  h1{font:800 clamp(38px,6vw,64px)/.95 var(--font-display);margin:0 0 12px;
+    letter-spacing:-.02em;text-transform:uppercase;text-wrap:balance;
+    display:flex;align-items:flex-start;gap:16px}
+  h1 .lede{display:block}
+  h1 .accent{color:var(--accent-primary,var(--color-primary))}
+  .sub{color:var(--muted);margin:0 0 30px;font-size:15px;max-width:60ch}
+  .sub b{color:var(--ink);font-weight:600}
+
+  .tabs{display:flex;gap:0;margin-bottom:18px;flex-wrap:wrap;
+    border:1px solid var(--border);width:fit-content}
+  .tab{padding:12px 26px;border:0;border-right:1px solid var(--border);
+    background:transparent;color:var(--muted);cursor:pointer;
+    font:600 14px/1 var(--font-display);letter-spacing:.01em;
+    transition:color .18s ease,background-color .18s ease;text-align:left}
+  .tab:last-child{border-right:0}
+  .tab:hover{color:var(--accent-hover,var(--color-accent-hover))}
+  .tab[aria-selected="true"]{color:#fff;background:var(--color-primary)}
+
+  .row{display:flex;gap:10px}
+  input{min-width:0;flex:1;padding:16px 18px;background:var(--surface);
+    border:1px solid var(--border);color:var(--ink);font:400 15px var(--sans);
+    border-radius:0;transition:border-color .15s ease,box-shadow .15s ease}
+  input::placeholder{color:var(--faint)}
+  input:hover{border-color:#5a3f38}
+  input:focus{outline:none;border-color:var(--color-accent);
+    box-shadow:0 0 0 3px rgba(232,162,58,.18)}
+
+  /* Buttons — a shared kinetic base (ripple on click, lift on hover, press-down
+     on active) with two accent variants: primary (ember red) for the main
+     action per screen, amber for the secondary one. */
+  button{position:relative;overflow:hidden;padding:0 28px;height:52px;border:0;
+    border-radius:0;color:#fff;cursor:pointer;background:var(--color-primary);
+    font:700 14px/1 var(--font-display);letter-spacing:.02em;
+    transition:transform .15s ease,box-shadow .18s ease,filter .15s ease}
+  button:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 6px 22px rgba(236,48,19,.45)}
+  button:active:not(:disabled){transform:translateY(1px) scale(.96)}
+  button:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
+  button.amber{background:var(--color-accent);color:#1a1006}
+  button.amber:hover:not(:disabled){box-shadow:0 6px 22px rgba(232,162,58,.45)}
+  :focus-visible{outline:2px solid var(--color-ring);outline-offset:2px}
+  a{color:var(--color-primary-hover)}
+  a:hover{color:#ff6a4a;text-decoration:underline}
+
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.5);
+    transform:scale(0);animation:rippleOut .6s ease-out forwards;pointer-events:none}
+  @keyframes rippleOut{to{transform:scale(2.6);opacity:0}}
+
+  .gear{flex:none;margin-left:auto;width:44px;height:44px;padding:0;height:44px;
+    display:grid;place-items:center;border:1px solid var(--border);border-radius:50%;
+    background:transparent;color:var(--muted);transition:transform .18s ease,color .18s ease,border-color .18s ease}
+  .gear svg{width:17px;height:17px;display:block}
+  .gear:hover:not(:disabled){transform:translateY(-2px) rotate(35deg);
+    border-color:var(--color-primary);color:var(--color-primary)}
+  .settings-panel{display:none;border:1px solid var(--border);border-top:none;
+    padding:26px 32px;margin:0 0 18px;background:var(--surface)}
+  .settings-panel .row{margin-top:14px}
+
+  /* An inline "?" help toggle expands a short paragraph under the label it
+     belongs to. Deliberately not a tooltip: the routing/tier logic is worth
+     reading, not glancing at, and a click leaves the answer on the page. */
+  .help{width:22px;height:22px;flex:none;border-radius:50%;border:1px solid var(--color-primary);
+    background:none;color:var(--color-primary);font:700 13px/1 var(--font-display);
+    padding:0;display:inline-grid;place-items:center;height:22px;
+    transition:transform .18s ease,background-color .18s ease,color .18s ease}
+  .help:hover{background:var(--color-primary);color:#fff;transform:rotate(90deg) scale(1.08)}
+  .help.amber{border-color:var(--color-accent);color:var(--color-accent)}
+  .help.amber:hover{background:var(--color-accent);color:#1a1006}
+  .help-body{overflow:hidden;max-height:0;opacity:0;
+    transition:max-height .35s ease,opacity .3s ease,margin .35s ease}
+  .help-body.open{max-height:260px;opacity:1;margin-top:8px}
+  .help-body p{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+
+  .banner{margin:20px 0;padding:16px 20px;border:1px solid var(--border);
+    background:var(--surface);color:var(--muted);font-size:13.5px;
+    position:relative;overflow:hidden}
+  .banner::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;
+    background:linear-gradient(var(--color-accent),var(--color-primary))}
+  .banner b{color:var(--ink);font-weight:600}
+
+  /* The old always-on explainer paragraph is now a single question button; the
+     explanation itself lives in the shared .help-body reveal below it. */
+  .what-btn{display:flex;align-items:center;gap:10px;width:fit-content;margin:18px 0 0;
+    padding:10px 16px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);font:600 12.5px/1 var(--font-display);letter-spacing:.01em;
+    border-radius:999px;cursor:pointer;height:auto;
+    transition:border-color .18s ease,color .18s ease}
+  .what-btn:hover:not(:disabled){transform:none;box-shadow:none;
+    border-color:var(--color-primary);color:var(--ink)}
+  .what-btn .help{pointer-events:none}
+  .what-btn[aria-expanded="true"] .help{background:var(--color-primary);color:#fff}
+  #what-body{margin:0 0 20px;padding:0 4px}
+  #what-body p{max-width:70ch}
+
+  .route{margin:20px 0;border:1px solid var(--border);background:var(--surface);overflow:hidden}
+  .route-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
+  .route-hd .n{font-weight:600}
+  .score{color:var(--muted);font-variant-numeric:tabular-nums}
+  .chain{padding:12px 22px 20px}
+  .person{display:flex;align-items:center;gap:10px;padding:8px 0;font-weight:600}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--color-primary);flex:none;
+    box-shadow:0 0 0 4px var(--accent-soft)}
+  .person.warm .dot{background:var(--warm);box-shadow:0 0 0 4px rgba(251,146,60,.22)}
+  .star{color:var(--star);display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600}
+  .star svg{width:13px;height:13px;fill:currentColor}
+  .link{margin-left:5px;padding:2px 0 12px 16px;border-left:2px solid var(--hair)}
+
+  /* An unusable route is muted, not hidden — you asked to still see it. Muted
+     rather than red: this is "don't bother", not "something went wrong". */
+  .route-nogo{opacity:.68}
+  .nogo-banner{margin:0 0 10px;padding:10px 12px;
+    background:var(--color-hair);border:1px dashed var(--border);
+    color:var(--muted);font-size:12.5px;line-height:1.5}
+  .nogo-banner b{color:var(--ink)}
+  .person.unreachable{opacity:.62}
+  .person.unreachable .dot{background:var(--faint)}
+  .nogo{margin-left:8px;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.06em;font-weight:700;color:var(--faint)}
+
+  /* --- LinkedIn CSV import (settings-panel picker/enrich variant) --------- */
   input[type=file]{padding:9px 10px;font-size:12px;cursor:pointer}
-  input[type=file]::file-selector-button{margin-right:10px;padding:6px 12px;
-    background:var(--red);border:2px solid var(--red);color:var(--white);cursor:pointer;
-    font:700 11px/1.2 "Courier New",monospace;text-transform:uppercase}
-  .picks{max-height:300px;overflow-y:auto;border:2px solid var(--white);margin-top:10px}
-  .pick{display:flex;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;
-    border-bottom:1px dashed rgba(255,255,255,.25);font-size:12px}
+  input[type=file]::file-selector-button{margin-right:10px;padding:7px 13px;
+    background:var(--color-accent);border:0;color:#1a1006;cursor:pointer;
+    font:600 11.5px/1.2 var(--font-body);letter-spacing:.02em}
+  input[type=file]::file-selector-button:hover{background:var(--color-accent-hover)}
+  .picks{max-height:300px;overflow-y:auto;margin-top:10px;
+    border:1px solid var(--hair);background:var(--surface-2,var(--color-surface-2))}
+  .pick{display:flex;align-items:center;gap:9px;padding:8px 11px;cursor:pointer;
+    border-bottom:1px solid var(--hair);font-size:12.5px}
   .pick:last-child{border-bottom:0}
-  .pick:hover{background:rgba(224,0,0,.18)}
-  .pick input{flex:none;min-width:0;box-shadow:none}
+  .pick:hover{background:var(--accent-soft)}
+  .pick input{flex:none;min-width:0;box-shadow:none;padding:0}
   .pick .who{flex:1}
-  .pick .tag{font-size:10px;color:var(--red);text-transform:uppercase;font-weight:700}
+  .pick .tag{font-size:10px;color:var(--color-accent);text-transform:uppercase;font-weight:700;
+    letter-spacing:.06em}
   .pickbar{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
-  .banner{margin:18px 0;padding:12px 14px;border:2px solid var(--white);
-    border-left:8px solid var(--red);background:var(--black);color:var(--white);
-    font-size:12px;box-shadow:4px 4px 0 var(--red)}
-  .banner b{color:var(--red);font-weight:700;text-transform:uppercase}
-  .route{margin:22px 0;border:2px solid var(--white);background:var(--panel);
-    overflow:hidden;box-shadow:5px 5px 0 var(--red)}
-  .route-hd{display:flex;justify-content:space-between;align-items:center;
-    gap:12px;padding:10px 14px;border-bottom:2px solid var(--white);font-size:12px;
-    background:var(--red);color:var(--white);text-transform:uppercase}
-  .route-hd .n{font-weight:700}
-  .score{color:var(--white);font-weight:700}
-  .chain{padding:8px 16px 16px}
-  .person{display:flex;align-items:center;gap:9px;padding:9px 0;font-weight:700;
-    text-transform:uppercase;letter-spacing:.03em}
-  .dot{width:10px;height:10px;background:var(--white);border:2px solid var(--white);flex:none}
-  .person.warm .dot{background:var(--red)}
-  .star{color:var(--red);font-size:11px;font-weight:700}
-  .link{margin-left:4px;padding:3px 0 11px 13px;border-left:3px dashed var(--red)}
   .why{font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .tier{font-size:10px;padding:1px 6px;font-weight:700;border:1px solid currentColor;
-    text-transform:uppercase}
+  .tier{font-size:11px;padding:4px 10px;font-weight:700;color:var(--t5);
+    text-transform:uppercase;letter-spacing:.06em;
+    border:1px solid currentColor}
   .t1{color:var(--t1)}.t2{color:var(--t2)}.t3{color:var(--t3)}
-  .t4{color:var(--t4)}.t5{color:var(--t5)}
-  .t6{color:var(--red);opacity:.6;border-style:dashed!important}
-  .ev{color:var(--white);opacity:.72;font-size:12px;margin-top:6px}
-  .src{font-size:12px;margin-top:4px}
-  .src a{color:var(--red);text-decoration:underline;word-break:break-all}
-  .src a:hover{color:var(--white);background:var(--red)}
-  .msg{padding:16px;border:2px solid var(--white);background:var(--panel);
-    color:var(--white);font-size:13px;box-shadow:4px 4px 0 var(--red)}
-  .msg.err{border-left:8px solid var(--bad)}
-  ul.nb{list-style:none;padding:0;margin:16px 0 0}
-  ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;
-    border:2px solid var(--white);margin-bottom:8px;background:var(--panel);
-    font-size:13px;box-shadow:3px 3px 0 var(--red)}
-  ul.nb .via{color:var(--white);opacity:.68;font-size:11px}
-  .spin{color:var(--white);font-size:13px;padding:16px;border-left:8px solid var(--red)}
-  .spin::before{content:"[ LOADING ] ";color:var(--red);font-weight:700}
-  .prog{padding:16px;border-left:8px solid var(--red)}
-  .progbar{height:18px;border:2px solid var(--white);background:#000;
-    padding:2px;display:flex}
-  .progfill{width:4%;background:var(--red);transition:width .35s linear;
-    background-image:repeating-linear-gradient(90deg,transparent 0,transparent 6px,
-      rgba(0,0,0,.35) 6px,rgba(0,0,0,.35) 8px)}
-  .progpct{margin-left:10px;color:var(--red);font-weight:700;font-size:12px}
-  .progmsg{margin-top:10px;color:var(--white);font-size:12px;opacity:.85;
+  .t4{color:var(--t4)}.t5{color:var(--t5)}.t6{color:var(--t6)}
+  .t6.tier{border-style:dashed}
+  .ev{color:var(--muted);font-size:12.5px;font-style:italic;margin-top:6px}
+  .src{font-size:12px;margin-top:5px}
+  .src a{word-break:break-all}
+  .msg{padding:18px 20px;border:1px solid var(--border);background:var(--surface);
+    color:var(--muted);font-size:14px}
+  .msg b{color:var(--ink)}
+  .msg.err{border-color:color-mix(in srgb,var(--bad) 55%,var(--border))}
+  ul.nb{list-style:none;padding:0;margin:16px 0 0;display:flex;flex-direction:column;gap:8px}
+  ul.nb li{display:flex;justify-content:space-between;gap:12px;padding:13px 18px;
+    border:1px solid var(--border);background:var(--surface);font-size:14px;
+    transition:background-color .15s ease}
+  ul.nb li:hover{background:var(--color-hair)}
+  ul.nb .via{color:var(--muted);font-size:12.5px}
+
+  .spin{color:var(--muted);font:400 13.5px/1.6 var(--sans);padding:18px 20px;
+    border:1px solid var(--border);background:var(--surface)}
+  .spin::before{content:"";display:inline-block;width:9px;height:9px;margin-right:9px;
+    border-radius:50%;background:var(--color-accent);vertical-align:middle;
+    animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+
+  .prog{padding:18px 20px;border:1px solid var(--border);background:var(--surface);
+    position:relative;overflow:hidden}
+  .prog::before{content:"";position:absolute;top:0;bottom:0;width:120px;
+    background:linear-gradient(90deg,transparent,rgba(236,48,19,.22),transparent);
+    animation:progScan 1.1s linear infinite}
+  @keyframes progScan{0%{left:-30%}100%{left:100%}}
+  /* flex:1 is load-bearing: the track sits in a flex row, so without it the
+     bar shrinks to its content and the fill (a %) resolves against zero. */
+  .progbar{flex:1;height:10px;position:relative;z-index:1;
+    background:rgba(168,154,148,.16);padding:0;display:flex;overflow:hidden}
+  /* Scale, don't animate width: transform stays off the layout path, and the
+     track already clips the fill. */
+  .progfill{width:100%;transform:scaleX(.04);transform-origin:left center;
+    transition:transform .35s cubic-bezier(.3,.7,.3,1);
+    background:linear-gradient(90deg,var(--color-accent),var(--color-primary))}
+  .progpct{margin-left:12px;color:var(--color-accent);font-weight:700;font-size:12.5px;
+    font-variant-numeric:tabular-nums;position:relative;z-index:1}
+  .progmsg{margin-top:12px;color:var(--muted);font-size:12.5px;position:relative;z-index:1;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .progmsg::before{content:"› ";color:var(--red)}
-  .prophd{color:var(--red);font-weight:700;font-size:12px;margin-bottom:10px}
-  footer{margin-top:44px;padding-top:14px;border-top:2px dashed var(--white);
-    color:var(--white);font-size:11px;line-height:1.8;opacity:.8}
+  .progmsg::before{content:"› ";color:var(--color-accent)}
+  .prophd{color:var(--muted);font-weight:700;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;margin-bottom:12px;font-family:var(--font-display);
+    position:relative;z-index:1}
+
+  /* --- spider web (Connect) --- */
+  .web{margin:20px 0;border:1px solid var(--border);overflow:hidden;
+    background:var(--surface);position:relative}
+  .web-hd{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:15px 22px;border-bottom:1px solid var(--hair);font-size:13.5px}
+  .web-hd .n{font-weight:600}
+  /* The graph itself, by class — NOT `.web svg`. The routes list is also inside
+     .web, so a descendant rule caught every icon nested in it: `.web svg` and
+     `.star svg` have identical specificity, so the later one won and blew the
+     13px first-degree star up to 311px. Targeting the graph directly means
+     adding an icon anywhere under .web can't inherit a full-width stretch. */
+  .web svg.webgraph{display:block;width:100%;height:auto;background:#160a0c}
+  .strand{fill:none;stroke:rgba(255,60,90,.14);stroke-width:1}
+  .ring{fill:none;stroke:rgba(255,45,85,.42);stroke-width:1.5}
+  .ringf{fill:none;stroke:rgba(255,120,60,.14);stroke-width:1}
+  .edge{fill:none;stroke-width:2.5;stroke-linecap:round;opacity:.92;
+    transition:stroke-width .15s,opacity .15s}
+  .wnode{cursor:pointer}
+  .wnode circle{stroke:var(--border);stroke-width:1.5;transition:r .15s}
+  .wnode text{font:600 11px var(--font-display);fill:var(--ink);paint-order:stroke;
+    stroke:#0d0908;stroke-width:3px;stroke-linejoin:round}
+  .wnode:hover circle{stroke:var(--color-accent);stroke-width:2.5}
+  .web-detail{padding:15px 22px;border-top:1px solid var(--hair);min-height:52px;
+    font-size:13px;color:var(--muted)}
+  .web-detail b{color:var(--ink)}
+  .web-detail .tier{margin-right:8px}
+  .toggle{display:inline-flex;gap:0;border:1px solid var(--border);overflow:hidden}
+  .toggle button{padding:7px 15px;height:auto;border-radius:0;background:transparent;
+    color:var(--muted);box-shadow:none;font:600 12px/1 var(--font-display)}
+  .toggle button:hover:not(:disabled){transform:none;box-shadow:none;color:var(--ink)}
+  .toggle button[aria-pressed="true"]{background:var(--color-primary);color:#fff}
+
+  /* --- import (steps, drop zone, stats) --- */
+  .steps{display:flex;flex-direction:column;gap:4px;margin-bottom:4px}
+  .istep{display:grid;grid-template-columns:36px 1fr;gap:16px;padding:20px 0;border-top:1px solid var(--hair)}
+  .istep:first-child{border-top:0;padding-top:6px}
+  .inum{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+    border-radius:50%;font:700 13px/1 var(--font-display);color:#fff;
+    background:var(--color-primary)}
+  .istep b{font-size:14.5px}
+  .istep p{color:var(--muted);font-size:13.5px;margin:6px 0 0;max-width:64ch}
+  .kbd{font:500 12.5px var(--mono);color:var(--ink);background:var(--color-surface-2);
+    border:1px solid var(--border);padding:2px 7px;white-space:nowrap}
+  .drop{margin-top:16px;padding:22px;background:var(--color-surface-2);
+    border:1.5px dashed rgba(236,48,19,.35);
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    transition:border-color .2s,background .2s}
+  .drop.over{border-color:var(--color-primary);background:var(--accent-soft)}
+  .dropnote{color:var(--muted);font-size:13px}
+  .stat{display:flex;gap:30px;flex-wrap:wrap;padding:20px 22px;margin-top:16px;
+    border:1px solid var(--border);background:var(--surface)}
+  .stat div{display:flex;flex-direction:column;gap:4px}
+  .stat .k{font:600 10.5px/1 var(--font-display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .stat .v{font:800 26px/1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .stat .v.good{color:var(--ok)}
+
+  footer{margin-top:56px;padding-top:22px;border-top:1px solid var(--border);
+    color:var(--faint);font-size:12.5px;line-height:1.8}
+  footer .tier{margin-right:2px}
+  footer .t1,footer .t2,footer .t3,footer .t4,footer .t5,footer .t6{
+    font-size:9px;letter-spacing:1px;margin-right:1px}
+
   @media(max-width:640px){
-    .wrap{padding:24px 14px 60px}h1{font-size:20px;padding-right:84px;position:relative}
-    .gear{position:absolute;right:0;top:0}#importBtn{right:42px}
-    .tabs{grid-template-columns:repeat(2,1fr)}
-    .row{flex-direction:column}.row button{width:100%}.route-hd{align-items:flex-start;
-      flex-direction:column}.chain{padding:8px 12px 14px}
+    .wrap{padding:34px 16px 72px}h1{font-size:34px}
+    .row{flex-direction:column}.row button{width:100%}
   }
-  @media(prefers-reduced-motion:no-preference){
-    .spin{animation:blink 1s steps(2,end) infinite}@keyframes blink{50%{opacity:.45}}
+  /* --- cinematic reveal overlay (fullscreen draw-out of the connection) --- */
+  .cinema{position:fixed;inset:0;z-index:60;display:none;place-items:center;
+    padding:24px;overflow:auto;
+    background:
+      radial-gradient(90% 70% at 50% 0%, #4a0716 0%, transparent 46%),
+      radial-gradient(70% 60% at 12% 100%, #5a171530 0%, transparent 60%),
+      radial-gradient(70% 60% at 88% 100%, #3f0d2e30 0%, transparent 60%),
+      linear-gradient(180deg,#050203,#0b0304 55%,#140406);
+    animation:cineIn .5s ease both}
+  .cinema.show{display:grid}
+  .cinema.closing{animation:cineOut .4s ease both}
+  @keyframes cineIn{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+  @keyframes cineOut{to{opacity:0;transform:scale(.98)}}
+  .cinema-inner{width:min(1000px,96vw);position:relative}
+  .cinema-hd{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+    margin-bottom:6px}
+  .cinema-hd .kick{font:700 11px/1 var(--font-display);letter-spacing:.34em;
+    text-transform:uppercase;color:#ffd0d8}
+  .cinema-hd h2{font:800 clamp(24px,4vw,40px)/1 var(--font-display);margin:6px 0 0;
+    text-transform:uppercase;letter-spacing:-.01em;color:#fff;
+    text-shadow:0 0 18px rgba(255,45,85,.7)}
+  .cinema-close{position:absolute;top:-6px;right:0;width:42px;height:42px;padding:0;
+    display:grid;place-items:center;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.35);
+    border-radius:50%;color:#fff;font-size:20px;line-height:1}
+  .cinema-close:hover{box-shadow:0 0 20px rgba(255,45,85,.6);transform:none}
+  .cinema svg.webgraph{width:100%;height:auto;background:transparent;
+    filter:drop-shadow(0 0 22px rgba(255,45,85,.28))}
+  .cinema-tip{text-align:center;color:#ffd0d8;font-size:13px;margin-top:10px;opacity:.85}
+
+  /* Draw-out animation primitives, shared by the cinema graph. */
+  .draw{stroke-dasharray:var(--len,600);stroke-dashoffset:var(--len,600);
+    animation:draw .9s ease forwards;animation-delay:var(--d,0s)}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .pop{opacity:0;transform-box:fill-box;transform-origin:center;
+    animation:pop .5s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:var(--d,0s)}
+  @keyframes pop{0%{opacity:0;transform:scale(.2)}70%{opacity:1;transform:scale(1.18)}100%{opacity:1;transform:scale(1)}}
+  .glow-node{animation:glowPulse 2.2s ease-in-out infinite;animation-delay:var(--d,0s)}
+  @keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 4px rgba(255,45,85,.5))}
+    50%{filter:drop-shadow(0 0 16px rgba(255,45,85,.95))}}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition:none!important}
+    body::after,#bgfx{animation:none}
+    .draw{stroke-dashoffset:0}.pop{opacity:1;transform:none}
   }
 </style>
 </head>
 <body>
+<canvas id="bgfx" aria-hidden="true"></canvas>
 <div class="wrap">
-  <h1>Warm Intro Pathfinder
-    <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">⚙</button>
+  <h1><span class="lede"><span class="accent">Arte</span>mis</span>
+    <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </button>
     <button class="gear" id="importBtn" onclick="toggleImport()"
-            title="Import LinkedIn connections" aria-label="Import LinkedIn connections">⇪</button>
+            title="Import LinkedIn connections" aria-label="Import LinkedIn connections">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+    </button>
   </h1>
   <p class="sub">Finding the warmest real path from <b id="seed">Drew Glover</b> into the VC &amp; startup world.</p>
 
   <div id="settings" class="settings-panel">
-    <div style="margin-bottom:6px"><b>Live search</b> — the bundled graph works with no setup. Add a Serper API key below to also reach people not yet in the graph.</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <b>Live search</b>
+      <button class="help" onclick="toggleHelp(this)" aria-label="About live search">?</button>
+    </div>
+    <div class="help-body"><p>The bundled graph works with no setup. Add a Serper API key below to also reach people not yet in the graph.</p></div>
     <div class="row">
       <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
       <button onclick="saveKey()">Save</button>
     </div>
-    <label style="display:block;margin-top:10px;cursor:pointer">
-      <input type="checkbox" id="deepSearch" onchange="saveDeep()">
-      <b>Deep search</b> — makes live search aggressive: mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).
+    <label style="display:flex;gap:10px;align-items:center;margin-top:14px;cursor:pointer;font-size:14px;color:var(--muted)">
+      <input type="checkbox" id="deepSearch" onchange="saveDeep()" style="flex:none;min-width:0;padding:0">
+      <span><b style="color:var(--color-primary-hover)">Deep search</b> makes live search aggressive: it mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).</span>
     </label>
-    <div id="quotaWrap" style="margin-top:12px;display:none">
+    <div id="quotaWrap" style="margin-top:14px;display:none">
       <div class="prophd" id="quotaHd">SERPER QUOTA</div>
       <div style="display:flex;align-items:center">
-        <div class="progbar"><div class="progfill" id="quotaFill" style="width:0%"></div></div>
+        <div class="progbar"><div class="progfill" id="quotaFill" style="transform:scaleX(0)"></div></div>
         <span class="progpct" id="quotaPct">0%</span>
       </div>
       <div class="progmsg" id="quotaMsg" style="white-space:normal"></div>
     </div>
-    <div id="settingsMsg" class="sub" style="margin-top:6px"></div>
+    <div id="settingsMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
   </div>
 
   <div id="import" class="settings-panel">
@@ -166,19 +450,19 @@
       because the export itself asserts the connection exists.</div>
     <div class="row">
       <input id="csvFile" type="file" accept=".csv,text/csv">
-      <button id="csvGo" onclick="uploadCsv()">Upload</button>
+      <button id="csvGo" class="amber" onclick="uploadCsv()">Upload</button>
     </div>
-    <div id="importMsg" class="sub" style="margin-top:8px"></div>
+    <div id="importMsg" class="sub" style="margin-top:8px;margin-bottom:0"></div>
 
     <div id="pickWrap" style="display:none">
-      <div style="margin-top:12px;font-size:12px">Importing alone only links these people
-        to Drew. <b>Enriching</b> pulls their own structured sources — rosters, filings,
+      <div style="margin-top:14px;font-size:12px;color:var(--muted)">Importing alone only links these people
+        to Drew. <b style="color:var(--ink)">Enriching</b> pulls their own structured sources — rosters, filings,
         podcasts — so paths can run <i>through</i> them. It costs a live lookup each and
         takes a while, so pick only who matters.</div>
       <div class="picks" id="pickList"></div>
       <div class="pickbar">
-        <label style="cursor:pointer;font-size:12px">
-          <input type="checkbox" id="pickAll" onchange="selectAllPicks()"> Select all
+        <label style="cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;color:var(--muted)">
+          <input type="checkbox" id="pickAll" onchange="selectAllPicks()" style="flex:none;min-width:0;padding:0"> Select all
         </label>
         <button id="enrichGo" onclick="enrichPicked()" disabled>Enrich selected (0)</button>
       </div>
@@ -186,41 +470,85 @@
     </div>
   </div>
 
-  <div class="tabs" role="tablist">
+  <nav class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
-    <button class="tab" id="tab-tree"     role="tab" aria-selected="false" onclick="mode('tree')">Tree</button>
-    <button class="tab" id="tab-compare"  role="tab" aria-selected="false" onclick="mode('compare')">Compare</button>
-  </div>
+    <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import LinkedIn</button>
+  </nav>
 
-  <div class="row">
+  <div class="row" id="search-row">
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
     <button id="go" onclick="run()">Find path</button>
   </div>
-  <div class="row" id="ctx-row">
-    <input id="ctx" placeholder="Which one? (optional) — e.g. biotech founder, or their company / firm" autocomplete="off" style="width:100%">
+  <div class="row" id="ctx-row" style="margin-top:10px">
+    <input id="ctx" placeholder="Which one? (optional). e.g. biotech founder, or their company / firm" autocomplete="off">
   </div>
 
-  <div class="banner">
-    <b>What this shows.</b> Every hop comes from a source that <i>structurally asserts</i> the
-    relationship — a team roster, a podcast episode, an SEC filing, a Wikidata claim.
-    Two names appearing on the same page is <b>not</b> a relationship, and never creates a hop
-    by default — <b>Deep search</b> (⚙) is the one explicit exception, adding weaker "co-mention"
-    links that always say so.
-    Paths are real but <b>unverified</b>: confirm before asking for the intro.
-    Coverage is the <b>VC/startup world</b>, not the general public.
+  <!-- Import is the one tab that takes a file, not a name. -->
+  <div id="importpanel" hidden>
+    <div class="steps">
+      <div class="istep">
+        <span class="inum">1</span>
+        <div>
+          <b>Export your connections from LinkedIn.</b>
+          <p>Go to <span class="kbd">Settings &amp; Privacy</span> &rarr;
+             <span class="kbd">Data privacy</span> &rarr;
+             <span class="kbd">Get a copy of your data</span>. Tick
+             <span class="kbd">Connections</span> (not the full archive), then request it.
+             LinkedIn emails you a <span class="kbd">Connections.csv</span>, usually within minutes.</p>
+        </div>
+      </div>
+      <div class="istep">
+        <span class="inum">2</span>
+        <div>
+          <b>Drop that file here to scan it.</b>
+          <p>It is read on this machine and never uploaded anywhere. Each row becomes a
+             tier&nbsp;1 connection from <b id="seed2">the seed contact</b>. That is the warmest
+             kind, because you are asserting it yourself. Anyone already in the graph fuses with
+             their existing network, so cold multi-hop paths can collapse to one warm intro.</p>
+          <div class="drop" id="drop">
+            <input type="file" id="csv" accept=".csv,text/csv" hidden>
+            <button type="button" onclick="document.getElementById('csv').click()">Choose Connections.csv</button>
+            <span class="dropnote">or drag it onto this box</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="what-btn" id="what-banner" onclick="toggleWhat(this)" aria-expanded="false"
+          aria-controls="what-body">
+    <span class="help" aria-hidden="true">?</span> What counts as a connection here
+  </button>
+  <div class="help-body" id="what-body">
+    <p>Every hop comes from a source that <i>structurally asserts</i> the relationship — a
+      team roster, a podcast episode, an SEC filing, a Wikidata claim — never two names
+      merely appearing on the same page. <b>Deep search</b> is the one opt-in exception,
+      adding weaker "co-mention" links that always say so. Paths are real but
+      <b>unverified</b>: confirm before asking for the intro. Coverage is the
+      <b>VC/startup world</b>, not the general public.</p>
   </div>
 
   <div id="out"></div>
 
+  <div class="cinema" id="cinema" role="dialog" aria-modal="true" aria-label="Connection reveal">
+    <div class="cinema-inner">
+      <button class="cinema-close" onclick="closeCinema()" aria-label="Close">×</button>
+      <div class="cinema-hd">
+        <div>
+          <div class="kick">Warm path found</div>
+          <h2 id="cinema-title">Connection</h2>
+        </div>
+      </div>
+      <div id="cinema-graph"></div>
+      <div class="cinema-tip">Press Esc or click anywhere to continue</div>
+    </div>
+  </div>
+
   <footer>
-    Warmth tiers — <span class="t1">1</span> demonstrated (podcast, co-founder, direct connection) ·
-    <span class="t2">2</span> same small firm / shared board ·
-    <span class="t3">3</span> investor–founder ·
-    <span class="t4">4</span> shared portfolio or employer ·
-    <span class="t5">5</span> weak affiliation ·
-    <span class="t6">6</span> co-mentioned only, not a confirmed relationship (Deep search).
-    <span class="star">★</span> marks Drew's real first degree.
+    <span class="t1">●</span><span class="t2">●</span><span class="t3">●</span><span class="t4">●</span><span class="t5">●</span><span class="t6">●</span>
+    warmest → weakest ·
+    <span class="star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 7.1-1.01z"/></svg></span> = Drew's first degree
   </footer>
 </div>
 
@@ -230,29 +558,36 @@ let MODE = 'connect';
 const MODES = {
   connect:  {placeholder: 'Who do you want to reach? e.g. Charles Hudson',    button: 'Find path'},
   discover: {placeholder: 'Whose neighborhood? (blank = Drew Glover)',        button: 'Discover'},
-  tree:     {placeholder: "Whose network? e.g. Sam Altman",                   button: 'Build tree'},
-  compare:  {placeholder: "Compare whose network to Drew's? e.g. Sam Altman", button: 'Compare'},
 };
 
-// Compare never reads the disambiguation box — /compare has no context
 // param — so hide it there instead of showing an input that does nothing.
-const CTX_SUPPORTED = new Set(['connect', 'discover', 'tree']);
+const CTX_SUPPORTED = new Set(['connect', 'discover']);
 
 function mode(m){
   MODE = m;
-  for (const key of Object.keys(MODES)) {
-    document.getElementById('tab-' + key).ariaSelected = (m === key);
+  for (const key of ['connect', 'discover', 'import']) {
+    const el = document.getElementById('tab-' + key);
+    if (el) el.ariaSelected = (m === key);
   }
+  // Import takes a file, not a name: swap the whole search area for its panel.
+  const importing = (m === 'import');
+  document.getElementById('search-row').hidden = importing;
+  document.getElementById('ctx-row').hidden = importing || !CTX_SUPPORTED.has(m);
+  document.getElementById('importpanel').hidden = !importing;
+  document.getElementById('what-banner').hidden = importing;
+  document.getElementById('out').innerHTML = '';
+  if (importing) return;
   document.getElementById('q').placeholder = MODES[m].placeholder;
   document.getElementById('go').textContent = MODES[m].button;
-  document.getElementById('ctx-row').style.display = CTX_SUPPORTED.has(m) ? 'flex' : 'none';
-  document.getElementById('out').innerHTML = '';
 }
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const NEEDS_NAME = new Set(['connect', 'tree', 'compare']);
+// Inline SVG star — the design system forbids emoji/glyphs as icons.
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.88-5-4.87 7.1-1.01z"/></svg>';
+
+const NEEDS_NAME = new Set(['connect']);
 
 const CTX = () => {
   const c = (document.getElementById('ctx').value || '').trim();
@@ -261,13 +596,10 @@ const CTX = () => {
 const ENDPOINT = {
   connect:  q => `/connect?target=${encodeURIComponent(q)}${CTX()}`,
   discover: q => `/discover?person=${encodeURIComponent(q)}${CTX()}`,
-  tree:     q => `/tree?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
-  compare:  q => `/compare?person=${encodeURIComponent(q)}&radius=3&limit=6`,
 };
 
 const RENDER = {
-  connect: renderPaths, discover: renderNeighborhood,
-  tree: renderTree, compare: renderCompare,
+  connect: renderConnect, discover: renderNeighborhood,
 };
 
 // Streaming variants (Server-Sent Events) for the modes that enrich the graph
@@ -276,7 +608,6 @@ const RENDER = {
 const STREAM = {
   connect:  q => `/connect/stream?target=${encodeURIComponent(q)}${CTX()}`,
   discover: q => `/discover/stream?person=${encodeURIComponent(q)}${CTX()}`,
-  tree:     q => `/tree/stream?person=${encodeURIComponent(q)}&max_hops=2${CTX()}`,
 };
 
 function runStream(q, out, btn){
@@ -296,20 +627,24 @@ function runStream(q, out, btn){
   // No true total is known ahead of time, so ease toward 92% — each step takes a
   // shrinking bite of the remaining bar; the result event snaps it to 100%.
   const bump = () => { pct = Math.min(92, pct + Math.max(1.4, (92 - pct) * 0.11));
-                       pf.style.width = pct.toFixed(1) + '%';
+                       pf.style.transform = `scaleX(${(pct / 100).toFixed(4)})`;
                        pp.textContent = Math.round(pct) + '%'; };
 
   const es = new EventSource(STREAM[MODE](q));
   es.addEventListener('progress', e => { bump(); pm.textContent = JSON.parse(e.data); });
   es.addEventListener('result', e => {
     es.close();
-    pf.style.width = '100%'; pp.textContent = '100%'; pm.textContent = 'done';
+    pf.style.transform = 'scaleX(1)'; pp.textContent = '100%'; pm.textContent = 'done';
     const data = JSON.parse(e.data);
     setTimeout(() => {
-      if ((MODE === 'discover' || MODE === 'tree') && !data.found)
+      if (MODE === 'discover' && !data.found)
         out.innerHTML = `<div class="msg err">${esc(data.reason || 'Not found.')}</div>`;
-      else
+      else {
         out.innerHTML = RENDER[MODE](data);
+        // Cinematic fullscreen reveal for a found connection; the inline result
+        // is already in place underneath for when the reveal is dismissed.
+        if (MODE === 'connect' && data.connected) playCinema(data);
+      }
       btn.disabled = false;
       refreshQuota();               // a live search likely spent Serper credits
     }, 200);
@@ -346,6 +681,260 @@ async function run(){
   }
 }
 
+// The Connect view: a spider web with the TARGET at the centre and every route
+// branching out to you (the finder) on the rim. The cited-routes list is kept a
+// click away, because the evidence is the whole point of the tool.
+function renderConnect(d){
+  if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
+  const target = d.paths[0].path[d.paths[0].path.length - 1].label;
+  return `<div class="web">
+      <div class="web-hd">
+        <span class="n">Reaching <b>${esc(target)}</b> — ${d.paths.length} route${d.paths.length === 1 ? '' : 's'}</span>
+        <span class="toggle">
+          <button aria-pressed="true"  onclick="toggleView('web')">Web</button>
+          <button aria-pressed="false" onclick="toggleView('list')">Routes</button>
+        </span>
+      </div>
+      <div id="view-web">${buildWeb(d)}
+        <div class="web-detail" id="web-detail">Hover a person to see the source that connects them.</div>
+      </div>
+      <div id="view-list" hidden>${renderPaths(d)}</div>
+    </div>`;
+}
+
+function toggleView(which){
+  const web = which === 'web';
+  document.getElementById('view-web').hidden = !web;
+  document.getElementById('view-list').hidden = web;
+  const btns = document.querySelectorAll('.web-hd .toggle button');
+  btns[0].setAttribute('aria-pressed', web);
+  btns[1].setAttribute('aria-pressed', !web);
+}
+
+function webDetail(el){
+  const d = el.dataset;
+  const box = document.getElementById('web-detail');
+  if (!box) return;
+  if (d.role === 'target'){ box.innerHTML = `<b>${esc(d.label)}</b> — the person you want to reach.`; return; }
+  if (d.role === 'finder'){ box.innerHTML = `<b>${esc(d.label)}</b> — you. Every route starts here.`; return; }
+  box.innerHTML =
+    `<span class="tier t${d.tier}">tier ${d.tier}</span>`
+    + `<b>${esc(d.prev)}</b> → <b>${esc(d.label)}</b> · ${esc(d.why)}`
+    + (d.ev ? `<div class="ev">"${esc(d.ev)}"</div>` : '')
+    + (d.src ? `<div class="src"><a href="${esc(d.src)}" target="_blank" rel="noopener">${esc(d.src)}</a></div>` : '');
+}
+
+// A CIRCULAR connection graph: the TARGET glows at the centre of a neon ring,
+// and every route is a spoke running from YOU (on the outer circle) inward to
+// the target. `opts.animated` makes the strokes draw out from you to the target
+// and the nodes pop in sequence — the cinematic reveal. The geometry is shared
+// so the inline view and the fullscreen cinema render the same graph.
+function buildWeb(d, opts){
+  opts = opts || {};
+  const animated = !!opts.animated;
+  const W = 760, H = 560, cx = 380, cy = 280, Rmax = 210;
+  const paths = d.paths;
+  const R = paths.length;
+  const maxHops = Math.max(1, ...paths.map(p => p.hops));
+  const ringR = k => (k / maxHops) * Rmax;
+  // Spread routes around the FULL circle; a lone route sits on the left so it
+  // reads left-to-right (you → target).
+  const angleOf = r => R === 1 ? Math.PI : (-Math.PI / 2 + (2 * Math.PI * r) / R);
+  const pt = (radius, ang) => [cx + radius * Math.cos(ang), cy + radius * Math.sin(ang)];
+  const clip = s => { s = String(s || ''); return s.length > 20 ? s.slice(0, 19) + '…' : s; };
+  const len = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const tierColor = t => `var(--t${t || 5})`;
+
+  let deco = '', edges = '', nodes = '';
+
+  // Concentric neon rings — the circular frame. Boldest on the outside.
+  for (let k = 1; k <= maxHops; k++){
+    const rr = ringR(k).toFixed(1);
+    const cls = k === maxHops ? 'ring' : 'ringf';
+    deco += `<circle class="${cls}" cx="${cx}" cy="${cy}" r="${rr}"/>`;
+  }
+  // Faint radial guides to each route's spoke.
+  for (let r = 0; r < R; r++){
+    const [ex, ey] = pt(Rmax, angleOf(r));
+    deco += `<line class="strand" x1="${cx}" y1="${cy}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
+  }
+
+  // Timing for the draw-out: each route staggers in, each hop draws outward→
+  // inward (you → target). Delays only apply when animated.
+  const HOP = 0.5, ROUTE = 0.35;
+  const seen = {};   // target drawn once
+  paths.forEach((p, r) => {
+    const ang = angleOf(r);
+    const L = p.path.length;
+    const pos = p.path.map((n, i) => pt(ringR((L - 1) - i), ang));
+    const base = r * ROUTE;
+    // real strands: node i-1 -> i, coloured by node i's incoming tier
+    for (let i = 1; i < L; i++){
+      const n = p.path[i];
+      const a = pos[i - 1], b = pos[i];
+      const dly = base + (i - 1) * HOP;
+      const anim = animated
+        ? ` draw" style="--len:${len(a, b).toFixed(1)};--d:${dly.toFixed(2)}s`
+        : '"';
+      edges += `<line class="edge${anim}" x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" `
+             + `x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${tierColor(n.warmth_tier)}"/>`;
+    }
+    // nodes
+    p.path.forEach((n, i) => {
+      const isTarget = i === L - 1;
+      const isFinder = i === 0;
+      if (isTarget && seen.t) return;   // one central target
+      if (isTarget) seen.t = 1;
+      const [x, y] = pos[i];
+      const rad = isTarget ? 24 : isFinder ? 14 : 10;
+      const fill = isTarget ? 'var(--color-primary)'
+                 : isFinder ? 'var(--accent-soft)'
+                 : n.is_warm ? 'var(--warm)' : 'var(--color-surface-2)';
+      const stroke = isTarget ? 'var(--color-primary)'
+                   : isFinder ? 'var(--color-primary)'
+                   : n.is_warm ? 'var(--warm)' : tierColor(n.warmth_tier);
+      let tx, ty, anchor;
+      if (isTarget){ tx = x; ty = y + rad + 18; anchor = 'middle'; }
+      else if (x >= cx){ tx = x + rad + 6; ty = y + 4; anchor = 'start'; }
+      else { tx = x - rad - 6; ty = y + 4; anchor = 'end'; }
+      const prev = i > 0 ? p.path[i - 1].label : '';
+      const data = isTarget ? `data-role="target" data-label="${esc(n.label)}"`
+                 : isFinder ? `data-role="finder" data-label="${esc(n.label)}"`
+                 : `data-label="${esc(n.label)}" data-prev="${esc(prev)}" data-tier="${n.warmth_tier || 5}" `
+                   + `data-why="${esc(n.why || '')}" data-ev="${esc(n.evidence_snippet || '')}" data-src="${esc(n.source_url || '')}"`;
+      // node pops in just as its incoming edge finishes drawing
+      const dly = isTarget ? base + (L - 1) * HOP : base + i * HOP;
+      const cls = 'wnode'
+        + (animated ? ' pop' : '')
+        + (isTarget ? ' glow-node' : '');
+      const style = animated ? ` style="--d:${dly.toFixed(2)}s"` : '';
+      const finderHalo = isFinder
+        ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad + 5}" fill="none" stroke="var(--color-primary)" stroke-opacity=".35"/>` : '';
+      const star = (n.is_warm && !isTarget && !isFinder) ? '★ ' : '';
+      nodes += `<g class="${cls}"${style} ${data} onmouseenter="webDetail(this)" onclick="webDetail(this)">`
+             + finderHalo
+             + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="${fill}" stroke="${stroke}"/>`
+             + `<text x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(star + clip(n.label))}</text>`
+             + `</g>`;
+    });
+  });
+
+  return `<svg class="webgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Connection web to ${esc(d.paths[0].path.slice(-1)[0].label)}">`
+    + deco + edges + nodes + `</svg>`;
+}
+
+// The total run-time of the draw-out animation, so we know when the reveal is
+// "done" and can let the user settle into the interactive view.
+function cinemaDuration(d){
+  const R = d.paths.length;
+  const maxHops = Math.max(1, ...d.paths.map(p => p.hops));
+  return (R - 1) * 0.35 + maxHops * 0.5 + 1.0;   // last stagger + last hop + tail
+}
+
+// --- cinematic reveal ------------------------------------------------------
+let _cinemaTimer = null;
+function playCinema(d){
+  const cin = document.getElementById('cinema');
+  const graph = document.getElementById('cinema-graph');
+  const title = document.getElementById('cinema-title');
+  if (!cin || !graph) return;
+  const target = d.paths[0].path[d.paths[0].path.length - 1].label;
+  const n = d.paths.length;
+  title.textContent = `You → ${target}`;
+  graph.innerHTML = buildWeb(d, {animated: true});
+  cin.classList.remove('closing');
+  cin.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  // Soften the "press Esc" tip until the draw has actually finished.
+  const tip = cin.querySelector('.cinema-tip');
+  if (tip){
+    tip.style.opacity = '0';
+    clearTimeout(_cinemaTimer);
+    _cinemaTimer = setTimeout(() => { tip.style.opacity = '.85'; },
+                              Math.min(cinemaDuration(d), 6) * 1000);
+  }
+}
+function closeCinema(){
+  const cin = document.getElementById('cinema');
+  if (!cin || !cin.classList.contains('show')) return;
+  cin.classList.add('closing');
+  setTimeout(() => {
+    cin.classList.remove('show', 'closing');
+    document.body.style.overflow = '';
+  }, 380);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCinema(); });
+// Click the backdrop (not a node) to dismiss.
+(function(){
+  const cin = document.getElementById('cinema');
+  if (cin) cin.addEventListener('click', e => {
+    if (e.target === cin || e.target.closest('.cinema-inner') === null) closeCinema();
+  });
+})();
+
+// --- neon / retro-red background shapes (canvas) ---------------------------
+(function bgfx(){
+  const cv = document.getElementById('bgfx');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const COLORS = ['#ff2d55', '#ff5e3a', '#ff2ea8', '#ff8a3d', '#ff165d'];
+  const KINDS = ['circle', 'triangle', 'square', 'cross', 'diamond'];
+  let shapes = [], w = 0, h = 0, raf = 0;
+
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth; h = window.innerHeight;
+    cv.width = w * dpr; cv.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function seed(){
+    const count = Math.round(Math.min(34, Math.max(16, w * h / 46000)));
+    shapes = Array.from({length: count}, () => ({
+      x: Math.random() * w, y: Math.random() * h,
+      s: 10 + Math.random() * 46,
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.006,
+      vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
+      kind: KINDS[(Math.random() * KINDS.length) | 0],
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      a: 0.14 + Math.random() * 0.28,
+      fill: Math.random() < 0.25,
+    }));
+  }
+  function shape(sp){
+    ctx.save();
+    ctx.translate(sp.x, sp.y); ctx.rotate(sp.rot);
+    ctx.globalAlpha = sp.a;
+    ctx.strokeStyle = sp.color; ctx.fillStyle = sp.color;
+    ctx.lineWidth = 2; ctx.shadowColor = sp.color; ctx.shadowBlur = 18;
+    const r = sp.s / 2;
+    ctx.beginPath();
+    if (sp.kind === 'circle'){ ctx.arc(0, 0, r, 0, Math.PI * 2); }
+    else if (sp.kind === 'square'){ ctx.rect(-r, -r, sp.s, sp.s); }
+    else if (sp.kind === 'diamond'){ ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
+    else if (sp.kind === 'triangle'){ ctx.moveTo(0, -r); ctx.lineTo(r, r); ctx.lineTo(-r, r); ctx.closePath(); }
+    else if (sp.kind === 'cross'){ ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); }
+    sp.fill && sp.kind !== 'cross' ? ctx.fill() : ctx.stroke();
+    ctx.restore();
+  }
+  function frame(){
+    ctx.clearRect(0, 0, w, h);
+    for (const sp of shapes){
+      sp.x += sp.vx; sp.y += sp.vy; sp.rot += sp.vr;
+      const m = sp.s;
+      if (sp.x < -m) sp.x = w + m; if (sp.x > w + m) sp.x = -m;
+      if (sp.y < -m) sp.y = h + m; if (sp.y > h + m) sp.y = -m;
+      shape(sp);
+    }
+    raf = requestAnimationFrame(frame);
+  }
+  function start(){ resize(); seed(); cancelAnimationFrame(raf);
+    if (reduce){ ctx.clearRect(0, 0, w, h); shapes.forEach(shape); }
+    else frame(); }
+  window.addEventListener('resize', () => { resize(); seed(); if (reduce){ ctx.clearRect(0,0,w,h); shapes.forEach(shape); } });
+  start();
+})();
+
 function renderPaths(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
   return d.paths.map((p, i) => {
@@ -356,20 +945,34 @@ function renderPaths(d){
             <span class="tier t${n.warmth_tier}">tier ${n.warmth_tier}</span>
             <span>${esc(n.why)}</span>
           </div>
-          ${n.evidence_snippet ? `<div class="ev">“${esc(n.evidence_snippet)}”</div>` : ''}
+          ${n.evidence_snippet ? `<div class="ev">"${esc(n.evidence_snippet)}"</div>` : ''}
           ${n.source_url ? `<div class="src"><a href="${esc(n.source_url)}" target="_blank" rel="noopener">${esc(n.source_url)}</a></div>` : ''}
         </div>` : '';
       return `${link}
-        <div class="person${n.is_warm ? ' warm' : ''}">
+        <div class="person${n.is_warm ? ' warm' : ''}${n.unreachable ? ' unreachable' : ''}">
           <span class="dot"></span>${esc(n.label)}
-          ${n.is_warm ? '<span class="star">★ first degree</span>' : ''}
+          ${n.is_warm ? `<span class="star">${STAR} first degree</span>` : ''}
+          ${n.unreachable ? '<span class="nogo">won\'t relay an intro</span>' : ''}
         </div>`;
     }).join('');
-    return `<div class="route">
+    // Named, not just flagged: the reason to abandon this route is "it needs
+    // Samuel L. Jackson to make an introduction", and that only lands with the
+    // name in it. The hops below are still real and still cited — the route is
+    // unusable, not untrue.
+    const blockers = (p.unreachable_bridges || []).map(esc);
+    const asker = esc((p.path && p.path[0] && p.path[0].label) || 'you');
+    const warn = blockers.length ? `<div class="nogo-banner">
+        <b>Not a usable intro.</b> This route needs ${blockers.join(' and ')}
+        to pass the introduction along — famous, and not someone ${asker}
+        knows, so there is nobody here to ask. The hops below are real and
+        sourced; it is the introduction that isn't available.
+      </div>` : '';
+    return `<div class="route${blockers.length ? ' route-nogo' : ''}">
       <div class="route-hd">
         <span class="n">Route ${i + 1} — ${p.hops} hop${p.hops === 1 ? '' : 's'}</span>
         <span class="score">warmth ${p.warmth_score}</span>
       </div>
+      ${warn}
       <div class="chain">${hops}</div>
     </div>`;
   }).join('');
@@ -382,7 +985,7 @@ function hopBlock(h){
         <span class="tier t${h.warmth_tier}">tier ${h.warmth_tier}</span>
         <span>${esc(h.why)}</span>
       </div>
-      ${h.evidence_snippet ? `<div class="ev">“${esc(h.evidence_snippet)}”</div>` : ''}
+      ${h.evidence_snippet ? `<div class="ev">"${esc(h.evidence_snippet)}"</div>` : ''}
       ${h.source_url ? `<div class="src"><a href="${esc(h.source_url)}" target="_blank" rel="noopener">${esc(h.source_url)}</a></div>` : ''}
     </div>
     <div class="person"><span class="dot"></span>${esc(h.label)}</div>`;
@@ -395,75 +998,18 @@ function chainBlock(root, chain){
     </div>`;
 }
 
-function renderTree(d){
-  const walk = (n, depth) => {
-    const kids = n.children || [];
-    const head = depth === 0
-      ? `<div class="person${n.is_warm ? ' warm' : ''}"><span class="dot"></span>${esc(n.label)}</div>`
-      : hopBlock({warmth_tier: n.warmth_tier, why: n.why,
-                  evidence_snippet: n.evidence_snippet, source_url: n.source_url,
-                  label: n.label});
-    const body = kids.map(k => `<div style="margin-left:14px">${walk(k, depth + 1)}</div>`).join('');
-    return head + body;
-  };
-  const bound = d.max_hops ? `within ${d.max_hops} hops` : 'reachable (no hop limit)';
-  const hubs = (d.hubs || []).slice(0, 4).map(h =>
-    `<li><span>${esc(h.label)} <div class="via">${h.hops} hop${h.hops === 1 ? '' : 's'} away</div></span>
-         <span class="score">introduces ${h.introduces}</span></li>`).join('');
-  return `<div class="route">
-      <div class="route-hd">
-        <span class="n">${esc(d.person)} — ${d.reachable} people ${bound}</span>
-        <span class="score">tiers ${esc(JSON.stringify(d.by_tier))}</span>
-      </div>
-      <div class="chain">${walk(d.tree, 0)}</div>
-    </div>
-    ${hubs ? `<div class="banner"><b>Who introduces the most people</b></div><ul class="nb">${hubs}</ul>` : ''}`;
-}
 
-function renderCompare(d){
-  const a = esc(d.person_a), b = esc(d.person_b);
-  const link = d.directly_connected
-    ? `They are connected: <b>${d.hops_between} hops</b> apart.`
-    : 'No structural chain connects them.';
-  const head = `<div class="route">
-      <div class="route-hd"><span class="n">${a} vs ${b}</span>
-        <span class="score">radius ${d.radius}</span></div>
-      <div class="chain">
-        <div class="why"><span>${a} reaches <b>${d.reach_a}</b> · ${b} reaches <b>${d.reach_b}</b></span></div>
-        <div class="why"><span>shared <b>${d.shared}</b> (${d.overlap_pct}% of their combined networks)</span></div>
-        <div class="ev">${link}</div>
-      </div>
-    </div>`;
-
-  if (!d.mutual_contacts.length){
-    return head + '<div class="msg">No mutual contacts within this radius.</div>';
-  }
-  const contacts = d.mutual_contacts.map(m => `
-    <div class="route">
-      <div class="route-hd">
-        <span class="n">${esc(m.label)}${m.is_warm ? ' <span class="star">★</span>' : ''}</span>
-        <span class="score">score ${m.introduction_score} · ${m.hops_from_a}h / ${m.hops_from_b}h</span>
-      </div>
-      <div class="chain">
-        <div class="why"><span>via ${a}</span></div>
-        ${chainBlock(d.person_a, m.chain_from_a)}
-        <div class="why"><span>via ${b}</span></div>
-        ${chainBlock(d.person_b, m.chain_from_b)}
-      </div>
-    </div>`).join('');
-  return head + `<div class="banner"><b>Mutual contacts</b> — cheapest introduction from both sides.</div>` + contacts;
-}
 
 function renderNeighborhood(d){
   if (!d.neighborhood.length){
     const deepHint = DEEP_ON
       ? 'No structured records (Wikidata / EDGAR / research / podcasts) and no web co-mentions turned up anyone connected to them. They may be too low-profile to be findable, or the name/context needs tweaking.'
-      : 'This person isn\'t in the structured databases (Wikidata / EDGAR / research / podcasts), so nothing connected to them was found. For a lesser-known person, turn on <b>Deep search</b> (⚙) — it web-mines connections. The basic search only pulls structured records + firm rosters.';
+      : 'This person isn\'t in the structured databases (Wikidata / EDGAR / research / podcasts), so nothing connected to them was found. For a lesser-known person, turn on <b>Deep search</b> in Settings: it web-mines connections. The basic search only pulls structured records + firm rosters.';
     return `<div class="msg err"><b>Nobody reachable for ${esc(d.person || 'them')}.</b><br>${deepHint}</div>`;
   }
   return `<ul class="nb">` + d.neighborhood.map(p => `
     <li>
-      <span>${esc(p.label)} ${p.is_warm ? '<span class="star">★</span>' : ''}
+      <span>${esc(p.label)} ${p.is_warm ? `<span class="star">${STAR}</span>` : ''}
         <div class="via">${p.hops} hop${p.hops === 1 ? '' : 's'} · ${esc(p.via)}</div>
       </span>
       <span class="score">${p.warmth_score}</span>
@@ -486,6 +1032,36 @@ function toggleImport(){
   const p = document.getElementById('import');
   p.style.display = getComputedStyle(p).display === 'none' ? 'block' : 'none';
 }
+// Inline "?" help toggles — expand/collapse the paragraph right after the
+// button, keyed off a shared class rather than an id per instance.
+function toggleHelp(btn){
+  const body = btn.parentElement.nextElementSibling;
+  if (body && body.classList.contains('help-body')) body.classList.toggle('open');
+}
+// "What counts as a connection here" — a question button rather than a paragraph
+// that is always on screen. Shares the .help-body reveal used elsewhere.
+function toggleWhat(btn){
+  const body = document.getElementById('what-body');
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  btn.setAttribute('aria-expanded', open);
+}
+
+// Click ripple: any <button> gets a circular fade-out from the pointer, sized
+// to the button so it always reaches the far corner.
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('button');
+  if (!b) return;
+  const r = b.getBoundingClientRect();
+  const s = document.createElement('span');
+  s.className = 'ripple';
+  const size = Math.max(r.width, r.height) * 1.3;
+  s.style.width = s.style.height = size + 'px';
+  s.style.left = (e.clientX - r.left - size / 2) + 'px';
+  s.style.top  = (e.clientY - r.top  - size / 2) + 'px';
+  b.appendChild(s);
+  setTimeout(() => s.remove(), 600);
+}, true);
 
 let IMPORTED = [];   // rows from the last CSV upload, in file order
 
@@ -576,7 +1152,7 @@ function streamEnrich(job, names, out, btn){
     `<div class="prog">
        <div class="prophd">[ ENRICHING ${names.length} ]</div>
        <div style="display:flex;align-items:center">
-         <div class="progbar"><div class="progfill" id="ef" style="width:0%"></div></div>
+         <div class="progbar"><div class="progfill" id="ef" style="transform:scaleX(0)"></div></div>
          <span class="progpct" id="ep">0%</span>
        </div>
        <div class="progmsg" id="em">starting…</div>
@@ -592,14 +1168,14 @@ function streamEnrich(job, names, out, btn){
     const m = /^\[(\d+)\/(\d+)\]/.exec(line);
     if (m){
       const pct = Math.round(100 * (Number(m[1]) - 1) / Number(m[2]));
-      ef.style.width = pct + '%';
+      ef.style.transform = `scaleX(${pct / 100})`;
       ep.textContent = pct + '%';
     }
   });
   es.addEventListener('result', e => {
     es.close();
     const d = JSON.parse(e.data);
-    ef.style.width = '100%'; ep.textContent = '100%'; em.textContent = 'done';
+    ef.style.transform = 'scaleX(1)'; ep.textContent = '100%'; em.textContent = 'done';
     if (!d.found){
       out.innerHTML = `<div class="msg err">${esc(d.reason || 'Enrichment failed.')}</div>`;
       btn.disabled = false;
@@ -607,7 +1183,7 @@ function streamEnrich(job, names, out, btn){
     }
     out.innerHTML = `<div class="msg">Enriched <b>${d.enriched}</b> of ${d.total}`
       + (d.failed ? ` · ${d.failed} had no findable sources` : '')
-      + `. Their links are in the graph now — try <b>Connect</b> or <b>Tree</b>.</div>`;
+      + `. Their links are in the graph now — try <b>Connect</b>.</div>`;
     const done = new Set(names);
     IMPORTED.forEach(p => { if (done.has(p.name)) p.enriched = true; });
     renderPicker();          // clears the selection and re-tags who is done
@@ -651,7 +1227,7 @@ async function refreshQuota(){
     if (!s.serper_configured || q.quota == null){ wrap.style.display = 'none'; return; }
     wrap.style.display = 'block';
     const pct = q.quota ? Math.min(100, Math.round(100 * q.used / q.quota)) : 0;
-    document.getElementById('quotaFill').style.width = pct + '%';
+    document.getElementById('quotaFill').style.transform = `scaleX(${pct / 100})`;
     document.getElementById('quotaPct').textContent = pct + '%';
     let msg = `${q.used.toLocaleString()} / ${q.quota.toLocaleString()} searches used this month · ${q.remaining.toLocaleString()} left`;
     if (q.state === 'exhausted')
@@ -663,6 +1239,57 @@ async function refreshQuota(){
       q.state === 'ok' ? 'SERPER QUOTA' : 'SERPER QUOTA — ' + q.state.toUpperCase();
   } catch(e){}
 }
+// --- LinkedIn CSV import (drop-zone variant) --------------------------------
+async function uploadCsv(file){
+  const out = document.getElementById('out');
+  if (!file) return;
+  if (!/\.csv$/i.test(file.name)){
+    out.innerHTML = '<div class="msg err"><b>That is not a CSV.</b><br>LinkedIn sends a file '
+      + 'called Connections.csv. If you got a .zip, open it first and pick the CSV inside.</div>';
+    return;
+  }
+  out.innerHTML = `<div class="spin">Scanning ${esc(file.name)}…</div>`;
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/network/csv', {method:'POST', body: fd});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    out.innerHTML = renderImport(d);
+  } catch(err){
+    const msg = (err instanceof TypeError)
+      ? '<b>Lost contact with the app.</b><br>Its window is probably closed.' : esc(err.message);
+    out.innerHTML = `<div class="msg err">${msg}</div>`;
+  }
+}
+
+function renderImport(d){
+  if (d.error) return `<div class="msg err"><b>Could not read that file.</b><br>${esc(d.error)}</div>`;
+  const head = d.edges
+    ? `<div class="banner"><b>${d.edges} warm connection${d.edges === 1 ? '' : 's'} added.</b>
+         Tier 1, the warmest, because you asserted them yourself. Search for any of these
+         people now and the route starts with you.</div>`
+    : `<div class="banner"><b>No connections were added.</b> That CSV had no readable rows.
+         Check you sent Connections.csv rather than another file from the archive.</div>`;
+  return head + `<div class="stat">
+    <div><span class="k">edges</span><span class="v good">${d.edges || 0}</span></div>
+    <div><span class="k">people added</span><span class="v">${d.created || 0}</span></div>
+    <div><span class="k">already known</span><span class="v">${d.updated || 0}</span></div>
+    <div><span class="k">rows skipped</span><span class="v">${d.skipped || 0}</span></div>
+  </div>`;
+}
+
+document.getElementById('csv').addEventListener('change', e => uploadCsv(e.target.files[0]));
+const drop = document.getElementById('drop');
+for (const ev of ['dragenter', 'dragover'])
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); });
+for (const ev of ['dragleave', 'drop'])
+  drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); });
+drop.addEventListener('drop', e => uploadCsv(e.dataTransfer.files[0]));
+
+// Keep the import panel's seed name in step with the header's.
+(function(){ const a = document.getElementById('seed'), b = document.getElementById('seed2');
+  if (a && b) b.textContent = a.textContent; })();
+
 (async function checkSettings(){
   try {
     const s = await (await fetch('/settings')).json();

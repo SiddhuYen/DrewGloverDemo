@@ -22,9 +22,8 @@ from sqlalchemy.orm import Session
 
 from . import config
 from .db import SessionLocal, get_db, init_db
-from .graph.connect import connect_people, discover
-from .graph.enrich import enrich_selected
-from .graph.tree import build_tree, compare_trees
+from .graph.connect import _lookup, connect_people, discover
+from .graph.enrich import enrich_selected, get_enricher
 from .ingest.linkedin_csv import ingest_csv
 from .ingest.seed import seed_drew
 from .models import Organization, Person, RelationshipEdge
@@ -55,8 +54,10 @@ def health(db: Session = Depends(get_db)) -> dict:
 
 @app.get("/settings")
 def get_settings() -> dict:
-    """Live-search config. Never returns the key itself."""
+    """Live-search config. Never returns either key itself."""
     return {"serper_configured": bool(config.SERPER_API_KEY),
+            "claude_configured": bool(config.CLAUDE_API_KEY),
+            "claude_model": config.CLAUDE_MODEL,
             "deep_search": config.DEEP_SEARCH, "serper": serper_status()}
 
 
@@ -87,6 +88,57 @@ def set_settings(serper_key: str = Body(None, embed=True),
             raise HTTPException(500, f"could not persist settings: {exc}")
     return {"ok": True, "serper_configured": bool(config.SERPER_API_KEY),
             "deep_search": config.DEEP_SEARCH}
+
+
+@app.post("/confirm-contact")
+def confirm_contact(name: str = Body(..., embed=True),
+                    db: Session = Depends(get_db)) -> dict:
+    """Mark someone as a real first-degree contact (is_warm=True).
+
+    This is the correction path for a fame_penalty false positive: a real
+    contact who isn't yet captured by any of the automated is_warm sources
+    (podcast, LinkedIn import, Fiat colleague, portfolio founder) gets banned
+    from bridge positions exactly like an actual stranger, and a warmer route
+    through them just doesn't appear (see connect._suggest_known_contact,
+    surfaced on /connect as "warmer_if_known"). A human confirming "yes, I
+    know them" is at least as strong an assertion as any of those sources.
+    Idempotent — confirming an already-warm contact is a no-op.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.is_warm = True
+        db.commit()
+        return {"ok": True, "name": person.canonical_name, "is_warm": True}
+
+
+@app.post("/confirm-identity")
+def confirm_identity(name: str = Body(..., embed=True),
+                     qid: str = Body(..., embed=True),
+                     db: Session = Depends(get_db)) -> dict:
+    """Override a homonym-guard rejection: the caller is asserting that a
+    name-matched Wikidata candidate the guard skipped IS actually this person.
+
+    Setting wikidata_qid directly bypasses enrich._identity_confirmed on the
+    next enrich_person call — the guard only runs when a candidate QID is being
+    adopted by NAME (see graph.enrich._from_wikidata), and a stored qid short-
+    circuits that resolution. `force=True` re-runs the full pipeline against
+    the now-trusted identity instead of leaving the earlier rejection's edges
+    (or lack of them) cached as "done". See connect._homonym_notice, which is
+    what surfaces the rejection this endpoint corrects.
+    """
+    with _write_lock:
+        person = _lookup(db, name)
+        if person is None:
+            raise HTTPException(404, f"'{name}' not found in the graph")
+        person.wikidata_qid = qid
+        meta = dict(person.meta or {})
+        meta.pop("homonym_rejected", None)
+        person.meta = meta
+        db.commit()
+        get_enricher().enrich_person(db, person.canonical_name, force=True)
+        return {"ok": True, "name": person.canonical_name, "wikidata_qid": qid}
 
 
 @app.post("/seed")
@@ -123,41 +175,6 @@ def discover_endpoint(
     return result
 
 
-@app.get("/tree")
-def tree(
-    person: str = Query(..., min_length=2),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    max_hops: int = Query(default=3, ge=0, le=8,
-                          description="0 = no limit (whole reachable set)"),
-    context: str = Query(default=""),
-    db: Session = Depends(get_db),
-) -> dict:
-    """The warmest-path network tree rooted at `person`."""
-    with _write_lock:
-        result = build_tree(db, person, depth=depth, max_hops=max_hops, hint=context)
-    if not result.get("found"):
-        raise HTTPException(status_code=404, detail=result.get("reason"))
-    return result
-
-
-@app.get("/compare")
-def compare(
-    person: str = Query(..., min_length=2, description="whose network to compare"),
-    against: str = Query(default="", description="defaults to the demo seed"),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    radius: int = Query(default=config.COMPARE_RADIUS, ge=1, le=4),
-    limit: int = Query(default=20, ge=1, le=100),
-    db: Session = Depends(get_db),
-) -> dict:
-    """Compare `person`'s network against `against` (Drew by default)."""
-    against = against or config.DEMO_SEED_NAME
-    with _write_lock:
-        result = compare_trees(db, against, person, depth=depth, radius=radius,
-                               limit=limit)
-    if not result.get("found"):
-        raise HTTPException(status_code=404, detail=result.get("reason"))
-    return result
-
 
 def _sse(work):
     """Run `work(db, progress)` on a worker thread and stream its progress lines
@@ -185,7 +202,15 @@ def _sse(work):
 
     def gen():
         while True:
-            kind, msg = q.get()
+            try:
+                kind, msg = q.get(timeout=config.SSE_HEARTBEAT_S)
+            except queue.Empty:
+                # A long enrichment step has emitted nothing for a while. Send an
+                # SSE comment (ignored by EventSource) so the idle connection is
+                # not dropped by a proxy / Codespaces port-forward / the browser
+                # mid-deep-search — the "connection lost" bug.
+                yield ": keepalive\n\n"
+                continue
             if kind == "done":
                 yield f"event: result\ndata: {json.dumps(box.get('result', {}))}\n\n"
                 return
@@ -216,17 +241,6 @@ def discover_stream(
 ):
     who = person or config.DEMO_SEED_NAME
     return _sse(lambda db, p: discover(db, who, limit=limit, hint=context, progress=p))
-
-
-@app.get("/tree/stream")
-def tree_stream(
-    person: str = Query(..., min_length=2),
-    depth: int = Query(default=config.CONNECT_DEPTH, ge=1, le=3),
-    max_hops: int = Query(default=3, ge=0, le=8),
-    context: str = Query(default=""),
-):
-    return _sse(lambda db, p: build_tree(db, person, depth=depth,
-                                         max_hops=max_hops, hint=context, progress=p))
 
 
 @app.post("/network/csv")

@@ -12,12 +12,10 @@ This NEVER promotes an edge: relationship_type stays "co_mention" and Rule 0
 nudge (see builder.add_edge). A confidently-labeled "cofounder-sounding"
 co-mention is still capped well below the weakest real structural tie.
 
-Uses config.CLAUDE_API_KEY — a real Anthropic key, spend-capped in the
-Anthropic Console rather than routed through a proxy (see DESKTOP.md for
-why: one trusted user, zero hosting infrastructure). Auto no-op (all
-"unknown"/0.0) when no key is configured or a request fails, so the
-pipeline degrades the same way it did without Ollama: metadata just
-doesn't get added, nothing else changes.
+Uses config.CLAUDE_API_KEY — a single key shared by every caller (the CLI, the
+web app, tests). Auto no-op (all "unknown"/0.0) when no key is configured or a
+request fails, so the pipeline degrades the same way it did without an LLM at
+all: metadata just doesn't get added, nothing else changes.
 """
 from __future__ import annotations
 
@@ -64,6 +62,35 @@ class _LabelResult(BaseModel):
     results: List[_LabelItem]
 
 
+class _IdentityResult(BaseModel):
+    verdict: str        # "same" | "different" | "unknown"
+    confidence: float
+
+
+# Identity disambiguation is SCOUTING, not asserting: it decides whether a
+# name-matched Wikidata page is even about the right individual before that
+# person's structural claims are trusted. It never creates or promotes an edge,
+# so Rule 0 is untouched — a wrong "same" only risks the same false bridge the
+# code already had, and a "different" simply keeps two homonyms apart.
+_IDENTITY_PROMPT = """You disambiguate people by name. Two sources may describe the
+SAME person or two DIFFERENT people who merely share a name.
+
+Person being researched (from web search + user context):
+  Name: {name}
+  Background: {background}
+
+Candidate encyclopedia entry found for that same name:
+  {candidate}
+
+Is the candidate entry about the SAME individual as the person being researched?
+- verdict: "same" if clearly the same person, "different" if clearly a distinct
+  person who happens to share the name, "unknown" if there isn't enough to tell.
+- confidence: 0..1.
+Judge on occupation, industry, and affiliation. A venture capitalist and a
+test-prep educator who share a name are DIFFERENT people. When the two
+backgrounds plainly conflict, answer "different"."""
+
+
 _client: Optional[anthropic.Anthropic] = None
 
 
@@ -85,6 +112,45 @@ def is_active() -> bool:
 def _key(a: str, b: str, evidence: str) -> str:
     h = hashlib.sha1(f"{a}||{b}||{evidence}".encode("utf-8")).hexdigest()[:16]
     return cache.make_key("llmclassify", "v1", h)
+
+
+def _identity_key(name: str, background: str, candidate: str) -> str:
+    h = hashlib.sha1(f"{name}||{background}||{candidate}".encode("utf-8")).hexdigest()[:16]
+    return cache.make_key("llmidentity", "v1", h)
+
+
+def verify_identity(name: str, background: str, candidate: str):
+    """Scout-only check of whether a name-matched Wikidata entry is the SAME
+    person we're researching. Returns (verdict, confidence) where verdict is
+    "same" | "different" | "unknown". No-op ("unknown", 0.0) when no Claude key
+    is configured or either side is empty, so callers fall back to the
+    deterministic guard. Cached per (name, background, candidate).
+    """
+    background = (background or "").strip()
+    candidate = (candidate or "").strip()
+    if not llm_available() or not background or not candidate:
+        return ("unknown", 0.0)
+    ck = cache.get(_identity_key(name, background, candidate), track=False)
+    if ck is not None:
+        return (ck["verdict"], ck["confidence"])
+    prompt = _IDENTITY_PROMPT.format(
+        name=name, background=background[:600], candidate=candidate[:400])
+    try:
+        response = _get_client().messages.parse(
+            model=config.CLAUDE_MODEL,
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+            output_format=_IdentityResult,
+        )
+        r = response.parsed_output
+        verdict = r.verdict if r.verdict in ("same", "different", "unknown") else "unknown"
+        conf = max(0.0, min(float(r.confidence), 1.0))
+    except Exception:
+        return ("unknown", 0.0)
+    out = {"verdict": verdict, "confidence": conf}
+    cache.set(_identity_key(name, background, candidate), "llmidentity", out,
+              config.CACHE_TTL)
+    return (verdict, conf)
 
 
 def _ask(items: List[dict]) -> List[_LabelItem]:

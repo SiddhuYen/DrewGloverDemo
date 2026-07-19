@@ -1,0 +1,4 @@
+# Shell scripts must stay LF or they break in the Linux Codespace container
+# (a CR in the shebang line makes the interpreter lookup fail).
+*.sh text eol=lf
+.devcontainer/start.sh text eol=lf

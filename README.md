@@ -1,5 +1,11 @@
 # VC Warm-Intro Pathfinder
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SiddhuYen/DrewGloverDemo?quickstart=1&ref=artemis-ui-latest)
+
+**Click the badge** to launch the app in the cloud — no install. Codespaces builds it,
+starts the server, and opens the UI in a browser tab (first build takes a few minutes).
+Prefer to run it locally? See [Run the app](#-run-the-app) below.
+
 Finds the warmest **real** introduction path from **Drew Glover** (Co-Founder & GP,
 [Fiat Ventures](https://www.fiat.vc)) to anyone in the VC/startup world — and says so
 honestly when no such path exists.
@@ -19,7 +25,47 @@ Bree Hanson ★
 Charles Hudson
 ```
 
-## Quickstart
+## ▶ Run the app
+
+**No install (cloud):** click the
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SiddhuYen/DrewGloverDemo?quickstart=1&ref=artemis-ui-latest)
+badge. It builds the environment, seeds the bundled graph, and serves the app on port
+8000 — which opens in a browser tab automatically once it's ready.
+
+**Locally:** the fastest way is a native desktop window with the graph already loaded.
+No API key needed.
+
+**First time — set up the environment (once):**
+
+```bash
+# Windows (PowerShell)
+py -3.12 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m spacy download en_core_web_sm
+
+# macOS / Linux
+python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+./.venv/bin/python -m spacy download en_core_web_sm
+```
+
+**Then launch it (this is the command to remember):**
+
+```bash
+# Windows
+.venv\Scripts\python.exe -m desktop.main
+
+# macOS / Linux
+./.venv/bin/python -m desktop.main
+```
+
+The window opens on **Connect** — type a name (e.g. *Sheel Mohnot*) and hit **Find path**.
+Use `-m desktop.main --server-only` instead to run it as a local web server and open the
+`http://127.0.0.1:<port>/static/index.html` URL it prints.
+
+> Must be `-m desktop.main` (module form). Running `python desktop/main.py` directly fails
+> with `ModuleNotFoundError: No module named 'app'`.
+
+## Quickstart (developer CLI)
 
 ```bash
 python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt

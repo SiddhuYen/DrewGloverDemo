@@ -40,6 +40,13 @@ class Person(Base):
     # Authoritative identity anchor. Two notable people sharing a name have
     # distinct QIDs, so they never merge into one false-bridge node.
     wikidata_qid = Column(String, index=True, nullable=True)
+    # How many language Wikipedia pages this QID has — a fame MAGNITUDE, not
+    # just the binary fact of having a QID at all. Fetched once when the QID is
+    # first adopted (see enrich._store_wikidata_identity). 0 means "not yet
+    # measured" (e.g. a QID adopted before this column existed), which
+    # graph.connect.fame_penalty treats as failing toward caution, not toward
+    # permissiveness.
+    wikidata_sitelinks = Column(Integer, default=0, nullable=False)
     # True when the person is in Drew's real first degree (podcast guest, Fiat
     # colleague, portfolio founder, LinkedIn connection).
     is_warm = Column(Boolean, default=False, nullable=False)

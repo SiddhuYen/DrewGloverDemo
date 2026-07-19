@@ -110,6 +110,41 @@ class WikidataProvider:
         """True iff the QID is instance-of human (P31=Q5)."""
         return bool(qid) and _is_human(self._entity_claims(qid))
 
+    def identity_card(self, qid: str) -> dict:
+        """A short who-is-this for homonym disambiguation: the entity's English
+        description plus its occupation (P106) labels. Cached separately from
+        `_entity_claims` (which keeps only the properties pathfinding reads).
+
+        e.g. -> {"description": "American venture capitalist",
+                 "occupations": ["venture capitalist", "businessperson"]}
+        """
+        blank = {"description": "", "occupations": []}
+        if not qid:
+            return blank
+        key = cache.make_key(self.name, "idcard", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return cached.get("card", blank)
+        _LIMITER.acquire()
+        resp = request_with_retry("GET", _ENTITYDATA.format(qid=qid),
+                                  provider=self.name, headers=_HEADERS)
+        if resp is None or resp.status_code != 200:
+            return blank  # transport failure: don't cache it as "no identity"
+        card = {"description": "", "occupations": []}
+        try:
+            entity = resp.json().get("entities", {}).get(qid, {})
+            card["description"] = (entity.get("descriptions", {})
+                                   .get("en", {}).get("value", "") or "")
+            occ_qids = [t for t in (_claim_target_qid(s) for s
+                        in entity.get("claims", {}).get("P106", []) or []) if t]
+        except Exception:
+            return blank
+        if occ_qids:
+            labels = self._labels(occ_qids[:6])
+            card["occupations"] = [labels[q] for q in occ_qids if q in labels]
+        cache.set(key, "idcard", {"card": card}, config.CACHE_TTL_WIKI)
+        return card
+
     # --- person -> orgs ---------------------------------------------------
     def orgs_for_person(self, qid: str) -> List[dict]:
         """[{org_qid, org_name, prop, relationship_type, phrase}] for a person."""
@@ -283,6 +318,34 @@ class WikidataProvider:
                     out.append(row)
         cache.set(key, "teammates", {"teammates": out}, config.CACHE_TTL_WIKI)
         return out
+
+    # --- fame magnitude -----------------------------------------------------
+    def sitelink_count(self, qid: str) -> int:
+        """How many language Wikipedia pages link to this QID.
+
+        A magnitude of fame, not just the binary "has any Wikidata page at
+        all" — Wikidata's notability bar is low enough that a two-line stub
+        for a locally-known founder and a global household name both clear
+        it, but only one of them is actually implausible as an intro bridge
+        (see config.UNREACHABLE_FAME_PENALTY / graph.connect.fame_penalty).
+        """
+        if not qid:
+            return 0
+        key = cache.make_key(self.name, "sitelinks", qid)
+        cached = cache.get(key)
+        if cached is not None:
+            return int(cached.get("n", 0))
+        query = (f"SELECT (COUNT(?sitelink) AS ?n) WHERE {{ "
+                 f"?sitelink schema:about wd:{qid} }}")
+        n = 0
+        rows = self._sparql(query, ["n"])
+        if rows:
+            try:
+                n = int(rows[0]["n"])
+            except (ValueError, KeyError):
+                n = 0
+        cache.set(key, "sitelinks", {"n": n}, config.CACHE_TTL_WIKI)
+        return n
 
     # --- what kind of thing is this org? ----------------------------------
     def org_kinds(self, org_qid: str) -> List[str]:

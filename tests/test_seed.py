@@ -24,7 +24,11 @@ def test_seed_direct_connections_adds_bryce_as_drews_instagram_mutual(db):
         RelationshipEdge.person_b_id.in_([drew.id, bryce.id])).count() == 1
     assert edge.relationship_type == "instagram_mutual"
     assert edge.structural is True
-    assert edge.warmth_tier == 1
+    # Tier 2, not 1: a reciprocal follow is a real ongoing tie, but it is not a
+    # relationship they built, and tier 1 rated it level with co-founding a
+    # company. It is also most of Drew's network (237 IG mutuals against 2
+    # cofounder edges), so rating it 1 mispriced his whole graph at once.
+    assert edge.warmth_tier == 2
 
     source = db.get(Source, edge.source_id)
     assert source.url == "https://www.instagram.com/brycent/"
