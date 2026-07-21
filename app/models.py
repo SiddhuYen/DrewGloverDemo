@@ -116,7 +116,9 @@ class RelationshipEdge(Base):
 
 
 class LocalProfile(Base):
-    """One row of an uploaded LinkedIn CSV (optional booster layer)."""
+    """One row of an uploaded LinkedIn CSV or one entry of a .vcf address book
+    (optional booster layers). `phones` carries the vCard `TEL` values; a
+    LinkedIn CSV leaves it empty."""
 
     __tablename__ = "local_profiles"
 
@@ -126,6 +128,7 @@ class LocalProfile(Base):
     aliases = Column(JSON, default=list)
     email = Column(String, nullable=True, index=True)
     linkedin_url = Column(String, nullable=True)
+    phones = Column(JSON, default=list)
     companies = Column(JSON, default=list)
     titles = Column(JSON, default=list)
     schools = Column(JSON, default=list)

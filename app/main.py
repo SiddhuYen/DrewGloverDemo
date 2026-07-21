@@ -25,6 +25,7 @@ from .db import SessionLocal, get_db, init_db
 from .graph.connect import _lookup, connect_people, discover
 from .graph.enrich import enrich_selected, get_enricher
 from .ingest.linkedin_csv import ingest_csv
+from .ingest.vcard import ingest_vcf
 from .ingest.seed import seed_drew
 from .models import Organization, Person, RelationshipEdge
 from .providers.serper import serper_status
@@ -254,6 +255,20 @@ async def upload_csv(file: UploadFile = File(...),
         content = raw.decode("latin-1")
     with _write_lock:
         return ingest_csv(db, content, owner_name=config.DEMO_SEED_NAME)
+
+
+@app.post("/network/vcf")
+async def upload_vcf(file: UploadFile = File(...),
+                     db: Session = Depends(get_db)) -> dict:
+    """Optional .vcf address book -> tier-1 edges from the demo seed. A nameless
+    number is resolved to its owner via Trestle (see app/ingest/vcard.py)."""
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        content = raw.decode("latin-1")
+    with _write_lock:
+        return ingest_vcf(db, content, owner_name=config.DEMO_SEED_NAME)
 
 
 # Enrichment selections are handed off by id rather than passed in the stream

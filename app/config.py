@@ -302,6 +302,27 @@ EDGAR_MIN_INTERVAL = float(os.environ.get("VCWI_EDGAR_MIN_INTERVAL", "0.2"))
 # latency-tuned defaults; either way the per-knob env vars still win.
 ACCURACY_FIRST = _flag("VCWI_ACCURACY_FIRST", "1")
 
+# --- Trestle reverse-phone lookup (vCard import ONLY) ----------------------
+# A .vcf address book can hold a saved number with no name attached. Trestle's
+# Reverse Phone API (https://trestleiq.com) resolves such a number to its
+# owner's name, so the contact still becomes a named first-degree node instead
+# of an anonymous one. Called ONCE per nameless contact, pay-per-lookup, and
+# cache-first so a re-import never re-spends. Absent key => the provider
+# no-ops and nameless numbers fall back to an "Unknown (<number>)" placeholder.
+# It never asserts a relationship — the vCard entry is the structural tie
+# (Rule 0); Trestle only supplies the label for a node the address book already
+# put in Drew's first degree.
+TRESTLE_API_KEY = os.environ.get("TRESTLE_API_KEY", "").strip()
+TRESTLE_ENDPOINT = os.environ.get(
+    "TRESTLE_ENDPOINT", "https://api.trestleiq.com/3.1/phone")
+TRESTLE_ENABLED = _flag("VCWI_TRESTLE_ENABLED", "1")
+# Default country hint for bare 10-digit numbers with no country code.
+TRESTLE_COUNTRY_HINT = os.environ.get("VCWI_TRESTLE_COUNTRY_HINT", "US")
+# Contacts don't churn; a resolved number stays resolved. Cache positive hits
+# for the standard TTL so repeat imports are free.
+TRESTLE_CACHE_TTL = int(os.environ.get("VCWI_TRESTLE_CACHE_TTL", str(CACHE_TTL)))
+TRESTLE_MIN_INTERVAL = float(os.environ.get("VCWI_TRESTLE_MIN_INTERVAL", "0.2"))
+
 # --- enrichment budget -----------------------------------------------------
 # Caps per enriched person, so one hub doesn't blow up the graph or the latency.
 MAX_FIRMS_PER_PERSON = int(os.environ.get("VCWI_MAX_FIRMS_PER_PERSON", "3"))

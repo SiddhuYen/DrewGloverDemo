@@ -607,7 +607,7 @@
   <nav class="tabs" role="tablist">
     <button class="tab" id="tab-connect"  role="tab" aria-selected="true"  onclick="mode('connect')">Connect</button>
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
-    <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import LinkedIn</button>
+    <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Import</button>
   </nav>
 
   <div class="row" id="search-row">
@@ -647,6 +647,15 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Phone contacts (.vcf) — the same tier-1 assertion as a LinkedIn row:
+         saving someone in your phone says you know them. A number saved with no
+         name is resolved to its owner automatically (see app/ingest/vcard.py). -->
+    <div class="drop" id="vdrop" style="margin-top:14px">
+      <input type="file" id="vcf" accept=".vcf,text/vcard" hidden>
+      <button type="button" onclick="document.getElementById('vcf').click()">Choose contacts .vcf</button>
+      <span class="dropnote">or drag an iPhone / iCloud vCard onto this box</span>
     </div>
 
     <!-- Populated by renderPicker() once a CSV import returns at least one
@@ -1699,6 +1708,58 @@ for (const ev of ['dragenter', 'dragover'])
 for (const ev of ['dragleave', 'drop'])
   drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); });
 drop.addEventListener('drop', e => uploadCsv(e.dataTransfer.files[0]));
+
+// --- Phone-contacts (.vcf) import (drop-zone variant) ----------------------
+// Mirrors uploadCsv() above and reuses the same picker: a vCard row is the same
+// tier-1 assertion as a LinkedIn one. /network/vcf returns the CSV shape plus
+// resolved_via_phone / unresolved (Trestle reverse-phone lookup for nameless
+// numbers — see app/ingest/vcard.py).
+async function uploadVcf(file){
+  const out = document.getElementById('out');
+  if (!file) return;
+  if (!/\.vcf$/i.test(file.name)){
+    out.innerHTML = '<div class="msg err"><b>That is not a vCard.</b><br>Export your address '
+      + 'book as a .vcf (iPhone → Contacts, or iCloud → Export vCard) and pick that file.</div>';
+    return;
+  }
+  out.innerHTML = `<div class="spin">Scanning ${esc(file.name)}…</div>`;
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/network/vcf', {method:'POST', body: fd});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    out.innerHTML = renderImportVcf(d);
+    IMPORTED = d.people || [];
+    renderPicker();
+  } catch(err){
+    const msg = (err instanceof TypeError)
+      ? '<b>Lost contact with the app.</b><br>Its window is probably closed.' : esc(err.message);
+    out.innerHTML = `<div class="msg err">${msg}</div>`;
+  }
+}
+
+function renderImportVcf(d){
+  if (d.error) return `<div class="msg err"><b>Could not read that file.</b><br>${esc(d.error)}</div>`;
+  const head = d.edges
+    ? `<div class="banner"><b>${d.edges} warm connection${d.edges === 1 ? '' : 's'} added.</b>
+         Tier 1, the warmest, because saving someone in your phone asserts you know them.</div>`
+    : `<div class="banner"><b>No connections were added.</b> That vCard had no readable contacts.</div>`;
+  return head + `<div class="stat">
+    <div><span class="k">edges</span><span class="v good">${d.edges || 0}</span></div>
+    <div><span class="k">people added</span><span class="v">${d.created || 0}</span></div>
+    <div><span class="k">named by phone</span><span class="v">${d.resolved_via_phone || 0}</span></div>
+    <div><span class="k">unresolved</span><span class="v">${d.unresolved || 0}</span></div>
+    <div><span class="k">rows skipped</span><span class="v">${d.skipped || 0}</span></div>
+  </div>`;
+}
+
+document.getElementById('vcf').addEventListener('change', e => uploadVcf(e.target.files[0]));
+const vdrop = document.getElementById('vdrop');
+for (const ev of ['dragenter', 'dragover'])
+  vdrop.addEventListener(ev, e => { e.preventDefault(); vdrop.classList.add('over'); });
+for (const ev of ['dragleave', 'drop'])
+  vdrop.addEventListener(ev, e => { e.preventDefault(); vdrop.classList.remove('over'); });
+vdrop.addEventListener('drop', e => uploadVcf(e.dataTransfer.files[0]));
 
 // Keep the import panel's seed name in step with the header's.
 (function(){ const a = document.getElementById('seed'), b = document.getElementById('seed2');
