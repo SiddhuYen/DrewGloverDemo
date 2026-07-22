@@ -8,14 +8,15 @@ State lives in a per-user, WRITABLE data directory (the app bundle is read-only)
   - graph.db    the relationship graph. Seeded on first run from the bundled
                 snapshot so the app opens warm.
   - cache.db    the provider cache, built up as the app runs.
-  - settings.json  the user's own Serper API key (entered in the UI), so live
-                search works without shipping anyone's key.
+  - settings.json  a key the user pastes into the Settings UI themselves,
+                overriding whatever's baked in below (Serper only — the
+                Claude key has no such UI anymore, see PR #15).
 
-The bundle ALSO ships a read-only resources/claude_key.txt, baked in at CI
-build time from a repo secret (see DESKTOP.md) — a real Anthropic key,
-spend-capped in the Anthropic Console so a worst-case extraction is bounded
-in dollars. Unlike settings.json this one is never written by the app;
-it's just read once at startup.
+The bundle ALSO ships two read-only, baked-in resources — resources/serper_key.txt
+and resources/claude_key.txt — both generated at CI build time from repo secrets
+(see DESKTOP.md), never written by the app, and only read once at startup. The
+Claude key is spend-capped in the Anthropic Console so a worst-case extraction
+is bounded in dollars.
 
 Env is set BEFORE `app` is imported, because app/config.py reads these at import.
 """
@@ -73,6 +74,21 @@ def _configure_env() -> Path:
             pass
     # tell the app where to persist a key the user types into the settings UI
     os.environ["VCWI_SETTINGS_FILE"] = str(settings)
+
+    # baked-in Serper key (mirrors the Claude key below): fills the gap so
+    # live search works from the first launch, without anyone pasting a key
+    # into Settings. Lowest precedence of the three sources on purpose — a
+    # key already read from settings.json above (the user's own, saved by the
+    # Settings UI) always wins, so pasting a personal key still overrides the
+    # baked-in default from then on.
+    baked_serper = _resource_dir() / "resources" / "serper_key.txt"
+    if baked_serper.exists() and "SERPER_API_KEY" not in os.environ:
+        try:
+            key = baked_serper.read_text().strip()
+            if key:
+                os.environ["SERPER_API_KEY"] = key
+        except Exception:
+            pass
 
     # baked-in Claude key (see module docstring). A dev env var, if already
     # set, wins — this only fills the gap in a built app.
