@@ -28,7 +28,7 @@ def test_prefers_the_warmer_route_over_the_shorter_one(db):
                           ("Drew Glover", "Bree Hanson", "Target Person")]
     builder.add_edge(db, drew, bree, "podcast_guest")
     builder.add_edge(db, bree, target, "podcast_guest")
-    builder.add_edge(db, drew, target, "co_speaker")   # direct but cold
+    builder.add_edge(db, drew, target, "notable_affiliation")   # direct but cold
 
     adj, _, _, _ = _adjacency(db)
     path = _best_path(adj, drew.id, target.id, config.hop_limit())
@@ -123,7 +123,7 @@ def test_adjacency_keeps_the_warmest_edge_per_pair(db):
     a, b = _p(db, "Drew Glover"), _p(db, "Alex Harris")
     src1 = builder.get_or_create_source(db, "https://example.com/one")
     src2 = builder.get_or_create_source(db, "https://example.com/two")
-    builder.add_edge(db, a, b, "co_speaker", source=src1)      # tier 5
+    builder.add_edge(db, a, b, "notable_affiliation", source=src1)  # tier 5
     builder.add_edge(db, a, b, "cofounder", source=src2)       # tier 1
 
     adj, _, _, _ = _adjacency(db)

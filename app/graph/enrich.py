@@ -26,6 +26,7 @@ from ..edges.names import is_noise_name, person_norm_key
 from ..models import Person
 from ..providers import llm_classify
 from ..providers.comention import CoMentionProvider
+from ..providers.events import EventsProvider
 from ..providers.edgar import EdgarProvider
 from ..providers.firms import FirmsProvider
 from ..providers.opencorporates import OpenCorporatesProvider
@@ -82,6 +83,7 @@ class Enricher:
         self.openalex = OpenAlexProvider()
         self.propublica = ProPublicaProvider()
         self.comention = CoMentionProvider(_search_provider())
+        self.events = EventsProvider(_search_provider())
         self._hint = ""
         # Per-target homonym-guard state, set by enrich_person for the explicit
         # search target only (frontier people are resolved by QID from claims,
@@ -654,6 +656,73 @@ class Enricher:
                             f"{created} guest edges")
         return created
 
+    def _from_events(self, db: Session, subject: Person,
+                     progress: Progress) -> int:
+        """Conferences/events whose lineup NAMES this person -> co_speaker edges.
+
+        Two structural assertions per event, mirroring the podcast host/guest
+        split:
+
+          * every OTHER speaker on the lineup -> `co_speaker` (tier 2), the same
+            warmth as a podcast sit-down. Materialized through `_absorb_org` with
+            org_type "event", so Rule 1 caps a mega-conference to no clique.
+          * the ORGANIZER (a named human) -> `speaker_via_organizer` (tier 3) to
+            EVERY speaker. This is the pivot that connects two speakers who
+            appeared at different times: speaker <-> organizer <-> speaker.
+
+        When no named human organizer is on the page, the co_speaker clique alone
+        remains (the different-time bridge is simply unavailable for that event).
+        """
+        events = self.events.events_for_person(subject.canonical_name,
+                                                hint=self._hint)
+        created = 0
+        for ev in events:
+            speakers = ev.get("speakers") or []
+            organizers = ev.get("organizers") or []
+            if len(speakers) < 2 and not organizers:
+                continue
+            source = builder.get_or_create_source(
+                db, ev.get("url") or "", title=ev.get("event", "event"),
+                provider="events")
+
+            # (a) the co-speaker clique — capped by Rule 1 inside _absorb_org.
+            if len(speakers) >= 2:
+                created += self._absorb_org(
+                    db, subject, ev.get("event") or "event", org_type="event",
+                    member_names=[s for s in speakers
+                                  if person_norm_key(s) != person_norm_key(subject.canonical_name)],
+                    member_count=len(speakers),
+                    relationship_type="co_speaker",
+                    source_url=ev.get("url") or "",
+                    source_title=ev.get("event", "event"),
+                    evidence=(f"Both listed as speakers at "
+                              f"{ev.get('event') or 'the same event'}."),
+                )
+
+            # (b) the organizer pivot — a tie from EVERY speaker (this subject
+            # included) to each named-human organizer. This is what bridges
+            # different-time speakers.
+            for org_name in organizers:
+                organizer = builder.get_or_create_person(db, org_name)
+                if organizer is None:
+                    continue
+                for spk_name in [subject.canonical_name] + speakers:
+                    spk = builder.get_or_create_person(db, spk_name)
+                    if spk is None or spk.id == organizer.id:
+                        continue
+                    edge = builder.add_edge(
+                        db, organizer, spk, "speaker_via_organizer", source=source,
+                        evidence=(f"{organizer.canonical_name} organized "
+                                  f"{ev.get('event') or 'the event'}, where "
+                                  f"{spk.canonical_name} spoke."))
+                    if edge is not None:
+                        created += 1
+
+        if created:
+            _note(progress, f"    events: {created} edges across "
+                            f"{len(events)} lineups")
+        return created
+
     def _absorb_roster(self, db: Session, subject: Person, roster: dict,
                        progress: Progress) -> int:
         firm = roster.get("firm") or ""
@@ -764,7 +833,7 @@ class Enricher:
                      self._from_opencorporates, self._from_openalex,
                      self._from_propublica, self._from_person_firms,
                      self._from_firm_rosters, self._from_podcasts,
-                     self._from_comention):
+                     self._from_events, self._from_comention):
             try:
                 total += step(db, subject, progress)
             except Exception as exc:  # one dead provider must not sink the run

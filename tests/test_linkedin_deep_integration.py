@@ -57,7 +57,7 @@ def test_imported_connection_beats_a_cold_direct_edge(db):
     drew, xavier, target = (_p(db, "Drew Glover"), _p(db, "Xavier Bridge"),
                             _p(db, "Target Person"))
     builder.add_edge(db, xavier, target, "linkedin_1st")   # X also knows target
-    builder.add_edge(db, drew, target, "co_speaker")       # cold direct tie
+    builder.add_edge(db, drew, target, "notable_affiliation")  # cold direct tie
 
     adj, _, _, _ = _adjacency(db)
     path = _best_path(adj, drew.id, target.id, config.hop_limit())

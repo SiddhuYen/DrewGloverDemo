@@ -69,6 +69,83 @@ def jsonld_names(html: str, schema_type: str = "Person") -> List[str]:
     return out
 
 
+def _names_under(node, out: list) -> None:
+    """Collect the `name` of every Person (or bare-name string) reachable from
+    `node` — used on the value of a role property like `performer`/`organizer`,
+    where every Person found IS in that role."""
+    if isinstance(node, dict):
+        types = node.get("@type", "")
+        types = types if isinstance(types, list) else [types]
+        # A role value is usually a Person, but some pages omit @type on the
+        # object and just give a name. Accept Person, or an untyped {name:...}.
+        if (("Person" in types or not any(types)) and isinstance(node.get("name"), str)):
+            out.append(node["name"].strip())
+    elif isinstance(node, list):
+        for item in node:
+            _names_under(item, out)
+    elif isinstance(node, str):
+        out.append(node.strip())
+
+
+def _walk_events(node, out: list) -> None:
+    """Find every schema.org Event and pull its speaker/organizer roles.
+
+    An event's page structurally asserts two different things, and they must not
+    be flattened together the way `jsonld_names(html, "Person")` would:
+      * `performer` (also `performers`, `actor`) — the people who SPOKE.
+      * `organizer` — the person/org that RAN it (the pivot that engaged every
+        speaker even when they spoke at different times).
+    A Person sitting elsewhere in the graph (an author byline, a testimonial)
+    is neither, and is deliberately ignored.
+    """
+    if isinstance(node, dict):
+        types = node.get("@type", "")
+        types = types if isinstance(types, list) else [types]
+        is_event = any(isinstance(t, str) and t.endswith("Event") for t in types)
+        if is_event:
+            speakers: list = []
+            for key in ("performer", "performers", "actor"):
+                if key in node:
+                    _names_under(node[key], speakers)
+            organizers: list = []
+            if "organizer" in node:
+                _names_under(node["organizer"], organizers)
+            out.append({
+                "name": (node.get("name") or "").strip() if isinstance(node.get("name"), str) else "",
+                "url": (node.get("url") or "").strip() if isinstance(node.get("url"), str) else "",
+                "start": (node.get("startDate") or "").strip() if isinstance(node.get("startDate"), str) else "",
+                "speakers": speakers,
+                "organizers": organizers,
+            })
+        for value in node.values():
+            _walk_events(value, out)
+    elif isinstance(node, list):
+        for item in node:
+            _walk_events(item, out)
+
+
+def event_roles(html: str) -> List[dict]:
+    """Every schema.org Event on the page, as
+    [{name, url, start, speakers[], organizers[]}].
+
+    A first-class structural assertion: the event DECLARES who performed and who
+    organized it, in machine-readable JSON-LD that survives JS rendering. Empty
+    when the page has no Event markup — the caller then has nothing to assert and
+    must yield no edges (Rule 0)."""
+    if not html or "ld+json" not in html:
+        return []
+    soup = soup_of(html)
+    events: List[dict] = []
+    for tag in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        raw = tag.string or tag.get_text() or ""
+        try:
+            data = json.loads(raw)
+        except Exception:
+            continue
+        _walk_events(data, events)
+    return events
+
+
 def text_blocks(html: str, max_chars: int = 80) -> List[str]:
     """Visible text of each DOM element, as SEPARATE strings.
 

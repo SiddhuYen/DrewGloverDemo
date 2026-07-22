@@ -386,3 +386,13 @@ MAX_PODCAST_APPEARANCES = int(os.environ.get("VCWI_MAX_PODCAST_APPEARANCES", "6"
 # guests, turning the host into the hub they are (Rogan interviewed Musk AND
 # Altman). Each is a separate asserted interview; caps the fan-out per feed.
 MAX_HOST_FEED_GUESTS = int(os.environ.get("VCWI_MAX_HOST_FEED_GUESTS", "60"))
+
+# --- events / conference speaker silo ---------------------------------------
+# How many event pages a person->events search will scrape. Each is one page
+# fetch + a JSON-LD parse.
+MAX_EVENTS_PER_PERSON = int(os.environ.get("VCWI_MAX_EVENTS_PER_PERSON", "4"))
+# A lineup larger than this is a mega-conference (thousands of attendees pass as
+# "speakers" on some pages); its speaker clique is NOT closeness, so like a
+# mega-firm it yields no speaker<->speaker edges — only the organizer pivot
+# survives. Kept at the Rule-1 org cap so both fan-out guards agree.
+MAX_EVENT_SPEAKERS = int(os.environ.get("VCWI_MAX_EVENT_SPEAKERS", "40"))
