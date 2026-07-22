@@ -637,7 +637,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
             missing = name_a if a is None else name_b
             return {"connected": False,
                     "reason": f"'{missing}' is not in the graph — no structured "
-                              f"source places them in the VC/startup network."}
+                              f"source places them in this network."}
         if a.id == b.id:
             return {"connected": False, "reason": "those are the same person"}
         routes, person_by_id, src_by_id, suggestion = _try_paths(db, a, b, include_weak)
@@ -740,7 +740,7 @@ def connect_people(db: Session, name_a: str, name_b: str,
         "warnings": [
             "Paths are built from structurally-asserted relationships and are "
             "unverified — confirm before requesting an intro.",
-            "Coverage is the VC/startup world, not the general public.",
+            "Coverage is public figures with structured records, not the general public.",
         ],
     }
 
