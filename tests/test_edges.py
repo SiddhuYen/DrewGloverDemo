@@ -96,7 +96,7 @@ def test_org_member_count_keeps_the_largest_observed(db):
 def test_warmer_tier_costs_strictly_less():
     costs = [taxonomy.edge_cost(rt) for rt in
              ("cofounder", "board_member", "investor_of",
-              "shared_portfolio", "co_speaker")]
+              "shared_portfolio", "notable_affiliation")]
     assert costs == sorted(costs)
     assert all(a < b for a, b in zip(costs, costs[1:]))
 

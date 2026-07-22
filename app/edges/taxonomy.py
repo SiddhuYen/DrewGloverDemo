@@ -63,6 +63,12 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     # interviewed them (never two guests of the same show). A genuine touch, but
     # a single conversation, so it sits below working relationships.
     "podcast_guest":      RelationshipSpec(2, "sat down together on the podcast", True),
+    # `co_speaker` connects two people whose names are on the SAME event lineup —
+    # they shared a stage. Deliberately the same warmth as a podcast sit-down (a
+    # real but light professional touch), and materialized only under the Rule-1
+    # cap so a mega-conference lineup implies no clique. Moved up from tier 5:
+    # sharing a stage is a genuine touch, not a "weak affiliation".
+    "co_speaker":         RelationshipSpec(2, "shared a stage at the same event", True),
 
     # --- tier 3: directional or periodic ----------------------------------
     "investor_of":        RelationshipSpec(3, "invested in their company", True),
@@ -72,6 +78,11 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "bandmate":           RelationshipSpec(3, "played in the same band", True),
     "teammate":           RelationshipSpec(3, "played on the same team", True),
     "co_inventor":        RelationshipSpec(3, "co-invented a patent", True),
+    # The organizer PIVOT: an event's organizer engaged every speaker, so two
+    # speakers who appeared at DIFFERENT times still connect through them
+    # (speaker <-> organizer <-> speaker). A shade weaker than sharing a stage,
+    # because it is a tie to the runner rather than a co-appearance.
+    "speaker_via_organizer": RelationshipSpec(3, "engaged by the same event's organizer", True),
 
     # --- tier 4: shared professional surface ------------------------------
     "shared_portfolio":   RelationshipSpec(4, "back the same portfolio company", True),
@@ -81,7 +92,6 @@ RELATIONSHIPS: Dict[str, RelationshipSpec] = {
     "co_star":            RelationshipSpec(4, "appeared in the same film/show", True),
 
     # --- tier 5: weak but still asserted ----------------------------------
-    "co_speaker":         RelationshipSpec(5, "spoke at the same event", True),
     "notable_affiliation": RelationshipSpec(5, "share a documented affiliation", True),
 
     # --- tier 6: OPT-IN weak co-occurrence (NOT Rule-0 structural) ---------
