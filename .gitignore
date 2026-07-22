@@ -35,3 +35,4 @@ data/*_unenriched_queue.json
 # generated at CI build time from a repo secret — never committed, never
 # present locally unless you've built the desktop app yourself
 resources/claude_key.txt
+resources/serper_key.txt

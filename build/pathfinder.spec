@@ -24,6 +24,13 @@ claude_key_file = os.path.join(ROOT, "resources", "claude_key.txt")
 if os.path.exists(claude_key_file):
     datas += [(claude_key_file, "resources")]
 
+# same pattern, same reason, for Serper: baked in by CI from a repo secret so
+# live search works with no setup. Absent locally -> desktop/main.py finds no
+# file and live search just stays off until a key is pasted into Settings.
+serper_key_file = os.path.join(ROOT, "resources", "serper_key.txt")
+if os.path.exists(serper_key_file):
+    datas += [(serper_key_file, "resources")]
+
 # spaCy + the English model (+ its native-lib dependency chain)
 for pkg in ("spacy", "en_core_web_sm", "thinc", "srsly", "catalogue", "cymem",
             "preshed", "blis", "wasabi", "spacy_legacy", "spacy_loggers",

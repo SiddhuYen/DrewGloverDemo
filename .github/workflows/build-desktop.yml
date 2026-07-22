@@ -57,6 +57,20 @@ jobs:
             echo "CLAUDE_API_KEY secret not set — building without a baked key"
           fi
 
+      # Same pattern, same reason, for Serper: live search otherwise stays off
+      # until someone pastes a key into Settings. Skipped (writes nothing) if
+      # the secret isn't set, same graceful no-op as any other missing key.
+      - name: Bake in the Serper API key
+        shell: bash
+        env:
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        run: |
+          if [ -n "$SERPER_API_KEY" ]; then
+            printf '%s' "$SERPER_API_KEY" > resources/serper_key.txt
+          else
+            echo "SERPER_API_KEY secret not set — building without a baked key"
+          fi
+
       - name: Build with PyInstaller
         run: pyinstaller build/pathfinder.spec --noconfirm --distpath dist --workpath build/work
 
