@@ -292,7 +292,14 @@
   .person.warm .dot{background:var(--warm);box-shadow:0 0 0 4px rgba(251,146,60,.22)}
   .star{color:var(--star);display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600}
   .star svg{width:13px;height:13px;fill:currentColor}
-  .link{margin-left:5px;padding:2px 0 12px 16px;border-left:2px solid var(--hair)}
+  /* Padding is deliberately front-loaded (14px top / 2px bottom), not the
+     even/back-loaded split this had before: paired with .person's 8px
+     vertical padding, that put this ~10px from the person ABOVE it and ~20px
+     from the person BELOW — visually grouping "why they're connected" with
+     the wrong end of the tie it describes. Flipped, it now sits close (tight)
+     to the person it leads INTO and clearly separated from the one it leads
+     away from, matching the "A → B" text inside it. */
+  .link{margin-left:5px;padding:14px 0 2px 16px;border-left:2px solid var(--hair)}
 
   /* An unusable route is muted, not hidden — you asked to still see it. Muted
      rather than red: this is "don't bother", not "something went wrong". */
@@ -1334,12 +1341,18 @@ document.addEventListener('webkitfullscreenchange', () => {
 function renderPaths(d){
   if (!d.connected) return `<div class="msg err"><b>No warm path found.</b><br>${esc(d.reason)}</div>`;
   return d.paths.map((p, i) => {
-    const hops = p.path.map(n => {
+    const hops = p.path.map((n, idx) => {
+      // Names both ends of the tie, not just the tier/why — this block sits
+      // between two person-rows, and without them it reads as a caption on
+      // whichever row it happens to be visually closest to (see the .link
+      // padding below) rather than what it actually is: the reason THIS
+      // specific pair is connected.
+      const from = idx > 0 ? esc(p.path[idx - 1].label) : '';
       const link = n.relationship_from_prev ? `
         <div class="link">
           <div class="why">
             <span class="tier t${n.warmth_tier}">tier ${n.warmth_tier}</span>
-            <span>${esc(n.why)}</span>
+            <span><b>${from}</b> &rarr; <b>${esc(n.label)}</b> — ${esc(n.why)}</span>
           </div>
           ${n.evidence_snippet ? `<div class="ev">"${esc(n.evidence_snippet)}"</div>` : ''}
           ${n.source_url ? `<div class="src"><a href="${esc(n.source_url)}" target="_blank" rel="noopener">${esc(n.source_url)}</a></div>` : ''}
