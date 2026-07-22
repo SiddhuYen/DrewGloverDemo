@@ -554,7 +554,7 @@
       </div>
     </div>
     <div class="hv-hud-right">
-      <button class="gear" onclick="toggleSettings()" title="Settings" aria-label="Settings">
+      <button class="gear" id="settingsBtn" onclick="toggleSettings()" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"></circle>
@@ -583,10 +583,6 @@
       <input id="serperKey" type="password" placeholder="paste your Serper API key" autocomplete="off">
       <button onclick="saveKey()">Save</button>
     </div>
-    <label style="display:flex;gap:10px;align-items:center;margin-top:14px;cursor:pointer;font-size:14px;color:var(--muted)">
-      <input type="checkbox" id="deepSearch" onchange="saveDeep()" style="flex:none;min-width:0;padding:0">
-      <span><b style="color:var(--color-primary-hover)">Deep search</b> makes live search aggressive: it mines a denser neighborhood around new targets, uses much more Serper quota, and adds weaker "co-mention" links (labeled).</span>
-    </label>
     <div id="quotaWrap" style="margin-top:14px;display:none">
       <div class="prophd" id="quotaHd">SERPER QUOTA</div>
       <div style="display:flex;align-items:center">
@@ -609,6 +605,19 @@
     <button class="tab" id="tab-discover" role="tab" aria-selected="false" onclick="mode('discover')">Discover</button>
     <button class="tab" id="tab-import"   role="tab" aria-selected="false" onclick="mode('import')">Update LinkedIn</button>
   </nav>
+
+  <!-- A search-behavior preference, not a credential — visible without
+       digging into Settings, unlike the (now key-gated) panel below. -->
+  <div id="deep-toggle-row" style="display:flex;align-items:center;gap:10px;margin:14px 0 2px">
+    <label style="display:flex;gap:10px;align-items:center;cursor:pointer;font-size:13.5px;color:var(--muted)">
+      <input type="checkbox" id="deepSearch" onchange="saveDeep()" style="flex:none;min-width:0;padding:0">
+      <span><b style="color:var(--color-primary-hover)">Deep search</b></span>
+    </label>
+    <button class="help" onclick="toggleHelp(this)" aria-label="About Deep search">?</button>
+  </div>
+  <div class="help-body" id="deep-toggle-help"><p>Searches more broadly for people not yet in the graph: mines a denser
+    neighborhood around new targets and adds weaker "co-mention" links (labeled). Slower. Turn on
+    if a search for a lesser-known person comes back empty.</p></div>
 
   <div class="row" id="search-row">
     <input id="q" placeholder="Who do you want to reach? e.g. Charles Hudson" autocomplete="off">
@@ -719,6 +728,8 @@ function mode(m){
   const importing = (m === 'import');
   document.getElementById('search-row').hidden = importing;
   document.getElementById('ctx-row').hidden = importing || !CTX_SUPPORTED.has(m);
+  document.getElementById('deep-toggle-row').hidden = importing;
+  document.getElementById('deep-toggle-help').hidden = importing;
   document.getElementById('importpanel').hidden = !importing;
   document.getElementById('what-banner').hidden = importing;
   document.getElementById('out').innerHTML = '';
@@ -1710,7 +1721,14 @@ drop.addEventListener('drop', e => uploadCsv(e.dataTransfer.files[0]));
     DEEP_ON = !!s.deep_search;
     document.getElementById('deepSearch').checked = !!s.deep_search;
     refreshQuota();
-    if (!s.serper_configured) {
+    // A key already configured (baked in at build time, or saved from a
+    // previous paste) means there is nothing left for this panel to do —
+    // hide the gear entirely rather than leave a button that opens onto an
+    // API-key box nobody using this build needs to know exists. Only a
+    // build with NO key at all still shows it, as the way to add one.
+    if (s.serper_configured) {
+      document.getElementById('settingsBtn').hidden = true;
+    } else {
       document.getElementById('settings').style.display = 'block';
     }
   } catch(e){}
