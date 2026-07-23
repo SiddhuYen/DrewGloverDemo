@@ -55,9 +55,17 @@ def _configure_env() -> Path:
     data = _data_dir()
     graph = data / "graph.db"
     if not graph.exists():
+        # The bundled snapshot ships gzipped (resources/graph.db.gz): the
+        # enriched graph is >100MB raw, over GitHub's per-file cap. Prefer the
+        # compressed artifact; fall back to a raw .db if a dev build dropped one.
         seed = _resource_dir() / "resources" / "graph.db"
+        seed_gz = _resource_dir() / "resources" / "graph.db.gz"
         if seed.exists():
             shutil.copy(seed, graph)      # open warm on first run
+        elif seed_gz.exists():
+            import gzip
+            with gzip.open(seed_gz, "rb") as fsrc, open(graph, "wb") as fdst:
+                shutil.copyfileobj(fsrc, fdst)
     os.environ["VCWI_DB_URL"] = f"sqlite:///{graph}"
     os.environ["VCWI_CACHE_DB"] = str(data / "cache.db")
 

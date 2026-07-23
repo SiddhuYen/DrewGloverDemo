@@ -10,9 +10,14 @@ ROOT = os.path.dirname(os.path.abspath(SPECPATH))  # noqa: F821 (PyInstaller glo
 
 datas, binaries, hiddenimports = [], [], []
 
-# our own code + assets
+# our own code + assets. The graph snapshot ships gzipped (resources/graph.db.gz)
+# — the enriched graph is >100MB raw, over GitHub's per-file cap; desktop/main.py
+# decompresses it into the writable data dir on first run. Bundle whichever the
+# build produced (a raw .db from an older local build still works).
+_graph_db = os.path.join(ROOT, "resources/graph.db")
+_graph_gz = os.path.join(ROOT, "resources/graph.db.gz")
 datas += [(os.path.join(ROOT, "app/static"), "app/static"),
-          (os.path.join(ROOT, "resources/graph.db"), "resources")]
+          (_graph_db if os.path.exists(_graph_db) else _graph_gz, "resources")]
 hiddenimports += collect_submodules("app")
 hiddenimports += ["app.main"]
 

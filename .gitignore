@@ -26,8 +26,12 @@ data/x_mutuals.progress.json
 data/*_unenriched.csv
 data/*_unenriched_queue.json
 
-# the bundled pre-built graph snapshot the desktop app ships (CI needs it)
-!resources/graph.db
+# the bundled pre-built graph snapshot the desktop app ships. Committed GZIPPED
+# (resources/graph.db.gz) because the enriched graph is >100MB raw, over
+# GitHub's per-file cap; desktop/main.py + the devcontainer decompress it on
+# first run. The raw .db stays ignored (*.db above); only the .gz is committed.
+resources/graph.db
+!resources/graph.db.gz
 /build/work/
 /build/*.toc
 /dist/
